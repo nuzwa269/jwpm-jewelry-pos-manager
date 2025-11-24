@@ -1,91 +1,152 @@
 <?php
+/**
+ * JWPM_Assets
+ *
+ * یہ کلاس (admin) سائیڈ پر تمام (JS) اور (CSS) اسٹس کو رجسٹر اور لوڈ کرتی ہے۔
+ * اسی میں ہم گلوبل (jwpmCommon) اور پیج اسپیسفک ڈیٹا (nonces وغیرہ) بھی (localize) کریں گے۔
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
-    exit;
+	exit;
 }
 
 class JWPM_Assets {
 
-    public function __construct() {
-        // ایڈمن میں Assets لوڈ کریں
-        add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
+	/**
+	 * (admin_enqueue_scripts) ہُک سے کال ہونے والا فنکشن
+	 *
+	 * @param string $hook موجودہ ایڈمن پیج ہُک۔
+	 */
+	public static function enqueue_admin_assets( $hook ) {
 
-        // اگر فرنٹ اینڈ پر بھی لوڈ کرنا ہو:
-        // add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
-    }
+		// صرف ہمارے (JWPM) کے مینو پیجز پر لوڈ ہو:
+		if ( strpos( $hook, 'jwpm-' ) === false ) {
+			return;
+		}
 
-    /**
-     * ایڈمن پینل کے لیے CSS اور JS فائلیں لوڈ کرتا ہے
-     *
-     * @param string $hook موجودہ ایڈمن پیج کا ہک
-     */
-    public function enqueue_admin_assets( $hook ) {
+		$version = defined( 'JWPM_VERSION' ) ? JWPM_VERSION : time();
 
-        /*
-        |--------------------------------------------------------------------------
-        | Common Files — ہر ایڈمن پیج پر لوڈ ہوں گی
-        |--------------------------------------------------------------------------
-        */
+		// 🟢 یہاں سے [Common Assets] شروع ہو رہا ہے
+		// (CSS)
+		wp_register_style(
+			'jwpm-common-css',
+			JWPM_PLUGIN_URL . 'jwpm-common.css',
+			array(),
+			$version
+		);
 
-        wp_enqueue_style(
-            'jwpm-common-style',
-            JWPM_PLUGIN_URL . 'jwpm-common.css',
-            array(),
-            JWPM_VERSION
-        );
+		wp_enqueue_style( 'jwpm-common-css' );
 
-        wp_enqueue_script(
-            'jwpm-common-script',
-            JWPM_PLUGIN_URL . 'jwpm-common.js',
-            array( 'jquery' ),
-            JWPM_VERSION,
-            true
-        );
+		// (JS)
+		wp_register_script(
+			'jwpm-common-js',
+			JWPM_PLUGIN_URL . 'jwpm-common.js',
+			array( 'jquery' ),
+			$version,
+			true
+		);
 
-        // JS میں متغیرات بھیجنا (nonce + messages)
-        wp_localize_script(
-            'jwpm-common-script',
-            'jwpm_common_vars',
-            array(
-                'nonce'           => wp_create_nonce( 'jwpm_nonce' ),
-                'confirm_message' => __( 'Are you sure you want to delete this item?', 'jwpm-jewelry-pos-manager' ),
-            )
-        );
+		wp_enqueue_script( 'jwpm-common-js' );
 
-        /*
-        |--------------------------------------------------------------------------
-        | Page-Specific Files
-        |--------------------------------------------------------------------------
-        */
+		// گلوبل (localize) آبجیکٹ
+		$global_data = array(
+			'ajax_url'      => admin_url( 'admin-ajax.php' ),
+			'nonce_common'  => wp_create_nonce( 'jwpm_common_nonce' ),
+			'plugin_url'    => JWPM_PLUGIN_URL,
+			'current_user'  => get_current_user_id(),
+			'current_time'  => current_time( 'mysql' ),
+			'i18n'          => array(
+				'error_generic' => __( 'Unexpected error occurred. Please try again.', 'jwpm-jewelry-pos-manager' ),
+				'saving'        => __( 'Saving...', 'jwpm-jewelry-pos-manager' ),
+				'loading'       => __( 'Loading...', 'jwpm-jewelry-pos-manager' ),
+			),
+		);
 
-        // صرف POS پیج کے لیے
-        if ( 'toplevel_page_jwpm-pos' === $hook ) {
+		wp_localize_script(
+			'jwpm-common-js',
+			'jwpmCommon',
+			$global_data
+		);
+		// 🔴 یہاں پر [Common Assets] ختم ہو رہا ہے
 
-            wp_enqueue_style(
-                'jwpm-pos-style',
-                JWPM_PLUGIN_URL . 'assets/css/jwpm-pos.css',
-                array(),
-                JWPM_VERSION
-            );
+		// اب دیکھتے ہیں کون سا پیج کھلا ہوا ہے تاکہ متعلقہ (JS/CSS) لوڈ کریں۔
+		$screen = get_current_screen();
+		if ( ! $screen ) {
+			return;
+		}
 
-            wp_enqueue_script(
-                'jwpm-pos-script',
-                JWPM_PLUGIN_URL . 'assets/js/jwpm-pos.js',
-                array( 'jquery', 'jwpm-common-script' ),
-                JWPM_VERSION,
-                true
-            );
-        }
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
-        // دوسرے پیجز کے لیے مثال:
-        // if ( 'jewelry-pos_page_jwpm-inventory' === $hook ) {
-        //     wp_enqueue_style( ... );
-        //     wp_enqueue_script( ... );
-        // }
-    }
+		// 🟢 یہاں سے [Inventory Page Assets] شروع ہو رہا ہے
+		if ( 'jwpm-inventory' === $page ) {
 
-    // اگر فرنٹ اینڈ پر بھی Assets لوڈ کرنا ہوں تو:
-    // public function enqueue_frontend_assets() {
-    //     // wp_enqueue_style( ... );
-    //     // wp_enqueue_script( ... );
-    // }
+			// پیج اسپیسفک (CSS)
+			wp_register_style(
+				'jwpm-inventory-css',
+				JWPM_PLUGIN_URL . 'assets/css/jwpm-inventory.css',
+				array( 'jwpm-common-css' ),
+				$version
+			);
+			wp_enqueue_style( 'jwpm-inventory-css' );
+
+			// پیج اسپیسفک (JS)
+			wp_register_script(
+				'jwpm-inventory-js',
+				JWPM_PLUGIN_URL . 'assets/js/jwpm-inventory.js',
+				array( 'jwpm-common-js', 'jquery' ),
+				$version,
+				true
+			);
+			wp_enqueue_script( 'jwpm-inventory-js' );
+
+			// انوینٹری کے لیے خاص (nonce + settings)
+			$inventory_data = array(
+				'nonce'          => wp_create_nonce( 'jwpm_inventory_nonce' ),
+				'page'           => $page,
+				'list_action'    => 'jwpm_inventory_list_items',
+				'save_action'    => 'jwpm_inventory_save_item',
+				'delete_action'  => 'jwpm_inventory_delete_item',
+				'import_action'  => 'jwpm_inventory_import_items',
+				'export_action'  => 'jwpm_inventory_export_items',
+				'demo_action'    => 'jwpm_inventory_demo_items',
+				'per_page'       => 50,
+				'default_branch' => self::get_default_branch_id(),
+			);
+
+			wp_localize_script(
+				'jwpm-inventory-js',
+				'jwpmInventoryData',
+				$inventory_data
+			);
+		}
+		// 🔴 یہاں پر [Inventory Page Assets] ختم ہو رہا ہے
+	}
+
+	/**
+	 * ڈیفالٹ برانچ حاصل کرنے کے لیے ہیلپر
+	 *
+	 * @return int
+	 */
+	protected static function get_default_branch_id() {
+		global $wpdb;
+
+		$tables = JWPM_DB::get_table_names();
+
+		$branch_id = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			"SELECT id FROM {$tables['branches']} WHERE is_default = 1 ORDER BY id ASC LIMIT 1"
+		);
+
+		if ( $branch_id > 0 ) {
+			return $branch_id;
+		}
+
+		// اگر کوئی ڈیفالٹ برانچ نہیں، پہلے والی برانچ لے لیں
+		$branch_id = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			"SELECT id FROM {$tables['branches']} ORDER BY id ASC LIMIT 1"
+		);
+
+		return $branch_id > 0 ? $branch_id : 0;
+	}
 }
+
+// ✅ Syntax verified block end
