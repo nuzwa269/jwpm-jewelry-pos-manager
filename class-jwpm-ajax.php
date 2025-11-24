@@ -361,3 +361,261 @@ class JWPM_Ajax {
 }
 
 // ✅ Syntax verified block end
+<?php
+/** Part 2 — POS AJAX handlers (search items, gold rate, customer search, complete sale placeholder)
+ *
+ * یہ بلاک (POS / Sales) کے لیے الگ AJAX اینڈ پوائنٹس فراہم کرتا ہے:
+ * - jwpm_pos_search_items
+ * - jwpm_pos_get_gold_rate
+ * - jwpm_pos_search_customer
+ * - jwpm_pos_complete_sale (فی الحال placeholder)
+ *
+ * ہر اینڈ پوائنٹ میں (nonce) اور (capability) چیک لازمی ہے۔
+ */
+
+/**
+ * مشترکہ Access چیک برائے POS
+ *
+ * @param string $nonce_action
+ */
+function jwpm_pos_check_access( $nonce_action ) {
+
+	check_ajax_referer( $nonce_action, 'security' );
+
+	if ( ! current_user_can( 'manage_jwpm_sales' ) ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'You do not have permission to perform this POS action.', 'jwpm-jewelry-pos-manager' ),
+			),
+			403
+		);
+	}
+}
+
+/**
+ * POS: انوینٹری آئٹمز سرچ (Left Pane Product Search)
+ *
+ * Expected POST:
+ * - security (nonce)
+ * - keyword (name/sku/tag)
+ * - category
+ * - karat
+ * - branch_id
+ */
+function jwpm_pos_search_items() {
+	jwpm_pos_check_access( 'jwpm_pos_nonce' );
+
+	global $wpdb;
+
+	if ( ! class_exists( 'JWPM_DB' ) ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'Database helper not available.', 'jwpm-jewelry-pos-manager' ),
+			),
+			500
+		);
+	}
+
+	$tables = JWPM_DB::get_table_names();
+
+	$keyword   = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
+	$category  = isset( $_POST['category'] ) ? sanitize_text_field( wp_unslash( $_POST['category'] ) ) : '';
+	$karat     = isset( $_POST['karat'] ) ? sanitize_text_field( wp_unslash( $_POST['karat'] ) ) : '';
+	$branch_id = isset( $_POST['branch_id'] ) ? (int) $_POST['branch_id'] : 0;
+
+	$where  = 'WHERE status != %s';
+	$params = array( 'scrap' );
+
+	if ( $branch_id > 0 ) {
+		$where   .= ' AND branch_id = %d';
+		$params[] = $branch_id;
+	}
+
+	if ( $keyword !== '' ) {
+		$like     = '%' . $wpdb->esc_like( $keyword ) . '%';
+		$where   .= ' AND (sku LIKE %s OR tag_serial LIKE %s OR category LIKE %s OR design_no LIKE %s)';
+		$params[] = $like;
+		$params[] = $like;
+		$params[] = $like;
+		$params[] = $like;
+	}
+
+	if ( $category !== '' ) {
+		$where   .= ' AND category = %s';
+		$params[] = $category;
+	}
+
+	if ( $karat !== '' ) {
+		$where   .= ' AND karat = %s';
+		$params[] = $karat;
+	}
+
+	$sql = "SELECT id, branch_id, sku, tag_serial, category, metal_type, karat, gross_weight, net_weight, stone_type, status
+	        FROM {$tables['items']}
+			{$where}
+			ORDER BY created_at DESC
+			LIMIT 30";
+
+	$rows = $wpdb->get_results( $wpdb->prepare( $sql, $params ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+	$items = array();
+
+	if ( ! empty( $rows ) ) {
+		foreach ( $rows as $row ) {
+			$items[] = array(
+				'id'           => (int) $row['id'],
+				'branch_id'    => (int) $row['branch_id'],
+				'sku'          => $row['sku'],
+				'tag_serial'   => $row['tag_serial'],
+				'category'     => $row['category'],
+				'metal_type'   => $row['metal_type'],
+				'karat'        => $row['karat'],
+				'gross_weight' => (float) $row['gross_weight'],
+				'net_weight'   => (float) $row['net_weight'],
+				'stone_type'   => $row['stone_type'],
+				'status'       => $row['status'],
+			);
+		}
+	}
+
+	wp_send_json_success(
+		array(
+			'items' => $items,
+		)
+	);
+}
+add_action( 'wp_ajax_jwpm_pos_search_items', 'jwpm_pos_search_items' );
+
+/**
+ * POS: گولڈ ریٹ لوڈ کرنا
+ *
+ * یہ فی الحال سادہ ورژن ہے:
+ * - پہلے (jwpm_settings) ٹیبل میں option_name = 'gold_rate_24k' تلاش کرے گا
+ * - اگر نہ ملے تو 0 واپس کرے گا
+ */
+function jwpm_pos_get_gold_rate() {
+	jwpm_pos_check_access( 'jwpm_pos_nonce' );
+
+	global $wpdb;
+
+	if ( ! class_exists( 'JWPM_DB' ) ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'Database helper not available.', 'jwpm-jewelry-pos-manager' ),
+			),
+			500
+		);
+	}
+
+	$tables = JWPM_DB::get_table_names();
+
+	$sql = "SELECT option_value FROM {$tables['settings']} WHERE option_name = %s LIMIT 1";
+	$val = $wpdb->get_var( $wpdb->prepare( $sql, array( 'gold_rate_24k' ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+	$rate = 0;
+	if ( ! empty( $val ) ) {
+		$decoded = maybe_unserialize( $val );
+		if ( is_numeric( $decoded ) ) {
+			$rate = (float) $decoded;
+		} elseif ( is_array( $decoded ) && isset( $decoded['value'] ) ) {
+			$rate = (float) $decoded['value'];
+		}
+	}
+
+	wp_send_json_success(
+		array(
+			'rate' => $rate,
+		)
+	);
+}
+add_action( 'wp_ajax_jwpm_pos_get_gold_rate', 'jwpm_pos_get_gold_rate' );
+
+/**
+ * POS: کسٹمر سرچ (فون / نام کے ذریعے)
+ *
+ * Expected POST:
+ * - security
+ * - keyword
+ */
+function jwpm_pos_search_customer() {
+	jwpm_pos_check_access( 'jwpm_pos_nonce' );
+
+	global $wpdb;
+
+	if ( ! class_exists( 'JWPM_DB' ) ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'Database helper not available.', 'jwpm-jewelry-pos-manager' ),
+			),
+			500
+		);
+	}
+
+	$tables  = JWPM_DB::get_table_names();
+	$keyword = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
+
+	if ( '' === $keyword ) {
+		wp_send_json_success(
+			array(
+				'customers' => array(),
+			)
+		);
+	}
+
+	$like = '%' . $wpdb->esc_like( $keyword ) . '%';
+
+	$sql = "SELECT id, name, phone, email, loyalty_points
+	        FROM {$tables['customers']}
+			WHERE phone LIKE %s OR name LIKE %s
+			ORDER BY created_at DESC
+			LIMIT 20";
+
+	$rows = $wpdb->get_results( $wpdb->prepare( $sql, array( $like, $like ) ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+	$customers = array();
+
+	if ( ! empty( $rows ) ) {
+		foreach ( $rows as $row ) {
+			$customers[] = array(
+				'id'             => (int) $row['id'],
+				'name'           => $row['name'],
+				'phone'          => $row['phone'],
+				'email'          => $row['email'],
+				'loyalty_points' => (int) $row['loyalty_points'],
+			);
+		}
+	}
+
+	wp_send_json_success(
+		array(
+			'customers' => $customers,
+		)
+	);
+}
+add_action( 'wp_ajax_jwpm_pos_search_customer', 'jwpm_pos_search_customer' );
+
+/**
+ * POS: سیل مکمل کرنا — فی الحال placeholder
+ *
+ * Expected POST (Future design):
+ * - security
+ * - cart_items (JSON)
+ * - customer_id / guest info
+ * - payment details
+ * - installment meta (optional)
+ *
+ * ابھی کے لیے صرف Not Implemented واپس کرے گا تاکہ JS کو صحیح Response Structure ملے۔
+ */
+function jwpm_pos_complete_sale() {
+	jwpm_pos_check_access( 'jwpm_pos_nonce' );
+
+	wp_send_json_error(
+		array(
+			'message' => __( 'Complete sale is not implemented yet. Backend logic pending.', 'jwpm-jewelry-pos-manager' ),
+		),
+		501
+	);
+}
+add_action( 'wp_ajax_jwpm_pos_complete_sale', 'jwpm_pos_complete_sale' );
+
+// ✅ Syntax verified block end
