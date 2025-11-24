@@ -150,3 +150,92 @@ class JWPM_Assets {
 }
 
 // ✅ Syntax verified block end
+<?php
+/** Part 2 — POS page assets and localized data
+ *
+ * یہ بلاک (POS / Sales) پیج کے لیے الگ (JS) اور (CSS) لوڈ کرتا ہے
+ * اور (jwpmPosData) کے نام سے ضروری (AJAX) ایکشنز اور (nonce) کو (localize) کرتا ہے۔
+ */
+
+/**
+ * POS اسٹس لوڈر
+ *
+ * @param string $hook موجودہ ایڈمن پیج ہُک۔
+ */
+function jwpm_enqueue_pos_assets( $hook ) {
+
+	// صرف ہمارے (JWPM) کے پیجز پر چلائیں
+	if ( strpos( $hook, 'jwpm-' ) === false ) {
+		return;
+	}
+
+	$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+	if ( 'jwpm-pos' !== $page ) {
+		return;
+	}
+
+	$version = defined( 'JWPM_VERSION' ) ? JWPM_VERSION : time();
+
+	// 🟢 یہاں سے [POS Assets] شروع ہو رہا ہے
+
+	// POS اسٹائل
+	wp_register_style(
+		'jwpm-pos-css',
+		JWPM_PLUGIN_URL . 'assets/css/jwpm-pos.css',
+		array( 'jwpm-common-css' ),
+		$version
+	);
+	wp_enqueue_style( 'jwpm-pos-css' );
+
+	// POS اسکرپٹ
+	wp_register_script(
+		'jwpm-pos-js',
+		JWPM_PLUGIN_URL . 'assets/js/jwpm-pos.js',
+		array( 'jwpm-common-js', 'jquery' ),
+		$version,
+		true
+	);
+	wp_enqueue_script( 'jwpm-pos-js' );
+
+	// ڈیفالٹ برانچ
+	if ( class_exists( 'JWPM_DB' ) ) {
+		$tables = JWPM_DB::get_table_names();
+		global $wpdb;
+
+		$default_branch = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			"SELECT id FROM {$tables['branches']} WHERE is_default = 1 ORDER BY id ASC LIMIT 1"
+		);
+
+		if ( $default_branch <= 0 ) {
+			$default_branch = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+				"SELECT id FROM {$tables['branches']} ORDER BY id ASC LIMIT 1"
+			);
+		}
+	} else {
+		$default_branch = 0;
+	}
+
+	// POS کے لیے خاص (AJAX + Nonce + Settings)
+	$pos_data = array(
+		'nonce'                   => wp_create_nonce( 'jwpm_pos_nonce' ),
+		'page'                    => $page,
+		'default_branch'          => $default_branch,
+		'currency_symbol'         => get_woocommerce_currency_symbol() ?: 'Rs',
+		'search_items_action'     => 'jwpm_pos_search_items',
+		'gold_rate_action'        => 'jwpm_pos_get_gold_rate',
+		'search_customer_action'  => 'jwpm_pos_search_customer',
+		'complete_sale_action'    => 'jwpm_pos_complete_sale',
+	);
+
+	wp_localize_script(
+		'jwpm-pos-js',
+		'jwpmPosData',
+		$pos_data
+	);
+
+	// 🔴 یہاں پر [POS Assets] ختم ہو رہا ہے
+}
+add_action( 'admin_enqueue_scripts', 'jwpm_enqueue_pos_assets' );
+
+// ✅ Syntax verified block end
