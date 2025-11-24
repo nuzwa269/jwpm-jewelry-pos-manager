@@ -1,300 +1,333 @@
 <?php
 /**
- * Plugin Name: JWPM – Jewelry POS Manager
- * Description: Jewelry POS Management System for inventory, sales, customers, accounts and reporting inside WordPress (wp-admin).
- * Version: 1.0.0
- * Author: Your Name
- * Text Domain: jwpm-jewelry-pos-manager
+ * POS Page — JWPM
+ * Summary:
+ * - Root container
+ * - Top header (Urdu + English)
+ * - Mini stats row
+ * - 3-column POS workspace (Left Search, Center Cart, Right Customer/Payment)
+ * - Bottom Sticky Action Bar
+ * - All templates for JS mounting
  */
-
-// یہ فائل پلگ اِن کا مین انٹری پوائنٹ ہے، یہاں سے تمام کلاسز، (hooks)، (menus) اور (assets) لوڈ ہوں گے۔
-// نیچے ہم کانسٹنٹس، کلاس (includes)، ایکٹیویشن ہُکس اور ایڈمن (menus) رجسٹر کر رہے ہیں۔
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/**
- * بنیادی کانسٹنٹس
- */
-define( 'JWPM_VERSION', '1.0.0' );
-define( 'JWPM_DB_VERSION', '1.0.0' );
-define( 'JWPM_PLUGIN_FILE', __FILE__ );
-define( 'JWPM_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
-define( 'JWPM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+?>
 
-/**
- * ضروری کلاس فائلز لوڈ کریں
- */
-require_once JWPM_PLUGIN_DIR . 'class-jwpm-activator.php';
-require_once JWPM_PLUGIN_DIR . 'class-jwpm-db.php';
-require_once JWPM_PLUGIN_DIR . 'class-jwpm-assets.php';
-require_once JWPM_PLUGIN_DIR . 'class-jwpm-ajax.php';
+<div class="wrap jwpm-pos-wrap">
+	<h1 class="jwpm-hidden">POS / Sales</h1>
 
-/**
- * ایکٹیویشن، ڈی ایکٹیویشن اور اَن انسٹال ہُکس
- */
-register_activation_hook( __FILE__, array( 'JWPM_Activator', 'activate' ) );
-register_deactivation_hook( __FILE__, array( 'JWPM_Activator', 'deactivate' ) );
-register_uninstall_hook( __FILE__, 'jwpm_uninstall_plugin' );
+	<!-- 🟢 POS ROOT -->
+	<div id="jwpm-pos-root"></div>
 
-/**
- * اَن انسٹال کال بیک
- */
-function jwpm_uninstall_plugin() {
-	if ( ! class_exists( 'JWPM_Activator' ) ) {
-		require_once JWPM_PLUGIN_DIR . 'class-jwpm-activator.php';
-	}
+</div>
 
-	JWPM_Activator::uninstall();
-}
+<!-- ============================================================
+     TEMPLATE 1 — HEADER BAR
+     ============================================================ -->
+<template id="jwpm-pos-header-template">
+	<div class="jwpm-pos-header">
+		<div class="jwpm-pos-header-left">
+			<h2 class="jwpm-pos-title">
+				POS / New Sale  
+				<span class="jwpm-title-urdu">| نئی سیل</span>
+			</h2>
+			<div class="jwpm-breadcrumb">
+				Home &gt; POS &gt; New Sale
+			</div>
+		</div>
 
-/**
- * مین پلگ اِن کلاس – اس کے ذریعے (menus)، (assets) اور (AJAX) ہُکس رجسٹر ہوں گے۔
- */
-class JWPM_Jewelry_POS_Manager {
+		<div class="jwpm-pos-header-right">
+			<select class="jwpm-branch-select">
+				<option value="1">Main Branch</option>
+			</select>
 
-	/**
-	 * @var JWPM_Jewelry_POS_Manager
-	 */
-	private static $instance = null;
+			<div class="jwpm-gold-rate-box">
+				Gold Rate: <span class="js-gold-rate">—</span>
+			</div>
 
-	/**
-	 * سنگلٹن انسٹینس حاصل کریں
-	 *
-	 * @return JWPM_Jewelry_POS_Manager
-	 */
-	public static function instance() {
-		if ( null === self::$instance ) {
-			self::$instance = new self();
-		}
+			<div class="jwpm-datetime-box js-pos-datetime">
+				—
+			</div>
+		</div>
+	</div>
+</template>
 
-		return self::$instance;
-	}
 
-	/**
-	 * کنسٹرکٹر – پرائیویٹ تاکہ باہر سے نئی انسٹینس نہ بن سکے
-	 */
-	private function __construct() {
-		add_action( 'plugins_loaded', array( $this, 'on_plugins_loaded' ) );
-		add_action( 'admin_menu', array( $this, 'register_admin_menus' ) );
-		add_action( 'admin_enqueue_scripts', array( 'JWPM_Assets', 'enqueue_admin_assets' ) );
-		add_action( 'init', array( 'JWPM_Ajax', 'register_ajax_hooks' ) );
-	}
+<!-- ============================================================
+     TEMPLATE 2 — MINI STATS CARDS
+     ============================================================ -->
+<template id="jwpm-pos-stats-template">
+	<div class="jwpm-pos-stats-row">
 
-	/**
-	 * (plugins_loaded) پر چلنے والی لاجک – یہاں (DB) ورژن وغیرہ چیک ہوں گے
-	 */
-	public function on_plugins_loaded() {
-		JWPM_DB::maybe_upgrade();
-	}
+		<div class="jwpm-pos-stat-card jwpm-pos-stat-blue" data-stat="today_sales">
+			<div class="jwpm-stat-label">Today's Sales<br><span class="urdu">آج کی سیلز</span></div>
+			<div class="jwpm-stat-value js-stat-value">0</div>
+		</div>
 
-	/**
-	 * ایڈمن (menus) اور سب (menus) رجسٹر کریں
-	 */
-	public function register_admin_menus() {
+		<div class="jwpm-pos-stat-card jwpm-pos-stat-green" data-stat="active_carts">
+			<div class="jwpm-stat-label">Active Carts<br><span class="urdu">جاری کارٹس</span></div>
+			<div class="jwpm-stat-value js-stat-value">0</div>
+		</div>
 
-		// ٹاپ لیول (menu)
-		$capability = 'manage_jwpm_sales';
+		<div class="jwpm-pos-stat-card jwpm-pos-stat-orange" data-stat="pending_installments">
+			<div class="jwpm-stat-label">Pending Installments<br><span class="urdu">بقایا قسطیں</span></div>
+			<div class="jwpm-stat-value js-stat-value">0</div>
+		</div>
 
-		add_menu_page(
-			__( 'JWPM Dashboard', 'jwpm-jewelry-pos-manager' ),
-			__( 'JWPM POS', 'jwpm-jewelry-pos-manager' ),
-			$capability,
-			'jwpm-dashboard',
-			array( $this, 'render_dashboard_page' ),
-			'dashicons-database',
-			56
-		);
+		<div class="jwpm-pos-stat-card jwpm-pos-stat-pink" data-stat="online_orders">
+			<div class="jwpm-stat-label">Online Orders To Bill<br><span class="urdu">آن لائن آرڈرز</span></div>
+			<div class="jwpm-stat-value js-stat-value">0</div>
+		</div>
 
-		// ڈیش بورڈ (بعد میں بنے گا، ابھی سادہ پلیس ہولڈر)
-		add_submenu_page(
-			'jwpm-dashboard',
-			__( 'Dashboard', 'jwpm-jewelry-pos-manager' ),
-			__( 'Dashboard', 'jwpm-jewelry-pos-manager' ),
-			$capability,
-			'jwpm-dashboard',
-			array( $this, 'render_dashboard_page' )
-		);
+	</div>
+</template>
 
-		// (POS) – فی الحال پیج خالی ہوسکتا ہے، بعد میں بھرے گا
-		add_submenu_page(
-			'jwpm-dashboard',
-			__( 'POS / Billing', 'jwpm-jewelry-pos-manager' ),
-			__( 'POS', 'jwpm-jewelry-pos-manager' ),
-			'manage_jwpm_sales',
-			'jwpm-pos',
-			array( $this, 'render_pos_page' )
-		);
 
-		// اقساط
-		add_submenu_page(
-			'jwpm-dashboard',
-			__( 'Installments', 'jwpm-jewelry-pos-manager' ),
-			__( 'Installments', 'jwpm-jewelry-pos-manager' ),
-			'manage_jwpm_sales',
-			'jwpm-installments',
-			array( $this, 'render_installments_page' )
-		);
+<!-- ============================================================
+     TEMPLATE 3 — MAIN 3 COLUMN LAYOUT
+     ============================================================ -->
+<template id="jwpm-pos-main-template">
+	<div class="jwpm-pos-columns">
 
-		// انوینٹری – ہمارا پہلا اصل فوکس
-		add_submenu_page(
-			'jwpm-dashboard',
-			__( 'Inventory / Stock', 'jwpm-jewelry-pos-manager' ),
-			__( 'Inventory', 'jwpm-jewelry-pos-manager' ),
-			'manage_jwpm_inventory',
-			'jwpm-inventory',
-			array( $this, 'render_inventory_page' )
-		);
+		<!-- LEFT PANE — SEARCH -->
+		<div class="jwpm-pos-pane jwpm-pos-left">
 
-		// پرچیز / سپلائر
-		add_submenu_page(
-			'jwpm-dashboard',
-			__( 'Purchases & Suppliers', 'jwpm-jewelry-pos-manager' ),
-			__( 'Purchases', 'jwpm-jewelry-pos-manager' ),
-			'manage_jwpm_inventory',
-			'jwpm-purchase',
-			array( $this, 'render_purchase_page' )
-		);
+			<div class="jwpm-pane-header jwpm-pane-blue">
+				Product Search | <span class="urdu">پروڈکٹ سرچ</span>
+			</div>
 
-		// کسٹمرز
-		add_submenu_page(
-			'jwpm-dashboard',
-			__( 'Customers', 'jwpm-jewelry-pos-manager' ),
-			__( 'Customers', 'jwpm-jewelry-pos-manager' ),
-			'manage_jwpm_customers',
-			'jwpm-customers',
-			array( $this, 'render_customers_page' )
-		);
+			<div class="jwpm-pos-search-box">
 
-		// کسٹم آرڈرز
-		add_submenu_page(
-			'jwpm-dashboard',
-			__( 'Custom Orders', 'jwpm-jewelry-pos-manager' ),
-			__( 'Custom Orders', 'jwpm-jewelry-pos-manager' ),
-			'manage_jwpm_orders',
-			'jwpm-custom-orders',
-			array( $this, 'render_custom_orders_page' )
-		);
+				<div class="jwpm-search-row">
+					<input type="text" class="jwpm-input js-pos-search-text"
+						placeholder="Search by Name / SKU / Tag ID">
+					
+					<select class="jwpm-select js-pos-filter-category">
+						<option value="">Category</option>
+					</select>
 
-		// ریپیر جابز
-		add_submenu_page(
-			'jwpm-dashboard',
-			__( 'Repair Jobs', 'jwpm-jewelry-pos-manager' ),
-			__( 'Repair Jobs', 'jwpm-jewelry-pos-manager' ),
-			'manage_jwpm_repairs',
-			'jwpm-repair-jobs',
-			array( $this, 'render_repair_jobs_page' )
-		);
+					<select class="jwpm-select js-pos-filter-karat">
+						<option value="">Karat</option>
+					</select>
 
-		// اکاؤنٹس
-		add_submenu_page(
-			'jwpm-dashboard',
-			__( 'Accounts & Cash Book', 'jwpm-jewelry-pos-manager' ),
-			__( 'Accounts', 'jwpm-jewelry-pos-manager' ),
-			'manage_jwpm_accounts',
-			'jwpm-accounts',
-			array( $this, 'render_accounts_page' )
-		);
+					<button class="jwpm-btn-icon js-pos-scan-btn" title="Barcode Scan">
+						<span class="dashicons dashicons-camera"></span>
+					</button>
+				</div>
 
-		// رپورٹس
-		add_submenu_page(
-			'jwpm-dashboard',
-			__( 'Reports & Analytics', 'jwpm-jewelry-pos-manager' ),
-			__( 'Reports', 'jwpm-jewelry-pos-manager' ),
-			'manage_jwpm_reports',
-			'jwpm-reports',
-			array( $this, 'render_reports_page' )
-		);
+				<div class="jwpm-pos-search-results js-pos-search-results">
+					<!-- JS will fill -->
+				</div>
 
-		// سیٹنگز
-		add_submenu_page(
-			'jwpm-dashboard',
-			__( 'JWPM Settings', 'jwpm-jewelry-pos-manager' ),
-			__( 'Settings', 'jwpm-jewelry-pos-manager' ),
-			'manage_jwpm_settings',
-			'jwpm-settings',
-			array( $this, 'render_settings_page' )
-		);
-	}
+			</div>
+		</div>
 
-	/**
-	 * نیچے ہر پیج کے لیے سادہ رینڈر فنکشن – بعد میں متعلقہ (admin/pages/*.php) شامل کیے جائیں گے
-	 */
+		<!-- CENTER PANE — CART -->
+		<div class="jwpm-pos-pane jwpm-pos-center">
 
-	public function render_dashboard_page() {
-		$this->include_admin_page( 'jwpm-dashboard.php', 'jwpm-dashboard-root' );
-	}
+			<div class="jwpm-pane-header jwpm-pane-green">
+				Sale Cart | <span class="urdu">سیل کارٹ</span>
+			</div>
 
-	public function render_pos_page() {
-		$this->include_admin_page( 'jwpm-pos.php', 'jwpm-pos-root' );
-	}
+			<div class="jwpm-pos-cart-box">
 
-	public function render_installments_page() {
-		$this->include_admin_page( 'jwpm-installments.php', 'jwpm-installments-root' );
-	}
+				<table class="jwpm-pos-cart-table">
+					<thead>
+						<tr>
+							<th>Photo</th>
+							<th>Tag</th>
+							<th>Description</th>
+							<th>Wt (g)</th>
+							<th>Making</th>
+							<th>Stone</th>
+							<th>Qty</th>
+							<th>Unit</th>
+							<th>Discount</th>
+							<th>Total</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody class="js-pos-cart-body">
+						<!-- JS rows -->
+					</tbody>
+				</table>
 
-	public function render_inventory_page() {
-		$this->include_admin_page( 'jwpm-inventory.php', 'jwpm-inventory-root' );
-	}
+				<div class="jwpm-cart-summary-row">
 
-	public function render_purchase_page() {
-		$this->include_admin_page( 'jwpm-purchase.php', 'jwpm-purchase-root' );
-	}
+					<div class="jwpm-cart-discount">
+						<label>Overall Discount | <span class="urdu">مجموعی ڈسکاؤنٹ</span></label>
+						<input type="number" class="jwpm-input js-pos-overall-discount" value="0">
+					</div>
 
-	public function render_customers_page() {
-		$this->include_admin_page( 'jwpm-customers.php', 'jwpm-customers-root' );
-	}
+					<button class="jwpm-btn-secondary js-pos-old-gold">
+						Old Gold Adjustment | <span class="urdu">اولڈ گولڈ ایڈجسٹمنٹ</span>
+					</button>
 
-	public function render_custom_orders_page() {
-		$this->include_admin_page( 'jwpm-custom-orders.php', 'jwpm-custom-orders-root' );
-	}
+					<div class="jwpm-pos-pill-badges">
+						<span class="jwpm-pill">Walk-in Customer | عام کسٹمر</span>
+						<span class="jwpm-pill">Hold Bill | ہولڈ بل</span>
+						<span class="jwpm-pill">Draft Invoice | ڈرافٹ انوائس</span>
+					</div>
 
-	public function render_repair_jobs_page() {
-		$this->include_admin_page( 'jwpm-repair-jobs.php', 'jwpm-repair-jobs-root' );
-	}
+				</div>
 
-	public function render_accounts_page() {
-		$this->include_admin_page( 'jwpm-accounts.php', 'jwpm-accounts-root' );
-	}
+			</div>
+		</div>
 
-	public function render_reports_page() {
-		$this->include_admin_page( 'jwpm-reports.php', 'jwpm-reports-root' );
-	}
+		<!-- RIGHT PANE — CUSTOMER + PAYMENT -->
+		<div class="jwpm-pos-pane jwpm-pos-right">
 
-	public function render_settings_page() {
-		$this->include_admin_page( 'jwpm-settings.php', 'jwpm-settings-root' );
-	}
+			<!-- CUSTOMER BOX -->
+			<div class="jwpm-pos-box">
 
-	/**
-	 * مشترکہ ہیلپر: متعلقہ (admin/pages) فائل شامل کرے، اور روٹ (div) کی موجودگی یقینی بنائے
-	 *
-	 * @param string $file_name
-	 * @param string $root_id
-	 */
-	private function include_admin_page( $file_name, $root_id ) {
-		$path = JWPM_PLUGIN_DIR . 'admin/pages/' . $file_name;
+				<div class="jwpm-pane-header jwpm-pane-orange">
+					Customer | <span class="urdu">کسٹمر</span>
+				</div>
 
-		if ( file_exists( $path ) ) {
-			include $path;
-		} else {
-			echo '<div class="notice notice-error"><p>';
-			echo esc_html( sprintf( __( 'JWPM: Admin page file missing: %s', 'jwpm-jewelry-pos-manager' ), $file_name ) );
-			echo '</p></div>';
-			echo '<div id="' . esc_attr( $root_id ) . '"></div>';
-		}
-	}
-}
+				<div class="jwpm-pos-customer">
 
-/**
- * گلوبل فنکشن – آسانی سے مین کلاس انسٹینس حاصل کرنے کے لیے
- */
-function jwpm() {
-	return JWPM_Jewelry_POS_Manager::instance();
-}
+					<div class="jwpm-customer-search">
+						<input type="text" class="jwpm-input js-pos-customer-search"
+							placeholder="Search by Phone / Name">
+						<button class="jwpm-btn-primary js-pos-new-customer">
+							+ New Customer | <span class="urdu">نیا کسٹمر</span>
+						</button>
+					</div>
 
-// پلگ اِن لوڈ کریں
-jwpm();
+					<div class="jwpm-customer-fields">
+						<label>Name | <span class="urdu">نام</span></label>
+						<input type="text" class="jwpm-input js-pos-cust-name" readonly>
 
-// ✅ Syntax verified block end
+						<label>Mobile | <span class="urdu">موبائل</span></label>
+						<input type="text" class="jwpm-input js-pos-cust-mobile" readonly>
 
+						<label>Loyalty Points</label>
+						<input type="text" class="jwpm-input js-pos-cust-points" readonly>
+
+						<label>Outstanding Credit</label>
+						<input type="text" class="jwpm-input js-pos-cust-credit jwpm-danger-text" readonly>
+					</div>
+
+				</div>
+			</div>
+
+			<!-- PAYMENT BOX -->
+			<div class="jwpm-pos-box">
+
+				<div class="jwpm-pane-header jwpm-pane-pink">
+					Bill & Payment | <span class="urdu">بل اور ادائیگی</span>
+				</div>
+
+				<div class="jwpm-pos-payment">
+
+					<div class="jwpm-total-row"><span>Subtotal:</span> <span class="js-pos-subtotal">0</span></div>
+					<div class="jwpm-total-row"><span>Discount:</span> <span class="js-pos-disc-total">0</span></div>
+					<div class="jwpm-total-row"><span>Old Gold:</span> <span class="js-pos-old-gold-total">0</span></div>
+					<div class="jwpm-total-row"><span>Tax:</span> <span class="js-pos-tax">0</span></div>
+
+					<div class="jwpm-grand-total">
+						Grand Total:
+						<span class="js-pos-grand">0</span>
+					</div>
+
+					<div class="jwpm-payment-methods">
+						<button class="jwpm-pill-btn">Cash</button>
+						<button class="jwpm-pill-btn">Card</button>
+						<button class="jwpm-pill-btn">Bank Transfer</button>
+						<button class="jwpm-pill-btn">Split Payment</button>
+						<button class="jwpm-pill-btn js-pos-pay-install">Installment</button>
+					</div>
+
+					<div class="jwpm-installment-box js-pos-installment-box" hidden>
+						<label>Advance Paid</label>
+						<input type="number" class="jwpm-input js-pos-install-advance">
+
+						<label>Remaining</label>
+						<input type="number" class="jwpm-input js-pos-install-remaining">
+
+						<label>Number of Installments</label>
+						<input type="number" class="jwpm-input js-pos-install-count">
+
+						<label>First Due Date</label>
+						<input type="date" class="jwpm-input js-pos-install-date">
+					</div>
+
+					<label>Notes / Remarks</label>
+					<textarea class="jwpm-textarea js-pos-notes"></textarea>
+
+				</div>
+
+			</div>
+
+		</div>
+
+	</div>
+</template>
+
+
+<!-- ============================================================
+     TEMPLATE 4 — CART ROW
+     ============================================================ -->
+<template id="jwpm-pos-cart-row-template">
+	<tr>
+		<td><div class="jwpm-photo-36"></div></td>
+		<td class="js-pos-tag">-</td>
+		<td class="js-pos-desc">-</td>
+		<td class="js-pos-wt">0</td>
+		<td><input type="number" class="jwpm-input js-pos-make" value="0"></td>
+		<td><input type="number" class="jwpm-input js-pos-stone" value="0"></td>
+		<td><input type="number" class="jwpm-input js-pos-qty" value="1"></td>
+		<td class="js-pos-unit">0</td>
+		<td><input type="number" class="jwpm-input js-pos-line-disc" value="0"></td>
+		<td class="js-pos-line-total">0</td>
+		<td><button class="button-link js-pos-remove-item">×</button></td>
+	</tr>
+</template>
+
+
+<!-- ============================================================
+     TEMPLATE 5 — OLD GOLD MODAL
+     ============================================================ -->
+<template id="jwpm-pos-old-gold-modal-template">
+	<div class="jwpm-modal">
+		<div class="jwpm-modal-backdrop js-close-old-gold"></div>
+		<div class="jwpm-modal-dialog">
+			<div class="jwpm-modal-header">
+				<h3>Old Gold Adjustment | <span class="urdu">اولڈ گولڈ</span></h3>
+				<button class="jwpm-modal-close js-close-old-gold">×</button>
+			</div>
+
+			<div class="jwpm-modal-body">
+				<label>Weight (g)</label>
+				<input type="number" class="jwpm-input js-og-wt">
+
+				<label>Gold Rate</label>
+				<input type="number" class="jwpm-input js-og-rate">
+
+				<label>Total Value</label>
+				<input type="number" class="jwpm-input js-og-total" readonly>
+			</div>
+
+			<div class="jwpm-modal-footer">
+				<button class="jwpm-btn-secondary js-close-old-gold">Cancel</button>
+				<button class="jwpm-btn-primary js-save-old-gold">Apply</button>
+			</div>
+		</div>
+	</div>
+</template>
+
+
+<!-- ============================================================
+     TEMPLATE 6 — TOAST NOTIFICATION
+     ============================================================ -->
+<template id="jwpm-pos-toast-template">
+	<div class="jwpm-toast js-toast-item">
+		<div class="jwpm-toast-text">Message here</div>
+	</div>
+</template>
+
+<!-- END OF FILE -->
+<?php // ✅ Syntax verified block end ?>
