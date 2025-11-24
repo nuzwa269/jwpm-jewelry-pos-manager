@@ -1,1 +1,685 @@
+/**
+ * JWPM Inventory CSS
+ *
+ * Summary:
+ * - Bright, white, multi-color UI (Blue, Green, Orange, Pink)
+ * - Inventory root layout, summary cards, filters, table, modals
+ * - Basic responsive behavior + RTL support
+ */
+
+/** Part 1 — Bright Inventory UI base styles */
+
+/* 🟢 یہاں سے [CSS Tokens & Root Layout] شروع ہو رہا ہے */
+
+.jwpm-inventory-root {
+  --jwpm-inv-color-bg: #f4f5f7;
+  --jwpm-inv-color-card: #ffffff;
+  --jwpm-inv-color-border: #e0e0e0;
+  --jwpm-inv-color-text-main: #222222;
+  --jwpm-inv-color-text-muted: #777777;
+
+  --jwpm-inv-color-blue: #1e88e5;   /* Total Items + primary actions */
+  --jwpm-inv-color-green: #2ecc71;  /* Total Weight + success */
+  --jwpm-inv-color-orange: #ffa726; /* Low Stock + import */
+  --jwpm-inv-color-pink: #ec407a;   /* Dead Stock + demo */
+
+  --jwpm-inv-color-status-in: #1e88e5;
+  --jwpm-inv-color-status-low: #ffa726;
+  --jwpm-inv-color-status-dead: #e53935;
+  --jwpm-inv-color-status-scrap: #8d6e63;
+
+  --jwpm-inv-radius-card: 10px;
+  --jwpm-inv-radius-pill: 999px;
+
+  --jwpm-inv-shadow-soft: 0 2px 6px rgba(0, 0, 0, 0.06);
+
+  --jwpm-inv-spacing-xs: 4px;
+  --jwpm-inv-spacing-sm: 8px;
+  --jwpm-inv-spacing-md: 12px;
+  --jwpm-inv-spacing-lg: 16px;
+  --jwpm-inv-spacing-xl: 24px;
+}
+
+.jwpm-inventory-wrap {
+  background: var(--jwpm-inv-color-bg);
+  padding-top: 10px;
+  padding-bottom: 20px;
+}
+
+.jwpm-page-title {
+  margin-bottom: 10px;
+}
+
+/* 🔴 یہاں پر [CSS Tokens & Root Layout] ختم ہو رہا ہے */
+
+
+/* 🟢 یہاں سے [Summary Cards] شروع ہو رہا ہے */
+
+.jwpm-inv-summary-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--jwpm-inv-spacing-md);
+  margin-bottom: var(--jwpm-inv-spacing-lg);
+}
+
+.jwpm-inv-summary-card {
+  background: var(--jwpm-inv-color-card);
+  border-radius: var(--jwpm-inv-radius-card);
+  padding: var(--jwpm-inv-spacing-md) var(--jwpm-inv-spacing-lg);
+  box-shadow: var(--jwpm-inv-shadow-soft);
+  border-top: 4px solid var(--jwpm-inv-color-blue);
+  display: flex;
+  flex-direction: column;
+  gap: var(--jwpm-inv-spacing-sm);
+}
+
+.jwpm-inv-summary-card .jwpm-card-label {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--jwpm-inv-color-text-muted);
+}
+
+.jwpm-inv-summary-card .jwpm-card-value {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--jwpm-inv-color-text-main);
+}
+
+/* رنگ الگ الگ کارڈز کے لیے */
+
+.jwpm-card-total-items {
+  border-top-color: var(--jwpm-inv-color-blue);
+}
+
+.jwpm-card-total-weight {
+  border-top-color: var(--jwpm-inv-color-green);
+}
+
+.jwpm-card-low-stock {
+  border-top-color: var(--jwpm-inv-color-orange);
+}
+
+.jwpm-card-dead-stock {
+  border-top-color: var(--jwpm-inv-color-pink);
+}
+
+/* 🔴 یہاں پر [Summary Cards] ختم ہو رہا ہے */
+
+
+/* 🟢 یہاں سے [Filters Bar] شروع ہو رہا ہے */
+
+.jwpm-inv-filters-bar {
+  background: var(--jwpm-inv-color-card);
+  border-radius: var(--jwpm-inv-radius-card);
+  padding: var(--jwpm-inv-spacing-md) var(--jwpm-inv-spacing-lg);
+  margin-bottom: var(--jwpm-inv-spacing-lg);
+  box-shadow: var(--jwpm-inv-shadow-soft);
+  border-top: 3px solid var(--jwpm-inv-color-blue);
+}
+
+.jwpm-inv-filters-row {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--jwpm-inv-spacing-md);
+  align-items: flex-end;
+  margin-bottom: var(--jwpm-inv-spacing-md);
+}
+
+.jwpm-filter-field label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 4px;
+  color: var(--jwpm-inv-color-text-muted);
+}
+
+.jwpm-input,
+.jwpm-select,
+.jwpm-textarea {
+  width: 100%;
+  border: 1px solid var(--jwpm-inv-color-border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  box-sizing: border-box;
+  background: #ffffff;
+}
+
+.jwpm-input:focus,
+.jwpm-select:focus,
+.jwpm-textarea:focus {
+  border-color: var(--jwpm-inv-color-blue);
+  box-shadow: 0 0 0 1px rgba(30, 136, 229, 0.25);
+  outline: none;
+}
+
+.jwpm-filter-actions {
+  display: flex;
+  gap: var(--jwpm-inv-spacing-sm);
+  justify-content: flex-end;
+}
+
+.jwpm-btn-primary {
+  background-color: var(--jwpm-inv-color-blue);
+  border-color: var(--jwpm-inv-color-blue);
+  color: #ffffff;
+}
+
+.jwpm-btn-primary:hover,
+.jwpm-btn-primary:focus {
+  background-color: #1565c0;
+  border-color: #1565c0;
+  color: #ffffff;
+}
+
+.jwpm-btn-secondary {
+  background-color: #ffffff;
+  border-color: var(--jwpm-inv-color-border);
+  color: var(--jwpm-inv-color-text-main);
+}
+
+.jwpm-btn-secondary:hover,
+.jwpm-btn-secondary:focus {
+  border-color: var(--jwpm-inv-color-blue);
+  color: var(--jwpm-inv-color-blue);
+}
+
+.jwpm-inv-weight-row {
+  margin-top: var(--jwpm-inv-spacing-sm);
+  border-top: 1px dashed var(--jwpm-inv-color-border);
+  padding-top: var(--jwpm-inv-spacing-sm);
+}
+
+.jwpm-weight-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--jwpm-inv-spacing-sm);
+}
+
+.jwpm-weight-label {
+  font-size: 12px;
+  color: var(--jwpm-inv-color-text-muted);
+}
+
+.jwpm-weight-inputs {
+  display: flex;
+  align-items: center;
+  gap: var(--jwpm-inv-spacing-sm);
+}
+
+.jwpm-weight-separator {
+  color: var(--jwpm-inv-color-text-muted);
+}
+
+/* 🔴 یہاں پر [Filters Bar] ختم ہو رہا ہے */
+
+
+/* 🟢 یہاں سے [Main Card + Tabs + Actions] شروع ہو رہا ہے */
+
+.jwpm-inv-main-card {
+  background: var(--jwpm-inv-color-card);
+  border-radius: var(--jwpm-inv-radius-card);
+  box-shadow: var(--jwpm-inv-shadow-soft);
+  padding: var(--jwpm-inv-spacing-md) var(--jwpm-inv-spacing-lg);
+  border-top: 3px solid var(--jwpm-inv-color-blue);
+  position: relative;
+}
+
+.jwpm-inv-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--jwpm-inv-spacing-md);
+  margin-bottom: var(--jwpm-inv-spacing-md);
+}
+
+/* Tabs */
+
+.jwpm-inv-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--jwpm-inv-spacing-sm);
+}
+
+.jwpm-tab-btn {
+  border-radius: 999px;
+  border: 1px solid var(--jwpm-inv-color-border);
+  background: #ffffff;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--jwpm-inv-color-text-muted);
+}
+
+.jwpm-tab-btn.is-active {
+  border-color: var(--jwpm-inv-color-blue);
+  background: rgba(30, 136, 229, 0.08);
+  color: var(--jwpm-inv-color-blue);
+}
+
+/* Top right actions */
+
+.jwpm-inv-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--jwpm-inv-spacing-sm);
+}
+
+.jwpm-btn-new {
+  background-color: var(--jwpm-inv-color-green);
+  border-color: var(--jwpm-inv-color-green);
+  color: #ffffff;
+}
+
+.jwpm-btn-new:hover,
+.jwpm-btn-new:focus {
+  background-color: #27ae60;
+  border-color: #27ae60;
+}
+
+.jwpm-btn-import {
+  background-color: var(--jwpm-inv-color-orange);
+  border-color: var(--jwpm-inv-color-orange);
+  color: #ffffff;
+}
+
+.jwpm-btn-import:hover,
+.jwpm-btn-import:focus {
+  background-color: #fb8c00;
+  border-color: #fb8c00;
+}
+
+.jwpm-btn-print {
+  background-color: #ffffff;
+  border-color: var(--jwpm-inv-color-border);
+  color: var(--jwpm-inv-color-text-main);
+}
+
+.jwpm-btn-print:hover,
+.jwpm-btn-print:focus {
+  border-color: var(--jwpm-inv-color-blue);
+  color: var(--jwpm-inv-color-blue);
+}
+
+.jwpm-btn-demo {
+  background-color: var(--jwpm-inv-color-pink);
+  border-color: var(--jwpm-inv-color-pink);
+  color: #ffffff;
+}
+
+.jwpm-btn-demo:hover,
+.jwpm-btn-demo:focus {
+  background-color: #d81b60;
+  border-color: #d81b60;
+}
+
+/* 🔴 یہاں پر [Main Card + Tabs + Actions] ختم ہو رہا ہے */
+
+
+/* 🟢 یہاں سے [Table Styles] شروع ہو رہا ہے */
+
+.jwpm-inv-body {
+  margin-top: var(--jwpm-inv-spacing-sm);
+}
+
+.jwpm-inv-table {
+  margin-top: var(--jwpm-inv-spacing-sm);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.jwpm-inv-table thead th {
+  background: #f0f3f7;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--jwpm-inv-color-text-muted);
+}
+
+.jwpm-inv-table tbody td,
+.jwpm-inv-table tbody th {
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.jwpm-inv-photo-cell {
+  width: 50px;
+}
+
+.jwpm-photo-placeholder {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #eceff1;
+  border: 1px solid var(--jwpm-inv-color-border);
+}
+
+/* Status badge */
+
+.jwpm-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 10px;
+  border-radius: var(--jwpm-inv-radius-pill);
+  font-size: 11px;
+  font-weight: 500;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.jwpm-status-in_stock {
+  background-color: var(--jwpm-inv-color-status-in);
+}
+
+.jwpm-status-low_stock {
+  background-color: var(--jwpm-inv-color-status-low);
+}
+
+.jwpm-status-dead_stock {
+  background-color: var(--jwpm-inv-color-status-dead);
+}
+
+.jwpm-status-scrap {
+  background-color: var(--jwpm-inv-color-status-scrap);
+}
+
+/* Table actions */
+
+.jwpm-inv-actions-cell .button-link {
+  font-size: 11px;
+  margin-right: 4px;
+}
+
+.jwpm-inv-actions-cell .button-link:last-child {
+  margin-right: 0;
+}
+
+.jwpm-inv-actions-cell .js-jwpm-delete-item {
+  color: #e53935;
+}
+
+/* Empty state row */
+
+.jwpm-table-empty td {
+  color: var(--jwpm-inv-color-text-muted);
+}
+
+/* Pagination */
+
+.jwpm-inv-pagination {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--jwpm-inv-spacing-sm);
+  margin-top: var(--jwpm-inv-spacing-md);
+}
+
+.jwpm-page-info {
+  font-size: 12px;
+  color: var(--jwpm-inv-color-text-muted);
+}
+
+/* 🔴 یہاں پر [Table Styles] ختم ہو رہا ہے */
+
+
+/* 🟢 یہاں سے [Loading State] شروع ہو رہا ہے */
+
+.jwpm-loading-state {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: var(--jwpm-inv-spacing-sm);
+  z-index: 20;
+}
+
+.jwpm-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #cfd8dc;
+  border-top-color: var(--jwpm-inv-color-blue);
+  animation: jwpm-spin 0.75s linear infinite;
+}
+
+.jwpm-loading-text {
+  font-size: 13px;
+  color: var(--jwpm-inv-color-text-muted);
+}
+
+@keyframes jwpm-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 🔴 یہاں پر [Loading State] ختم ہو رہا ہے */
+
+
+/* 🟢 یہاں سے [Modals] شروع ہو رہا ہے */
+
+.jwpm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
+
+.jwpm-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.jwpm-modal-dialog {
+  position: relative;
+  max-width: 760px;
+  margin: 40px auto;
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.35);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.jwpm-modal-header {
+  padding: var(--jwpm-inv-spacing-md) var(--jwpm-inv-spacing-lg);
+  border-bottom: 1px solid var(--jwpm-inv-color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.jwpm-modal-title {
+  font-size: 16px;
+  margin: 0;
+}
+
+.jwpm-modal-close {
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--jwpm-inv-color-text-muted);
+}
+
+.jwpm-modal-body {
+  padding: var(--jwpm-inv-spacing-md) var(--jwpm-inv-spacing-lg);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.jwpm-modal-footer {
+  padding: var(--jwpm-inv-spacing-md) var(--jwpm-inv-spacing-lg);
+  border-top: 1px solid var(--jwpm-inv-color-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--jwpm-inv-spacing-sm);
+}
+
+/* Form grid */
+
+.jwpm-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--jwpm-inv-spacing-md) var(--jwpm-inv-spacing-lg);
+}
+
+.jwpm-form-field label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 4px;
+  color: var(--jwpm-inv-color-text-muted);
+}
+
+.jwpm-form-field-inline {
+  grid-column: 1 / -1;
+}
+
+/* Import & demo modals extra layout */
+
+.jwpm-import-row,
+.jwpm-demo-actions,
+.jwpm-demo-danger {
+  margin-bottom: var(--jwpm-inv-spacing-md);
+}
+
+.jwpm-demo-actions {
+  display: flex;
+  gap: var(--jwpm-inv-spacing-sm);
+}
+
+.jwpm-demo-danger p {
+  margin-top: 0;
+  margin-bottom: var(--jwpm-inv-spacing-sm);
+  color: #e53935;
+}
+
+/* 🔴 یہاں پر [Modals] ختم ہو رہا ہے */
+
+
+/* 🟢 یہاں سے [Detail Panel] شروع ہو رہا ہے */
+
+.jwpm-inv-detail-panel {
+  position: fixed;
+  top: 32px;
+  right: 0;
+  width: 360px;
+  max-width: 100%;
+  height: calc(100% - 32px);
+  background: #ffffff;
+  border-left: 1px solid var(--jwpm-inv-color-border);
+  box-shadow: -4px 0 18px rgba(0, 0, 0, 0.12);
+  z-index: 9998;
+  display: flex;
+  flex-direction: column;
+}
+
+.jwpm-detail-close {
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  align-self: flex-end;
+  padding: var(--jwpm-inv-spacing-sm) var(--jwpm-inv-spacing-md);
+  cursor: pointer;
+  color: var(--jwpm-inv-color-text-muted);
+}
+
+.jwpm-detail-content {
+  padding: var(--jwpm-inv-spacing-md) var(--jwpm-inv-spacing-lg);
+  overflow-y: auto;
+}
+
+/* 🔴 یہاں پر [Detail Panel] ختم ہو رہا ہے */
+
+
+/* 🟢 یہاں سے [Responsive Rules] شروع ہو رہا ہے */
+
+@media (max-width: 1024px) {
+  .jwpm-inv-summary-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .jwpm-inv-filters-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .jwpm-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .jwpm-inv-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .jwpm-inv-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .jwpm-inv-summary-row {
+    grid-template-columns: 1fr;
+  }
+
+  .jwpm-inv-filters-row {
+    grid-template-columns: 1fr;
+  }
+
+  .jwpm-inv-main-card {
+    padding: var(--jwpm-inv-spacing-md);
+  }
+
+  .jwpm-modal-dialog {
+    margin: 20px 10px;
+    max-height: 80vh;
+  }
+
+  .jwpm-inv-pagination {
+    justify-content: center;
+  }
+}
+
+/* 🔴 یہاں پر [Responsive Rules] ختم ہو رہا ہے */
+
+
+/* 🟢 یہاں سے [RTL Support] شروع ہو رہا ہے */
+
+[dir="rtl"] .jwpm-inventory-root {
+  direction: rtl;
+}
+
+[dir="rtl"] .jwpm-inv-header-row {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .jwpm-inv-actions {
+  justify-content: flex-start;
+}
+
+[dir="rtl"] .jwpm-inv-pagination {
+  justify-content: flex-start;
+}
+
+[dir="rtl"] .jwpm-inv-actions-cell .button-link {
+  margin-right: 0;
+  margin-left: 4px;
+}
+
+[dir="rtl"] .jwpm-detail-panel {
+  right: auto;
+  left: 0;
+  border-left: none;
+  border-right: 1px solid var(--jwpm-inv-color-border);
+}
+
+/* 🔴 یہاں پر [RTL Support] ختم ہو رہا ہے */
+
+/* ✅ Syntax verified block end */
 
