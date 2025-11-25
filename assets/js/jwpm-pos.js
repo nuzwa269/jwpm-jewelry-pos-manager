@@ -364,4 +364,448 @@
 
 // 🔴 Part 2 End — POS Product Search
 // ✅ Syntax verified block end
+/** Part 3 — POS Cart Logic */
+/**
+ * POS Cart Logic:
+ * - search results سے آنے والے jwpm_pos_item_selected event پر item کو cart میں add کرتا ہے
+ * - qty / discount update پر line total دوبارہ calculate کرتا ہے
+ * - remove row, overall discount اور old gold amount کو grand total میں شامل کرتا ہے
+ */
+
+// 🟢 یہاں سے POS Cart Logic شروع ہو رہا ہے
+(function (window, document) {
+    'use strict';
+
+    if (!window.JWPMPos) {
+        console.warn('JWPM POS: JWPMPos root object نہیں ملا، Cart Logic initialise نہیں ہو سکی۔');
+        return;
+    }
+
+    var Pos = window.JWPMPos;
+
+    // اگر state object موجود نہیں تو بنا لیں
+    Pos.state = Pos.state || {};
+    if (!Array.isArray(Pos.state.cart)) {
+        Pos.state.cart = [];
+    }
+
+    // اندرونی state
+    var cartItems = Pos.state.cart;
+    var cartRowCounter = Pos.__cartRowCounter || 0;
+
+    // DOM selectors — یہ IDs / classes POS Templates کے ساتھ match ہونی چاہئیں
+    var selectors = {
+        cartBody: '#jwpm-pos-cart-body',
+        cartRowTemplate: '#jwpm-pos-cart-row-template',
+        subtotal: '#jwpm-pos-subtotal',
+        overallDiscount: '#jwpm-pos-overall-discount',
+        grandTotal: '#jwpm-pos-grand-total',
+        overallDiscountInput: '#jwpm-pos-overall-discount-input',
+        oldGoldNet: '#jwpm-pos-old-gold-net'
+    };
+
+    // چھوٹے utility helpers
+    function qs(selector, root) {
+        return (root || document).querySelector(selector);
+    }
+
+    function getNumericFromElement(el) {
+        if (!el) {
+            return 0;
+        }
+        if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') {
+            return parseFloat(el.value || '0') || 0;
+        }
+        var raw = el.textContent || '';
+        raw = raw.replace(/[^\d\.\-]/g, '');
+        return parseFloat(raw || '0') || 0;
+    }
+
+    function setNumericToElement(el, value) {
+        if (!el) {
+            return;
+        }
+        var num = isFinite(value) ? value : 0;
+        if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') {
+            el.value = num.toFixed(2);
+        } else {
+            el.textContent = formatCurrency(num);
+        }
+    }
+
+    function formatCurrency(amount) {
+        var num = isFinite(amount) ? amount : 0;
+        if (Pos.utils && typeof Pos.utils.formatCurrency === 'function') {
+            return Pos.utils.formatCurrency(num);
+        }
+        return num.toFixed(2);
+    }
+
+    function findCartItemByRowId(rowId) {
+        rowId = String(rowId);
+        for (var i = 0; i < cartItems.length; i++) {
+            if (String(cartItems[i]._rowId) === rowId) {
+                return cartItems[i];
+            }
+        }
+        return null;
+    }
+
+    function removeCartItemByRowId(rowId) {
+        rowId = String(rowId);
+        for (var i = 0; i < cartItems.length; i++) {
+            if (String(cartItems[i]._rowId) === rowId) {
+                cartItems.splice(i, 1);
+                break;
+            }
+        }
+    }
+
+    function getOldGoldNetAmount() {
+        var el = qs(selectors.oldGoldNet);
+        if (!el) {
+            return 0;
+        }
+        return getNumericFromElement(el);
+    }
+
+    // -------------------------------------------------------------
+    // Item select → Cart میں add کرنا
+    // -------------------------------------------------------------
+    function handleItemSelected(event) {
+        var detail = event.detail || {};
+        // کچھ implementations میں detail.item ہو سکتا ہے
+        var item = detail.item || detail || {};
+        if (!item.id && !item.item_id && !item.sku) {
+            console.warn('JWPM POS: منتخب item میں id / sku موجود نہیں، Cart میں نہیں ڈالا گیا۔', item);
+            return;
+        }
+
+        var itemId = item.id || item.item_id || item.sku;
+        var existing = null;
+
+        for (var i = 0; i < cartItems.length; i++) {
+            if (String(cartItems[i].id) === String(itemId)) {
+                existing = cartItems[i];
+                break;
+            }
+        }
+
+        if (existing) {
+            // پہلے سے موجود ہو تو qty بڑھا دیں
+            existing.qty = (existing.qty || 0) + 1;
+            updateRowFromCartItem(existing);
+            recalcTotals();
+            return;
+        }
+
+        // نیا کارٹ item
+        var unitPrice = parseFloat(item.unit_price || item.price || item.sale_price || '0') || 0;
+        var newCartItem = {
+            _rowId: (++cartRowCounter),
+            id: itemId,
+            name: item.name || item.title || 'Item',
+            code: item.code || item.sku || '',
+            karat: item.karat || item.carat || '',
+            weight: parseFloat(item.weight || '0') || 0,
+            unitPrice: unitPrice,
+            qty: 1,
+            lineDiscount: 0,
+            lineTotal: unitPrice
+        };
+
+        cartItems.push(newCartItem);
+        Pos.__cartRowCounter = cartRowCounter;
+
+        appendCartRow(newCartItem);
+        recalcTotals();
+    }
+
+    // -------------------------------------------------------------
+    // DOM میں row append کرنا
+    // -------------------------------------------------------------
+    function appendCartRow(cartItem) {
+        var cartBody = qs(selectors.cartBody);
+        if (!cartBody) {
+            console.warn('JWPM POS: Cart body element نہیں ملا، row append نہیں ہو سکی۔');
+            return;
+        }
+
+        var tpl = qs(selectors.cartRowTemplate);
+        var row;
+
+        if (tpl && tpl.content && tpl.content.firstElementChild) {
+            row = tpl.content.firstElementChild.cloneNode(true);
+        } else {
+            // fallback — simple tr create اگر template نہ ملے
+            row = document.createElement('tr');
+            row.innerHTML = '' +
+                '<td class="jwpm-pos-cart-name"></td>' +
+                '<td class="jwpm-pos-cart-code"></td>' +
+                '<td><input type="number" min="1" step="1" class="jwpm-pos-cart-qty" /></td>' +
+                '<td class="jwpm-pos-cart-unit"></td>' +
+                '<td><input type="number" step="0.01" class="jwpm-pos-cart-discount" /></td>' +
+                '<td class="jwpm-pos-cart-total"></td>' +
+                '<td><button type="button" class="button button-link-delete jwpm-pos-cart-remove">&times;</button></td>';
+        }
+
+        row.dataset.cartRowId = String(cartItem._rowId);
+
+        var nameCell = row.querySelector('.jwpm-pos-cart-name');
+        var codeCell = row.querySelector('.jwpm-pos-cart-code');
+        var qtyInput = row.querySelector('.jwpm-pos-cart-qty');
+        var unitCell = row.querySelector('.jwpm-pos-cart-unit');
+        var discountInput = row.querySelector('.jwpm-pos-cart-discount');
+        var totalCell = row.querySelector('.jwpm-pos-cart-total');
+
+        if (nameCell) {
+            nameCell.textContent = cartItem.name;
+        }
+        if (codeCell) {
+            codeCell.textContent = cartItem.code || '';
+        }
+        if (qtyInput) {
+            qtyInput.value = cartItem.qty;
+        }
+        if (unitCell) {
+            unitCell.textContent = formatCurrency(cartItem.unitPrice);
+        }
+        if (discountInput) {
+            discountInput.value = cartItem.lineDiscount.toFixed(2);
+        }
+        if (totalCell) {
+            totalCell.textContent = formatCurrency(cartItem.lineTotal);
+        }
+
+        cartBody.appendChild(row);
+    }
+
+    // -------------------------------------------------------------
+    // Row کو cart item سے sync کرنا (جب qty / discount change ہو)
+    // -------------------------------------------------------------
+    function updateRowFromCartItem(cartItem) {
+        var cartBody = qs(selectors.cartBody);
+        if (!cartBody) {
+            return;
+        }
+
+        var row = cartBody.querySelector('tr[data-cart-row-id="' + cartItem._rowId + '"]');
+        if (!row) {
+            return;
+        }
+
+        var qtyInput = row.querySelector('.jwpm-pos-cart-qty');
+        var discountInput = row.querySelector('.jwpm-pos-cart-discount');
+        var totalCell = row.querySelector('.jwpm-pos-cart-total');
+
+        if (qtyInput) {
+            qtyInput.value = cartItem.qty;
+        }
+        if (discountInput) {
+            discountInput.value = cartItem.lineDiscount.toFixed(2);
+        }
+        if (totalCell) {
+            totalCell.textContent = formatCurrency(cartItem.lineTotal);
+        }
+    }
+
+    // -------------------------------------------------------------
+    // Row کی line total calculation
+    // -------------------------------------------------------------
+    function recalcRowTotals(cartItem) {
+        var qty = parseFloat(cartItem.qty || 0) || 0;
+        if (qty < 0) {
+            qty = 0;
+        }
+        var unitPrice = parseFloat(cartItem.unitPrice || 0) || 0;
+        var discount = parseFloat(cartItem.lineDiscount || 0) || 0;
+
+        var gross = qty * unitPrice;
+        if (discount > gross) {
+            discount = gross;
+        }
+
+        cartItem.qty = qty;
+        cartItem.lineDiscount = discount;
+        cartItem.lineTotal = Math.max(gross - discount, 0);
+    }
+
+    // -------------------------------------------------------------
+    // Cart کی مجموعی totals calculation
+    // -------------------------------------------------------------
+    function recalcTotals() {
+        var subtotal = 0;
+        for (var i = 0; i < cartItems.length; i++) {
+            recalcRowTotals(cartItems[i]);
+            subtotal += cartItems[i].lineTotal;
+        }
+
+        var overallDiscountEl = qs(selectors.overallDiscountInput) || qs(selectors.overallDiscount);
+        var overallDiscount = getNumericFromElement(overallDiscountEl);
+        if (overallDiscount > subtotal) {
+            overallDiscount = subtotal;
+        }
+
+        var oldGoldNet = getOldGoldNetAmount();
+
+        var grandTotal = subtotal - overallDiscount - oldGoldNet;
+        if (grandTotal < 0) {
+            grandTotal = 0;
+        }
+
+        // UI میں update
+        setNumericToElement(qs(selectors.subtotal), subtotal);
+        setNumericToElement(qs(selectors.overallDiscount), overallDiscount);
+        setNumericToElement(qs(selectors.grandTotal), grandTotal);
+
+        // state میں بھی totals رکھ لیں تاکہ payment step میں استعمال ہو
+        Pos.state.cartTotals = {
+            subtotal: subtotal,
+            overallDiscount: overallDiscount,
+            oldGoldNet: oldGoldNet,
+            grandTotal: grandTotal
+        };
+    }
+
+    // -------------------------------------------------------------
+    // Cart body پر event delegation (qty / discount / remove)
+    // -------------------------------------------------------------
+    function handleCartBodyInput(event) {
+        var target = event.target;
+        if (!target) {
+            return;
+        }
+
+        var row = target.closest('tr[data-cart-row-id]');
+        if (!row) {
+            return;
+        }
+
+        var rowId = row.dataset.cartRowId;
+        var cartItem = findCartItemByRowId(rowId);
+        if (!cartItem) {
+            return;
+        }
+
+        if (target.classList.contains('jwpm-pos-cart-qty')) {
+            var qty = parseFloat(target.value || '0') || 0;
+            if (qty < 0) {
+                qty = 0;
+            }
+            cartItem.qty = qty;
+        } else if (target.classList.contains('jwpm-pos-cart-discount')) {
+            var discount = parseFloat(target.value || '0') || 0;
+            if (discount < 0) {
+                discount = 0;
+            }
+            cartItem.lineDiscount = discount;
+        } else {
+            return;
+        }
+
+        recalcRowTotals(cartItem);
+        updateRowFromCartItem(cartItem);
+        recalcTotals();
+    }
+
+    function handleCartBodyClick(event) {
+        var target = event.target;
+        if (!target) {
+            return;
+        }
+
+        if (!target.classList.contains('jwpm-pos-cart-remove') &&
+            !(target.closest && target.closest('.jwpm-pos-cart-remove'))) {
+            return;
+        }
+
+        var row = target.closest('tr[data-cart-row-id]');
+        if (!row) {
+            return;
+        }
+
+        var rowId = row.dataset.cartRowId;
+        removeCartItemByRowId(rowId);
+        row.parentNode.removeChild(row);
+        recalcTotals();
+    }
+
+    // Overall discount input change
+    function handleOverallDiscountChange() {
+        recalcTotals();
+    }
+
+    // Old Gold Modal کسی اور JS Part میں event emit کرے گا
+    // ہم صرف event سنتے ہیں اور totals دوبارہ calculate کرتے ہیں
+    function handleOldGoldUpdated() {
+        recalcTotals();
+    }
+
+    // -------------------------------------------------------------
+    // Initialisation
+    // -------------------------------------------------------------
+    function initCartModule() {
+        var cartBody = qs(selectors.cartBody);
+        if (!cartBody) {
+            console.warn('JWPM POS: Cart body element نہیں ملا، Cart Module محدود موڈ میں چلے گا۔');
+        } else {
+            cartBody.addEventListener('input', handleCartBodyInput);
+            cartBody.addEventListener('click', handleCartBodyClick);
+        }
+
+        var overallDiscountInput = qs(selectors.overallDiscountInput) || qs(selectors.overallDiscount);
+        if (overallDiscountInput) {
+            overallDiscountInput.addEventListener('input', handleOverallDiscountChange);
+            overallDiscountInput.addEventListener('change', handleOverallDiscountChange);
+        }
+
+        // custom events
+        document.addEventListener('jwpm_pos_item_selected', handleItemSelected);
+        document.addEventListener('jwpm_pos_old_gold_updated', handleOldGoldUpdated);
+
+        // اگر پہلے سے cartItems میں data موجود ہے (مثلاً demo data) تو اسے بھی DOM میں render کر دیں
+        if (cartItems.length && cartBody) {
+            for (var i = 0; i < cartItems.length; i++) {
+                if (!cartItems[i]._rowId) {
+                    cartItems[i]._rowId = (++cartRowCounter);
+                }
+                appendCartRow(cartItems[i]);
+            }
+            Pos.__cartRowCounter = cartRowCounter;
+            recalcTotals();
+        }
+
+        // Public API expose
+        Pos.cart = Pos.cart || {};
+        Pos.cart.recalcTotals = recalcTotals;
+        Pos.cart.getItems = function () {
+            return cartItems.slice();
+        };
+        Pos.cart.clear = function () {
+            cartItems.length = 0;
+            var body = qs(selectors.cartBody);
+            if (body) {
+                while (body.firstChild) {
+                    body.removeChild(body.firstChild);
+                }
+            }
+            recalcTotals();
+        };
+    }
+
+    // اگر Pos میں onReady hook ہو تو وہ استعمال کریں، ورنہ DOMContentLoaded
+    if (typeof Pos.onReady === 'function') {
+        Pos.onReady(initCartModule);
+    } else {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initCartModule);
+        } else {
+            initCartModule();
+        }
+    }
+
+})(window, document);
+// 🔴 یہاں پر POS Cart Logic ختم ہو رہا ہے
+
+// ✅ Syntax verified block end
 
