@@ -619,3 +619,684 @@ function jwpm_pos_complete_sale() {
 add_action( 'wp_ajax_jwpm_pos_complete_sale', 'jwpm_pos_complete_sale' );
 
 // ✅ Syntax verified block end
+/** Part 33 — Customers AJAX Handlers */
+// 🟢 یہاں سے [Customers AJAX Handlers] شروع ہو رہا ہے
+
+if ( ! function_exists( 'jwpm_customers_sanitize_decimal' ) ) {
+	/**
+	 * decimal ویلیو کو safely sanitize کرے (comma → dot وغیرہ)
+	 */
+	function jwpm_customers_sanitize_decimal( $value ) {
+		$value = is_string( $value ) ? trim( $value ) : $value;
+		if ( '' === $value || null === $value ) {
+			return '0.000';
+		}
+		$value = str_replace( array( ',', ' ' ), array( '.', '' ), (string) $value );
+		$float = floatval( $value );
+
+		return number_format( $float, 3, '.', '' );
+	}
+}
+
+/**
+ * Capability چیک helper
+ */
+if ( ! function_exists( 'jwpm_customers_ensure_capability' ) ) {
+	function jwpm_customers_ensure_capability() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'آپ کو اس عمل کی اجازت نہیں۔', 'jwpm' ),
+				),
+				403
+			);
+		}
+	}
+}
+
+/**
+ * Common: table name helper
+ */
+if ( ! function_exists( 'jwpm_customers_get_table_name' ) ) {
+	function jwpm_customers_get_table_name() {
+		global $wpdb;
+		return $wpdb->prefix . 'jwpm_customers';
+	}
+}
+
+/**
+ * 1) Get Customers List (with filters + pagination)
+ */
+add_action( 'wp_ajax_jwpm_get_customers', 'jwpm_ajax_get_customers' );
+function jwpm_ajax_get_customers() {
+	check_ajax_referer( 'jwpm_customers_main_nonce', 'nonce' );
+	jwpm_customers_ensure_capability();
+
+	global $wpdb;
+
+	$table = jwpm_customers_get_table_name();
+
+	$search  = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '';
+	$city    = isset( $_POST['city'] ) ? sanitize_text_field( wp_unslash( $_POST['city'] ) ) : '';
+	$type    = isset( $_POST['customer_type'] ) ? sanitize_text_field( wp_unslash( $_POST['customer_type'] ) ) : '';
+	$status  = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+	$page    = isset( $_POST['page'] ) ? max( 1, intval( $_POST['page'] ) ) : 1;
+	$perpage = isset( $_POST['per_page'] ) ? max( 1, intval( $_POST['per_page'] ) ) : 20;
+
+	$where  = 'WHERE 1=1';
+	$params = array();
+
+	if ( $search ) {
+		$like   = '%' . $wpdb->esc_like( $search ) . '%';
+		$where .= ' AND (name LIKE %s OR phone LIKE %s)';
+		$params[] = $like;
+		$params[] = $like;
+	}
+
+	if ( $city ) {
+		$where    .= ' AND city = %s';
+		$params[] = $city;
+	}
+
+	if ( $type ) {
+		$where    .= ' AND customer_type = %s';
+		$params[] = $type;
+	}
+
+	if ( $status ) {
+		$where    .= ' AND status = %s';
+		$params[] = $status;
+	}
+
+	// شمار
+	$count_sql = "SELECT COUNT(*) FROM {$table} {$where}";
+	$total     = (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) );
+
+	$offset = ( $page - 1 ) * $perpage;
+
+	$items_sql = "SELECT *
+		FROM {$table}
+		{$where}
+		ORDER BY created_at DESC
+		LIMIT %d OFFSET %d";
+
+	$params_items   = $params;
+	$params_items[] = $perpage;
+	$params_items[] = $offset;
+
+	$rows = $wpdb->get_results( $wpdb->prepare( $items_sql, $params_items ), ARRAY_A );
+
+	wp_send_json_success(
+		array(
+			'items'      => $rows,
+			'pagination' => array(
+				'total'      => $total,
+				'page'       => $page,
+				'per_page'   => $perpage,
+				'total_page' => $perpage > 0 ? (int) ceil( $total / $perpage ) : 1,
+			),
+		)
+	);
+}
+
+/**
+ * 2) Get single customer
+ */
+add_action( 'wp_ajax_jwpm_get_customer', 'jwpm_ajax_get_customer' );
+function jwpm_ajax_get_customer() {
+	check_ajax_referer( 'jwpm_customers_main_nonce', 'nonce' );
+	jwpm_customers_ensure_capability();
+
+	global $wpdb;
+	$table = jwpm_customers_get_table_name();
+
+	$id = isset( $_POST['id'] ) ? intval( $_POST['id'] ) : 0;
+	if ( $id <= 0 ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'غلط کسٹمر آئی ڈی۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	$sql  = "SELECT * FROM {$table} WHERE id = %d";
+	$row  = $wpdb->get_row( $wpdb->prepare( $sql, $id ), ARRAY_A );
+
+	if ( ! $row ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'کسٹمر نہیں ملا۔', 'jwpm' ),
+			),
+			404
+		);
+	}
+
+	wp_send_json_success(
+		array(
+			'item' => $row,
+		)
+	);
+}
+
+/**
+ * 3) Save customer (insert / update)
+ */
+add_action( 'wp_ajax_jwpm_save_customer', 'jwpm_ajax_save_customer' );
+function jwpm_ajax_save_customer() {
+	check_ajax_referer( 'jwpm_customers_main_nonce', 'nonce' );
+	jwpm_customers_ensure_capability();
+
+	global $wpdb;
+	$table = jwpm_customers_get_table_name();
+
+	$data = array();
+
+	$id = isset( $_POST['id'] ) ? intval( $_POST['id'] ) : 0;
+
+	$name = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
+	$phone = isset( $_POST['phone'] ) ? sanitize_text_field( wp_unslash( $_POST['phone'] ) ) : '';
+
+	if ( '' === $name || '' === $phone ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'Name اور Phone لازمی فیلڈز ہیں۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	$data['name']          = $name;
+	$data['phone']         = $phone;
+	$data['whatsapp']      = isset( $_POST['whatsapp'] ) ? sanitize_text_field( wp_unslash( $_POST['whatsapp'] ) ) : '';
+	$data['email']         = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
+	$data['city']          = isset( $_POST['city'] ) ? sanitize_text_field( wp_unslash( $_POST['city'] ) ) : '';
+	$data['area']          = isset( $_POST['area'] ) ? sanitize_text_field( wp_unslash( $_POST['area'] ) ) : '';
+	$data['address']       = isset( $_POST['address'] ) ? sanitize_textarea_field( wp_unslash( $_POST['address'] ) ) : '';
+	$data['cnic']          = isset( $_POST['cnic'] ) ? sanitize_text_field( wp_unslash( $_POST['cnic'] ) ) : '';
+	$data['dob']           = isset( $_POST['dob'] ) ? sanitize_text_field( wp_unslash( $_POST['dob'] ) ) : '';
+	$data['gender']        = isset( $_POST['gender'] ) ? sanitize_text_field( wp_unslash( $_POST['gender'] ) ) : '';
+	$data['customer_type'] = isset( $_POST['customer_type'] ) ? sanitize_text_field( wp_unslash( $_POST['customer_type'] ) ) : 'walkin';
+	$data['status']        = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : 'active';
+	$data['price_group']   = isset( $_POST['price_group'] ) ? sanitize_text_field( wp_unslash( $_POST['price_group'] ) ) : '';
+	$data['tags']          = isset( $_POST['tags'] ) ? sanitize_textarea_field( wp_unslash( $_POST['tags'] ) ) : '';
+	$data['notes']         = isset( $_POST['notes'] ) ? sanitize_textarea_field( wp_unslash( $_POST['notes'] ) ) : '';
+
+	$data['credit_limit'] = jwpm_customers_sanitize_decimal( isset( $_POST['credit_limit'] ) ? wp_unslash( $_POST['credit_limit'] ) : '0' );
+
+	$current_user = get_current_user_id();
+
+	if ( $id > 0 ) {
+		// Update
+		$data['updated_by'] = $current_user;
+
+		$updated = $wpdb->update(
+			$table,
+			$data,
+			array( 'id' => $id ),
+			null,
+			array( '%d' )
+		);
+
+		if ( false === $updated ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'کسٹمر اپڈیٹ نہیں ہو سکا۔', 'jwpm' ),
+				),
+			 500
+			);
+		}
+
+	} else {
+		// Insert
+		$data['opening_balance'] = jwpm_customers_sanitize_decimal( isset( $_POST['opening_balance'] ) ? wp_unslash( $_POST['opening_balance'] ) : '0' );
+		$data['current_balance'] = $data['opening_balance'];
+		$data['created_by']      = $current_user;
+		$data['is_demo']         = 0;
+
+		// customer_code generate
+		$max_id = (int) $wpdb->get_var( "SELECT MAX(id) FROM {$table}" );
+		$next   = $max_id + 1;
+		$data['customer_code'] = sprintf( 'CUST-%04d', $next );
+
+		$inserted = $wpdb->insert( $table, $data );
+
+		if ( ! $inserted ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'کسٹمر محفوظ نہیں ہو سکا۔', 'jwpm' ),
+				),
+				500
+			);
+		}
+
+		$id = (int) $wpdb->insert_id;
+	}
+
+	$sql = "SELECT * FROM {$table} WHERE id = %d";
+	$row = $wpdb->get_row( $wpdb->prepare( $sql, $id ), ARRAY_A );
+
+	wp_send_json_success(
+		array(
+			'message' => __( 'کسٹمر کامیابی سے محفوظ ہو گیا۔', 'jwpm' ),
+			'item'    => $row,
+		)
+	);
+}
+
+/**
+ * 4) Delete (Soft → status = inactive)
+ */
+add_action( 'wp_ajax_jwpm_delete_customer', 'jwpm_ajax_delete_customer' );
+function jwpm_ajax_delete_customer() {
+	check_ajax_referer( 'jwpm_customers_main_nonce', 'nonce' );
+	jwpm_customers_ensure_capability();
+
+	global $wpdb;
+	$table = jwpm_customers_get_table_name();
+
+	$id = isset( $_POST['id'] ) ? intval( $_POST['id'] ) : 0;
+	if ( $id <= 0 ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'غلط کسٹمر آئی ڈی۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	$updated = $wpdb->update(
+		$table,
+		array(
+			'status'     => 'inactive',
+			'updated_by' => get_current_user_id(),
+		),
+		array( 'id' => $id ),
+		null,
+		array( '%d' )
+	);
+
+	if ( false === $updated ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'کسٹمر کو Inactive نہیں کیا جا سکا۔', 'jwpm' ),
+			),
+			500
+		);
+	}
+
+	wp_send_json_success(
+		array(
+			'message' => __( 'کسٹمر کو Inactive کر دیا گیا۔', 'jwpm' ),
+		)
+	);
+}
+
+/**
+ * 5) Toggle Status (Active ↔ Inactive)
+ */
+add_action( 'wp_ajax_jwpm_toggle_customer_status', 'jwpm_ajax_toggle_customer_status' );
+function jwpm_ajax_toggle_customer_status() {
+	check_ajax_referer( 'jwpm_customers_main_nonce', 'nonce' );
+	jwpm_customers_ensure_capability();
+
+	global $wpdb;
+	$table = jwpm_customers_get_table_name();
+
+	$id = isset( $_POST['id'] ) ? intval( $_POST['id'] ) : 0;
+	if ( $id <= 0 ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'غلط کسٹمر آئی ڈی۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	$sql   = "SELECT status FROM {$table} WHERE id = %d";
+	$cur   = $wpdb->get_var( $wpdb->prepare( $sql, $id ) );
+	if ( null === $cur ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'کسٹمر نہیں ملا۔', 'jwpm' ),
+			),
+			404
+		);
+	}
+
+	$new_status = ( 'active' === $cur ) ? 'inactive' : 'active';
+
+	$updated = $wpdb->update(
+		$table,
+		array(
+			'status'     => $new_status,
+			'updated_by' => get_current_user_id(),
+		),
+		array( 'id' => $id ),
+		null,
+		array( '%d' )
+	);
+
+	if ( false === $updated ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'Status تبدیل نہیں ہو سکا۔', 'jwpm' ),
+			),
+			500
+		);
+	}
+
+	wp_send_json_success(
+		array(
+			'message' => __( 'Status تبدیل ہو گیا۔', 'jwpm' ),
+			'status'  => $new_status,
+		)
+	);
+}
+
+/**
+ * 6) Import Customers (CSV)
+ */
+add_action( 'wp_ajax_jwpm_import_customers', 'jwpm_ajax_import_customers' );
+function jwpm_ajax_import_customers() {
+	check_ajax_referer( 'jwpm_customers_import_nonce', 'nonce' );
+	jwpm_customers_ensure_capability();
+
+	if ( empty( $_FILES['file'] ) || ! isset( $_FILES['file']['tmp_name'] ) ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'فائل موصول نہیں ہوئی۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	$skip_duplicates = ! empty( $_POST['skip_duplicates'] );
+
+	$file = $_FILES['file']['tmp_name'];
+
+	if ( ! file_exists( $file ) ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'فائل دستیاب نہیں۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	global $wpdb;
+	$table = jwpm_customers_get_table_name();
+
+	$handle = fopen( $file, 'r' );
+	if ( ! $handle ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'فائل نہیں کھولی جا سکی۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	$total    = 0;
+	$inserted = 0;
+	$skipped  = 0;
+
+	$header = fgetcsv( $handle );
+	if ( ! $header ) {
+		fclose( $handle );
+		wp_send_json_error(
+			array(
+				'message' => __( 'فائل میں header row نہیں ملا۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	$header_map = array();
+	foreach ( $header as $index => $col ) {
+		$key                    = strtolower( trim( $col ) );
+		$header_map[ $key ] = $index;
+	}
+
+	if ( ! isset( $header_map['name'], $header_map['phone'] ) ) {
+		fclose( $handle );
+		wp_send_json_error(
+			array(
+				'message' => __( 'کم از کم Name اور Phone کالم ضروری ہیں۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	$current_user = get_current_user_id();
+
+	while ( ( $row = fgetcsv( $handle ) ) !== false ) {
+		$total++;
+
+		$name  = isset( $row[ $header_map['name'] ] ) ? sanitize_text_field( $row[ $header_map['name'] ] ) : '';
+		$phone = isset( $row[ $header_map['phone'] ] ) ? sanitize_text_field( $row[ $header_map['phone'] ] ) : '';
+
+		if ( '' === $name || '' === $phone ) {
+			$skipped++;
+			continue;
+		}
+
+		if ( $skip_duplicates ) {
+			$exists_sql = "SELECT id FROM {$table} WHERE phone = %s";
+			$exists_id  = $wpdb->get_var( $wpdb->prepare( $exists_sql, $phone ) );
+			if ( $exists_id ) {
+				$skipped++;
+				continue;
+			}
+		}
+
+		$data = array(
+			'name'           => $name,
+			'phone'          => $phone,
+			'whatsapp'       => isset( $header_map['whatsapp'] ) ? sanitize_text_field( $row[ $header_map['whatsapp'] ] ) : '',
+			'email'          => isset( $header_map['email'] ) ? sanitize_email( $row[ $header_map['email'] ] ) : '',
+			'city'           => isset( $header_map['city'] ) ? sanitize_text_field( $row[ $header_map['city'] ] ) : '',
+			'area'           => isset( $header_map['area'] ) ? sanitize_text_field( $row[ $header_map['area'] ] ) : '',
+			'customer_type'  => isset( $header_map['customer_type'] ) ? sanitize_text_field( $row[ $header_map['customer_type'] ] ) : 'walkin',
+			'status'         => 'active',
+			'credit_limit'   => '0.000',
+			'opening_balance'=> '0.000',
+			'current_balance'=> '0.000',
+			'is_demo'        => 0,
+			'created_by'     => $current_user,
+		);
+
+		// generate customer_code
+		$max_id = (int) $wpdb->get_var( "SELECT MAX(id) FROM {$table}" );
+		$next   = $max_id + 1;
+		$data['customer_code'] = sprintf( 'CUST-%04d', $next );
+
+		$ok = $wpdb->insert( $table, $data );
+
+		if ( $ok ) {
+			$inserted++;
+		} else {
+			$skipped++;
+		}
+	}
+
+	fclose( $handle );
+
+	wp_send_json_success(
+		array(
+			'message'  => __( 'Import مکمل ہو گیا۔', 'jwpm' ),
+			'total'    => $total,
+			'inserted' => $inserted,
+			'skipped'  => $skipped,
+		)
+	);
+}
+
+/**
+ * 7) Export Customers (CSV for Excel)
+ */
+add_action( 'wp_ajax_jwpm_export_customers', 'jwpm_ajax_export_customers' );
+function jwpm_ajax_export_customers() {
+	check_ajax_referer( 'jwpm_customers_export_nonce', 'nonce' );
+	jwpm_customers_ensure_capability();
+
+	global $wpdb;
+	$table = jwpm_customers_get_table_name();
+
+	$filename = 'jwpm-customers-' . gmdate( 'Ymd-His' ) . '.csv';
+
+	nocache_headers();
+	header( 'Content-Type: text/csv; charset=utf-8' );
+	header( 'Content-Disposition: attachment; filename=' . $filename );
+
+	$output = fopen( 'php://output', 'w' );
+
+	$headers = array(
+		'id',
+		'customer_code',
+		'name',
+		'phone',
+		'whatsapp',
+		'email',
+		'city',
+		'area',
+		'address',
+		'cnic',
+		'dob',
+		'gender',
+		'customer_type',
+		'status',
+		'credit_limit',
+		'opening_balance',
+		'current_balance',
+		'total_purchases',
+		'total_returns',
+		'total_paid',
+		'price_group',
+		'tags',
+		'notes',
+		'is_demo',
+		'created_at',
+		'updated_at',
+	);
+
+	fputcsv( $output, $headers );
+
+	$sql  = "SELECT * FROM {$table} ORDER BY created_at DESC";
+	$rows = $wpdb->get_results( $sql, ARRAY_A );
+
+	if ( $rows ) {
+		foreach ( $rows as $row ) {
+			$line = array();
+			foreach ( $headers as $key ) {
+				$line[] = isset( $row[ $key ] ) ? $row[ $key ] : '';
+			}
+			fputcsv( $output, $line );
+		}
+	}
+
+	fclose( $output );
+	exit;
+}
+
+/**
+ * 8) Demo Customers Create
+ */
+add_action( 'wp_ajax_jwpm_customers_demo_create', 'jwpm_ajax_customers_demo_create' );
+function jwpm_ajax_customers_demo_create() {
+	check_ajax_referer( 'jwpm_customers_demo_nonce', 'nonce' );
+	jwpm_customers_ensure_capability();
+
+	global $wpdb;
+	$table = jwpm_customers_get_table_name();
+
+	$names = array(
+		'Ali Khan',
+		'Ahmed Raza',
+		'Fatima Noor',
+		'Sana Iqbal',
+		'Bilal Hussain',
+		'Zainab Sheikh',
+		'Usman Ali',
+		'Muhammad Asad',
+		'Hina Khan',
+		'Laiba Ahmed',
+	);
+
+	$cities = array( 'Karachi', 'Lahore', 'Islamabad', 'Rawalpindi', 'Faisalabad' );
+	$types  = array( 'walkin', 'regular', 'wholesale', 'vip' );
+
+	$current_user = get_current_user_id();
+
+	$created = 0;
+
+	foreach ( $names as $index => $name ) {
+		$phone = '03' . wp_rand( 100000000, 999999999 );
+
+		// skip if phone exists
+		$exists = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT id FROM {$table} WHERE phone = %s",
+				$phone
+			)
+		);
+
+		if ( $exists ) {
+			continue;
+		}
+
+		$max_id = (int) $wpdb->get_var( "SELECT MAX(id) FROM {$table}" );
+		$next   = $max_id + 1;
+
+		$data = array(
+			'customer_code'   => sprintf( 'CUST-%04d', $next ),
+			'name'            => $name,
+			'phone'           => $phone,
+			'city'            => $cities[ array_rand( $cities ) ],
+			'customer_type'   => $types[ array_rand( $types ) ],
+			'status'          => 'active',
+			'credit_limit'    => '0.000',
+			'opening_balance' => '0.000',
+			'current_balance' => '0.000',
+			'is_demo'         => 1,
+			'created_by'      => $current_user,
+		);
+
+		$ok = $wpdb->insert( $table, $data );
+
+		if ( $ok ) {
+			$created++;
+		}
+	}
+
+	wp_send_json_success(
+		array(
+			'message' => __( 'Demo کسٹمرز بنا دیے گئے۔', 'jwpm' ),
+			'created' => $created,
+		)
+	);
+}
+
+/**
+ * 9) Demo Customers Clear
+ */
+add_action( 'wp_ajax_jwpm_customers_demo_clear', 'jwpm_ajax_customers_demo_clear' );
+function jwpm_ajax_customers_demo_clear() {
+	check_ajax_referer( 'jwpm_customers_demo_nonce', 'nonce' );
+	jwpm_customers_ensure_capability();
+
+	global $wpdb;
+	$table = jwpm_customers_get_table_name();
+
+	$deleted = $wpdb->query( "DELETE FROM {$table} WHERE is_demo = 1" );
+
+	wp_send_json_success(
+		array(
+			'message' => __( 'Demo کسٹمرز حذف ہو گئے۔', 'jwpm' ),
+			'deleted' => (int) $deleted,
+		)
+	);
+}
+
+// 🔴 یہاں پر [Customers AJAX Handlers] ختم ہو رہا ہے
+// ✅ Syntax verified block end
