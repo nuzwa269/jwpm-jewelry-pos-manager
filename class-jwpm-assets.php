@@ -239,3 +239,82 @@ function jwpm_enqueue_pos_assets( $hook ) {
 add_action( 'admin_enqueue_scripts', 'jwpm_enqueue_pos_assets' );
 
 // ✅ Syntax verified block end
+/** Part 31 — Customers Assets Enqueue */
+// 🟢 یہاں سے [Customers Assets Enqueue] شروع ہو رہا ہے
+
+if ( ! function_exists( 'jwpm_enqueue_customers_assets' ) ) {
+
+	/**
+	 * Customers Page کیلئے (JS) اور (CSS) enqueue + localized data
+	 */
+	function jwpm_enqueue_customers_assets( $hook_suffix ) {
+
+		if ( ! is_admin() ) {
+			return;
+		}
+
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( empty( $screen ) || false === strpos( $screen->id, 'jwpm-customers' ) ) {
+			return;
+		}
+
+		$base_url = plugin_dir_url( __FILE__ );
+
+		// Customers CSS
+		wp_enqueue_style(
+			'jwpm-customers-css',
+			$base_url . 'assets/css/jwpm-customers.css',
+			array( 'jwpm-common-css' ),
+			defined( 'JWPM_VERSION' ) ? JWPM_VERSION : time()
+		);
+
+		// Customers JS
+		wp_enqueue_script(
+			'jwpm-customers-js',
+			$base_url . 'assets/js/jwpm-customers.js',
+			array( 'jquery', 'jwpm-common-js' ),
+			defined( 'JWPM_VERSION' ) ? JWPM_VERSION : time(),
+			true
+		);
+
+		$main_nonce   = wp_create_nonce( 'jwpm_customers_main_nonce' );
+		$import_nonce = wp_create_nonce( 'jwpm_customers_import_nonce' );
+		$export_nonce = wp_create_nonce( 'jwpm_customers_export_nonce' );
+		$demo_nonce   = wp_create_nonce( 'jwpm_customers_demo_nonce' );
+
+		$localized = array(
+			'ajaxUrl'           => admin_url( 'admin-ajax.php' ),
+			'mainNonce'         => $main_nonce,
+			'importNonce'       => $import_nonce,
+			'exportNonce'       => $export_nonce,
+			'demoNonce'         => $demo_nonce,
+			'strings'           => array(
+				'loading'           => __( 'کسٹمرز لوڈ ہو رہے ہیں…', 'jwpm' ),
+				'saving'            => __( 'ڈیٹا محفوظ ہو رہا ہے…', 'jwpm' ),
+				'saveSuccess'       => __( 'کسٹمر کامیابی سے محفوظ ہو گیا۔', 'jwpm' ),
+				'saveError'         => __( 'محفوظ کرتے وقت مسئلہ آیا، دوبارہ کوشش کریں۔', 'jwpm' ),
+				'deleteConfirm'     => __( 'کیا آپ واقعی اس کسٹمر کو Inactive کرنا چاہتے ہیں؟', 'jwpm' ),
+				'deleteSuccess'     => __( 'کسٹمر کو Inactive کر دیا گیا۔', 'jwpm' ),
+				'demoCreateSuccess' => __( 'Demo کسٹمرز بنا دیے گئے۔', 'jwpm' ),
+				'demoClearSuccess'  => __( 'Demo کسٹمرز حذف ہو گئے۔', 'jwpm' ),
+				'importSuccess'     => __( 'Import مکمل ہو گیا۔', 'jwpm' ),
+				'importError'       => __( 'Import کے دوران مسئلہ آیا۔', 'jwpm' ),
+				'noRecords'         => __( 'کوئی ریکارڈ نہیں ملا۔', 'jwpm' ),
+			),
+			'pagination'        => array(
+				'defaultPerPage' => 20,
+				'perPageOptions' => array( 20, 50, 100 ),
+			),
+			'capabilities'      => array(
+				'canManageCustomers' => current_user_can( 'manage_options' ),
+			),
+		);
+
+		wp_localize_script( 'jwpm-customers-js', 'jwpmCustomersData', $localized );
+	}
+}
+
+add_action( 'admin_enqueue_scripts', 'jwpm_enqueue_customers_assets' );
+
+// 🔴 یہاں پر [Customers Assets Enqueue] ختم ہو رہا ہے
+// ✅ Syntax verified block end
