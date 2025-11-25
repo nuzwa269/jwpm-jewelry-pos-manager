@@ -361,3 +361,113 @@ class JWPM_DB {
 }
 
 // ✅ Syntax verified block end
+/** Part 32 — Customers Table Schema (jwpm_customers) */
+// 🟢 یہاں سے [Customers Table Schema] شروع ہو رہا ہے
+
+if ( ! class_exists( 'JWPM_DB_Customers' ) ) {
+
+	class JWPM_DB_Customers {
+
+		const TABLE_SLUG      = 'jwpm_customers';
+		const DB_VERSION_OPT  = 'jwpm_customers_db_version';
+		const DB_VERSION      = '1.0.0';
+
+		/**
+		 * مکمل ٹیبل نام (prefix کے ساتھ)
+		 */
+		public static function get_table_name() {
+			global $wpdb;
+			return $wpdb->prefix . self::TABLE_SLUG;
+		}
+
+		/**
+		 * (dbDelta) کیلئے مکمل SQL
+		 */
+		public static function get_table_schema() {
+			$table_name = self::get_table_name();
+
+			$charset_collate = '';
+			global $wpdb;
+			if ( ! empty( $wpdb->charset ) ) {
+				$charset_collate .= "DEFAULT CHARACTER SET {$wpdb->charset} ";
+			}
+			if ( ! empty( $wpdb->collate ) ) {
+				$charset_collate .= "COLLATE {$wpdb->collate} ";
+			}
+
+			$sql = "CREATE TABLE {$table_name} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				customer_code varchar(50) NOT NULL,
+				name varchar(191) NOT NULL,
+				phone varchar(50) NOT NULL,
+				whatsapp varchar(50) DEFAULT NULL,
+				email varchar(191) DEFAULT NULL,
+				city varchar(100) DEFAULT NULL,
+				area varchar(100) DEFAULT NULL,
+				address text DEFAULT NULL,
+				cnic varchar(50) DEFAULT NULL,
+				dob date DEFAULT NULL,
+				gender varchar(20) DEFAULT NULL,
+				customer_type varchar(50) NOT NULL DEFAULT 'walkin',
+				status varchar(20) NOT NULL DEFAULT 'active',
+				credit_limit decimal(15,3) NOT NULL DEFAULT 0.000,
+				opening_balance decimal(15,3) NOT NULL DEFAULT 0.000,
+				current_balance decimal(15,3) NOT NULL DEFAULT 0.000,
+				total_purchases decimal(15,3) NOT NULL DEFAULT 0.000,
+				total_returns decimal(15,3) NOT NULL DEFAULT 0.000,
+				total_paid decimal(15,3) NOT NULL DEFAULT 0.000,
+				price_group varchar(50) DEFAULT NULL,
+				tags text DEFAULT NULL,
+				notes text DEFAULT NULL,
+				is_demo tinyint(1) NOT NULL DEFAULT 0,
+				created_by bigint(20) unsigned DEFAULT NULL,
+				updated_by bigint(20) unsigned DEFAULT NULL,
+				created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+				PRIMARY KEY  (id),
+				UNIQUE KEY customer_code (customer_code),
+				KEY phone (phone),
+				KEY city (city),
+				KEY customer_type (customer_type),
+				KEY status (status),
+				KEY is_demo (is_demo)
+			) {$charset_collate};";
+
+			return $sql;
+		}
+
+		/**
+		 * ٹیبل موجود نہ ہو تو بنائے، ورژن آپشن بھی اپڈیٹ کرے۔
+		 */
+		public static function maybe_create_table() {
+			$current_version = get_option( self::DB_VERSION_OPT );
+			if ( self::DB_VERSION === $current_version ) {
+				return;
+			}
+
+			require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+			$sql = self::get_table_schema();
+			dbDelta( $sql );
+
+			update_option( self::DB_VERSION_OPT, self::DB_VERSION );
+		}
+	}
+}
+
+/**
+ * admin میں load ہوتے ہی Customers ٹیبل ensure
+ */
+if ( is_admin() && function_exists( 'add_action' ) ) {
+	add_action(
+		'admin_init',
+		static function () {
+			if ( class_exists( 'JWPM_DB_Customers' ) ) {
+				JWPM_DB_Customers::maybe_create_table();
+			}
+		}
+	);
+}
+
+// 🔴 یہاں پر [Customers Table Schema] ختم ہو رہا ہے
+// ✅ Syntax verified block end
