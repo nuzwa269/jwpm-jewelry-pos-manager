@@ -1981,3 +1981,1003 @@ function jwpm_ajax_customers_demo_clear() {
 
 // 🔴 یہاں پر [Customers AJAX Handlers] ختم ہو رہا ہے
 // ✅ Syntax verified block end
+/** Part 43 — Installments AJAX Handlers */
+// 🟢 یہاں سے [Installments AJAX Handlers] شروع ہو رہا ہے
+
+if ( ! function_exists( 'jwpm_installments_sanitize_decimal' ) ) {
+	/**
+	 * decimal ویلیو کو safely sanitize کرے
+	 */
+	function jwpm_installments_sanitize_decimal( $value ) {
+		$value = is_string( $value ) ? trim( $value ) : $value;
+		if ( '' === $value || null === $value ) {
+			return '0.000';
+		}
+		$value = str_replace( array( ',', ' ' ), array( '.', '' ), (string) $value );
+		$float = floatval( $value );
+		return number_format( $float, 3, '.', '' );
+	}
+}
+
+if ( ! function_exists( 'jwpm_installments_ensure_capability' ) ) {
+	function jwpm_installments_ensure_capability() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'آپ کو اس عمل کی اجازت نہیں۔', 'jwpm' ),
+				),
+				403
+			);
+		}
+	}
+}
+
+if ( ! function_exists( 'jwpm_installments_table_name' ) ) {
+	function jwpm_installments_table_name() {
+		global $wpdb;
+		return $wpdb->prefix . 'jwpm_installments';
+	}
+}
+if ( ! function_exists( 'jwpm_installments_schedule_table_name' ) ) {
+	function jwpm_installments_schedule_table_name() {
+		global $wpdb;
+		return $wpdb->prefix . 'jwpm_installment_schedule';
+	}
+}
+if ( ! function_exists( 'jwpm_installments_payments_table_name' ) ) {
+	function jwpm_installments_payments_table_name() {
+		global $wpdb;
+		return $wpdb->prefix . 'jwpm_installment_payments';
+	}
+}
+
+/**
+ * 1) Get Installments List (filters + pagination)
+ */
+add_action( 'wp_ajax_jwpm_get_installments', 'jwpm_ajax_get_installments' );
+function jwpm_ajax_get_installments() {
+	check_ajax_referer( 'jwpm_installments_main_nonce', 'nonce' );
+	jwpm_installments_ensure_capability();
+
+	global $wpdb;
+
+	$contracts_table = jwpm_installments_table_name();
+	$customers_table = $wpdb->prefix . 'jwpm_customers';
+
+	$search    = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '';
+	$status    = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+	$date_mode = isset( $_POST['date_mode'] ) ? sanitize_text_field( wp_unslash( $_POST['date_mode'] ) ) : 'sale';
+	$date_from = isset( $_POST['date_from'] ) ? sanitize_text_field( wp_unslash( $_POST['date_from'] ) ) : '';
+	$date_to   = isset( $_POST['date_to'] ) ? sanitize_text_field( wp_unslash( $_POST['date_to'] ) ) : '';
+	$page      = isset( $_POST['page'] ) ? max( 1, intval( $_POST['page'] ) ) : 1;
+	$perpage   = isset( $_POST['per_page'] ) ? max( 1, intval( $_POST['per_page'] ) ) : 20;
+
+	$where  = 'WHERE 1=1';
+	$params = array();
+
+	if ( $search ) {
+		$like        = '%' . $wpdb->esc_like( $search ) . '%';
+		$where      .= ' AND (c.name LIKE %s OR c.phone LIKE %s OR i.contract_code LIKE %s)';
+		$params[]    = $like;
+		$params[]    = $like;
+		$params[]    = $like;
+	}
+
+	if ( $status ) {
+		$where    .= ' AND i.status = %s';
+		$params[] = $status;
+	}
+
+	if ( $date_from && $date_to ) {
+		$column   = ( 'due' === $date_mode ) ? 'i.start_date' : 'i.sale_date';
+		$where   .= " AND {$column} BETWEEN %s AND %s";
+		$params[] = $date_from;
+		$params[] = $date_to;
+	} elseif ( $date_from ) {
+		$column   = ( 'due' === $date_mode ) ? 'i.start_date' : 'i.sale_date';
+		$where   .= " AND {$column} >= %s";
+		$params[] = $date_from;
+	} elseif ( $date_to ) {
+		$column   = ( 'due' === $date_mode ) ? 'i.start_date' : 'i.sale_date';
+		$where   .= " AND {$column} <= %s";
+		$params[] = $date_to;
+	}
+
+	$count_sql = "SELECT COUNT(*) FROM {$contracts_table} i
+		LEFT JOIN {$customers_table} c ON i.customer_id = c.id
+		{$where}";
+
+	$total = (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) );
+
+	$offset = ( $page - 1 ) * $perpage;
+
+	$items_sql = "SELECT 
+			i.*,
+			c.name AS customer_name,
+			c.phone AS customer_phone
+		FROM {$contracts_table} i
+		LEFT JOIN {$customers_table} c ON i.customer_id = c.id
+		{$where}
+		ORDER BY i.created_at DESC
+		LIMIT %d OFFSET %d";
+
+	$params_items   = $params;
+	$params_items[] = $perpage;
+	$params_items[] = $offset;
+
+	$rows = $wpdb->get_results( $wpdb->prepare( $items_sql, $params_items ), ARRAY_A );
+
+	wp_send_json_success(
+		array(
+			'items'      => $rows,
+			'pagination' => array(
+				'total'      => $total,
+				'page'       => $page,
+				'per_page'   => $perpage,
+				'total_page' => $perpage > 0 ? (int) ceil( $total / $perpage ) : 1,
+			),
+		)
+	);
+}
+
+/**
+ * 2) Get single Installment Contract + basic stats
+ */
+add_action( 'wp_ajax_jwpm_get_installment', 'jwpm_ajax_get_installment' );
+function jwpm_ajax_get_installment() {
+	check_ajax_referer( 'jwpm_installments_main_nonce', 'nonce' );
+	jwpm_installments_ensure_capability();
+
+	global $wpdb;
+
+	$contracts_table = jwpm_installments_table_name();
+	$customers_table = $wpdb->prefix . 'jwpm_customers';
+	$schedule_table  = jwpm_installments_schedule_table_name();
+	$payments_table  = jwpm_installments_payments_table_name();
+
+	$id = isset( $_POST['id'] ) ? intval( $_POST['id'] ) : 0;
+	if ( $id <= 0 ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'غلط Contract ID۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	$sql  = "SELECT i.*, c.name AS customer_name, c.phone AS customer_phone
+		FROM {$contracts_table} i
+		LEFT JOIN {$customers_table} c ON i.customer_id = c.id
+		WHERE i.id = %d";
+	$item = $wpdb->get_row( $wpdb->prepare( $sql, $id ), ARRAY_A );
+
+	if ( ! $item ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'Contract نہیں ملا۔', 'jwpm' ),
+			),
+			404
+		);
+	}
+
+	// basic schedule counts
+	$stats = array(
+		'total_installments' => 0,
+		'paid_installments'  => 0,
+		'pending_installments' => 0,
+		'overdue_installments' => 0,
+	);
+
+	$sched_stats_sql = "SELECT 
+		COUNT(*) AS total_installments,
+		SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) AS paid_installments,
+		SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending_installments,
+		SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) AS overdue_installments
+		FROM {$schedule_table}
+		WHERE contract_id = %d";
+	$row_stats       = $wpdb->get_row( $wpdb->prepare( $sched_stats_sql, $id ), ARRAY_A );
+	if ( $row_stats ) {
+		$stats = array_merge( $stats, $row_stats );
+	}
+
+	// total paid
+	$total_paid = (float) $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT SUM(amount) FROM {$payments_table} WHERE contract_id = %d",
+			$id
+		)
+	);
+
+	wp_send_json_success(
+		array(
+			'item'       => $item,
+			'schedule'   => $stats,
+			'total_paid' => number_format( $total_paid, 3, '.', '' ),
+		)
+	);
+}
+
+/**
+ * 3) Save Installment Contract (insert / update) + optional Auto Schedule
+ */
+add_action( 'wp_ajax_jwpm_save_installment', 'jwpm_ajax_save_installment' );
+function jwpm_ajax_save_installment() {
+	check_ajax_referer( 'jwpm_installments_main_nonce', 'nonce' );
+	jwpm_installments_ensure_capability();
+
+	global $wpdb;
+
+	$contracts_table = jwpm_installments_table_name();
+	$schedule_table  = jwpm_installments_schedule_table_name();
+
+	$id          = isset( $_POST['id'] ) ? intval( $_POST['id'] ) : 0;
+	$customer_id = isset( $_POST['customer_id'] ) ? intval( $_POST['customer_id'] ) : 0;
+
+	if ( $customer_id <= 0 ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'Customer منتخب کرنا ضروری ہے۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	$total_amount     = jwpm_installments_sanitize_decimal( isset( $_POST['total_amount'] ) ? wp_unslash( $_POST['total_amount'] ) : '0' );
+	$advance_amount   = jwpm_installments_sanitize_decimal( isset( $_POST['advance_amount'] ) ? wp_unslash( $_POST['advance_amount'] ) : '0' );
+	$installment_cnt  = isset( $_POST['installment_count'] ) ? max( 0, intval( $_POST['installment_count'] ) ) : 0;
+	$frequency        = isset( $_POST['installment_frequency'] ) ? sanitize_text_field( wp_unslash( $_POST['installment_frequency'] ) ) : 'monthly';
+	$start_date       = isset( $_POST['start_date'] ) ? sanitize_text_field( wp_unslash( $_POST['start_date'] ) ) : '';
+	$sale_date        = isset( $_POST['sale_date'] ) ? sanitize_text_field( wp_unslash( $_POST['sale_date'] ) ) : '';
+	$status           = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : 'active';
+	$remarks          = isset( $_POST['remarks'] ) ? sanitize_textarea_field( wp_unslash( $_POST['remarks'] ) ) : '';
+	$auto_schedule    = ! empty( $_POST['auto_generate_schedule'] );
+
+	$net_amount = jwpm_installments_sanitize_decimal( (float) $total_amount - (float) $advance_amount );
+	$current_user = get_current_user_id();
+
+	$data = array(
+		'customer_id'           => $customer_id,
+		'sale_date'             => $sale_date ? $sale_date : current_time( 'mysql' ),
+		'total_amount'          => $total_amount,
+		'advance_amount'        => $advance_amount,
+		'net_amount'            => $net_amount,
+		'installment_count'     => $installment_cnt,
+		'installment_frequency' => $frequency,
+		'start_date'            => $start_date ? $start_date : null,
+		'status'                => $status,
+		'remarks'               => $remarks,
+	);
+
+	// end_date simple calc — later fine tuning
+	if ( $start_date && $installment_cnt > 0 ) {
+		try {
+			$dt = new DateTime( $start_date );
+			if ( 'weekly' === $frequency ) {
+				$dt->modify( '+' . ( $installment_cnt - 1 ) . ' weeks' );
+			} else {
+				$dt->modify( '+' . ( $installment_cnt - 1 ) . ' months' );
+			}
+			$data['end_date'] = $dt->format( 'Y-m-d' );
+		} catch ( Exception $e ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
+			// ignore
+		}
+	}
+
+	if ( $id > 0 ) {
+		$data['updated_by'] = $current_user;
+		$updated            = $wpdb->update(
+			$contracts_table,
+			$data,
+			array( 'id' => $id ),
+			null,
+			array( '%d' )
+		);
+
+		if ( false === $updated ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'Contract اپڈیٹ نہیں ہو سکا۔', 'jwpm' ),
+				),
+				500
+			);
+		}
+	} else {
+		// نیا contract
+		// contract_code generate
+		$max_id        = (int) $wpdb->get_var( "SELECT MAX(id) FROM {$contracts_table}" );
+		$next          = $max_id + 1;
+		$contract_code = sprintf( 'INST-%04d', $next );
+
+		$data['contract_code']      = $contract_code;
+		$data['current_outstanding'] = $net_amount;
+		$data['created_by']         = $current_user;
+		$data['is_demo']            = 0;
+
+		$inserted = $wpdb->insert( $contracts_table, $data );
+
+		if ( ! $inserted ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'Contract محفوظ نہیں ہو سکا۔', 'jwpm' ),
+				),
+				500
+			);
+		}
+
+		$id = (int) $wpdb->insert_id;
+	}
+
+	// Auto-generate schedule (very simple even split)
+	if ( $auto_schedule && $installment_cnt > 0 && $net_amount > 0 && $start_date ) {
+		// پرانا schedule delete
+		$wpdb->delete( $schedule_table, array( 'contract_id' => $id ), array( '%d' ) );
+
+		$per_amount = number_format( (float) $net_amount / (float) $installment_cnt, 3, '.', '' );
+
+		try {
+			$dt = new DateTime( $start_date );
+		} catch ( Exception $e ) {
+			$dt = null;
+		}
+
+		for ( $i = 1; $i <= $installment_cnt; $i++ ) {
+			$due_date = $start_date;
+			if ( $dt ) {
+				if ( $i > 1 ) {
+					if ( 'weekly' === $frequency ) {
+						$dt->modify( '+1 week' );
+					} else {
+						$dt->modify( '+1 month' );
+					}
+				}
+				$due_date = $dt->format( 'Y-m-d' );
+			}
+
+			$wpdb->insert(
+				$schedule_table,
+				array(
+					'contract_id'    => $id,
+					'installment_no' => $i,
+					'due_date'       => $due_date,
+					'amount'         => $per_amount,
+					'paid_amount'    => '0.000',
+					'status'         => 'pending',
+					'is_demo'        => 0,
+				)
+			);
+		}
+	}
+
+	// واپس وہی record
+	$customers_table = $wpdb->prefix . 'jwpm_customers';
+	$sql             = "SELECT i.*, c.name AS customer_name, c.phone AS customer_phone
+		FROM {$contracts_table} i
+		LEFT JOIN {$customers_table} c ON i.customer_id = c.id
+		WHERE i.id = %d";
+	$item            = $wpdb->get_row( $wpdb->prepare( $sql, $id ), ARRAY_A );
+
+	wp_send_json_success(
+		array(
+			'message' => __( 'Installment Plan محفوظ ہو گیا۔', 'jwpm' ),
+			'item'    => $item,
+		)
+	);
+}
+
+/**
+ * 4) Get Schedule (all installments for a contract)
+ */
+add_action( 'wp_ajax_jwpm_get_installment_schedule', 'jwpm_ajax_get_installment_schedule' );
+function jwpm_ajax_get_installment_schedule() {
+	check_ajax_referer( 'jwpm_installments_main_nonce', 'nonce' );
+	jwpm_installments_ensure_capability();
+
+	global $wpdb;
+	$table = jwpm_installments_schedule_table_name();
+
+	$contract_id = isset( $_POST['contract_id'] ) ? intval( $_POST['contract_id'] ) : 0;
+	if ( $contract_id <= 0 ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'غلط Contract ID۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	$sql  = "SELECT * FROM {$table} WHERE contract_id = %d ORDER BY installment_no ASC";
+	$rows = $wpdb->get_results( $wpdb->prepare( $sql, $contract_id ), ARRAY_A );
+
+	wp_send_json_success(
+		array(
+			'items' => $rows,
+		)
+	);
+}
+
+/**
+ * 5) Add Payment
+ */
+add_action( 'wp_ajax_jwpm_add_installment_payment', 'jwpm_ajax_add_installment_payment' );
+function jwpm_ajax_add_installment_payment() {
+	check_ajax_referer( 'jwpm_installments_main_nonce', 'nonce' );
+	jwpm_installments_ensure_capability();
+
+	global $wpdb;
+
+	$contracts_table = jwpm_installments_table_name();
+	$payments_table  = jwpm_installments_payments_table_name();
+
+	$contract_id = isset( $_POST['contract_id'] ) ? intval( $_POST['contract_id'] ) : 0;
+	if ( $contract_id <= 0 ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'غلط Contract ID۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	$amount       = jwpm_installments_sanitize_decimal( isset( $_POST['amount'] ) ? wp_unslash( $_POST['amount'] ) : '0' );
+	$payment_date = isset( $_POST['payment_date'] ) ? sanitize_text_field( wp_unslash( $_POST['payment_date'] ) ) : gmdate( 'Y-m-d' );
+	$method       = isset( $_POST['method'] ) ? sanitize_text_field( wp_unslash( $_POST['method'] ) ) : 'cash';
+	$reference_no = isset( $_POST['reference_no'] ) ? sanitize_text_field( wp_unslash( $_POST['reference_no'] ) ) : '';
+	$note         = isset( $_POST['note'] ) ? sanitize_textarea_field( wp_unslash( $_POST['note'] ) ) : '';
+
+	if ( (float) $amount <= 0 ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'Amount صفر سے زیادہ ہونی چاہئے۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	$data = array(
+		'contract_id'  => $contract_id,
+		'schedule_id'  => null,
+		'payment_date' => $payment_date,
+		'amount'       => $amount,
+		'method'       => $method,
+		'reference_no' => $reference_no,
+		'received_by'  => get_current_user_id(),
+		'note'         => $note,
+		'is_demo'      => 0,
+	);
+
+	$ok = $wpdb->insert( $payments_table, $data );
+	if ( ! $ok ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'Payment محفوظ نہیں ہو سکی۔', 'jwpm' ),
+			),
+			500
+		);
+	}
+
+	// Contract کے outstanding کو کم کریں
+	$current_outstanding = (float) $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT current_outstanding FROM {$contracts_table} WHERE id = %d",
+			$contract_id
+		)
+	);
+
+	$new_outstanding = $current_outstanding - (float) $amount;
+	if ( $new_outstanding < 0 ) {
+		$new_outstanding = 0;
+	}
+
+	$wpdb->update(
+		contracts_table: $contracts_table,
+		data: array(
+			'current_outstanding' => jwpm_installments_sanitize_decimal( $new_outstanding ),
+		),
+		where: array( 'id' => $contract_id ),
+		where_format: array( '%d' )
+	);
+
+	wp_send_json_success(
+		array(
+			'message' => __( 'Payment محفوظ ہو گئی۔', 'jwpm' ),
+		)
+	);
+}
+
+/**
+ * 6) Get Payments List (per contract)
+ */
+add_action( 'wp_ajax_jwpm_get_installment_payments', 'jwpm_ajax_get_installment_payments' );
+function jwpm_ajax_get_installment_payments() {
+	check_ajax_referer( 'jwpm_installments_main_nonce', 'nonce' );
+	jwpm_installments_ensure_capability();
+
+	global $wpdb;
+
+	$payments_table = jwpm_installments_payments_table_name();
+
+	$contract_id = isset( $_POST['contract_id'] ) ? intval( $_POST['contract_id'] ) : 0;
+	if ( $contract_id <= 0 ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'غلط Contract ID۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	$sql  = "SELECT * FROM {$payments_table} WHERE contract_id = %d ORDER BY payment_date DESC, id DESC";
+	$rows = $wpdb->get_results( $wpdb->prepare( $sql, $contract_id ), ARRAY_A );
+
+	wp_send_json_success(
+		array(
+			'items' => $rows,
+		)
+	);
+}
+
+/**
+ * 7) Change Contract Status (Cancel / Default / Complete)
+ */
+add_action( 'wp_ajax_jwpm_update_installment_status', 'jwpm_ajax_update_installment_status' );
+function jwpm_ajax_update_installment_status() {
+	check_ajax_referer( 'jwpm_installments_main_nonce', 'nonce' );
+	jwpm_installments_ensure_capability();
+
+	global $wpdb;
+
+	$table  = jwpm_installments_table_name();
+	$id     = isset( $_POST['id'] ) ? intval( $_POST['id'] ) : 0;
+	$status = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+
+	if ( $id <= 0 || ! in_array( $status, array( 'active', 'completed', 'defaulted', 'cancelled' ), true ) ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'غلط ڈیٹا موصول ہوا۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	$updated = $wpdb->update(
+		$table,
+		array(
+			'status'     => $status,
+			'updated_by' => get_current_user_id(),
+		),
+		array( 'id' => $id ),
+		null,
+		array( '%d' )
+	);
+
+	if ( false === $updated ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'Status اپڈیٹ نہیں ہو سکا۔', 'jwpm' ),
+			),
+			500
+		);
+	}
+
+	wp_send_json_success(
+		array(
+			'message' => __( 'Status اپڈیٹ ہو گیا۔', 'jwpm' ),
+			'status'  => $status,
+		)
+	);
+}
+
+/**
+ * 8) Demo Installments Create
+ */
+add_action( 'wp_ajax_jwpm_installments_demo_create', 'jwpm_ajax_installments_demo_create' );
+function jwpm_ajax_installments_demo_create() {
+	check_ajax_referer( 'jwpm_installments_demo_nonce', 'nonce' );
+	jwpm_installments_ensure_capability();
+
+	global $wpdb;
+
+	$contracts_table = jwpm_installments_table_name();
+	$schedule_table  = jwpm_installments_schedule_table_name();
+
+	$customers_table = $wpdb->prefix . 'jwpm_customers';
+
+	$customer_ids = $wpdb->get_col( "SELECT id FROM {$customers_table} ORDER BY id DESC LIMIT 5" );
+	if ( empty( $customer_ids ) ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'Demo کیلئے کم از کم کچھ Customers موجود ہونے چاہئیں۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	$current_user = get_current_user_id();
+	$created      = 0;
+
+	for ( $i = 0; $i < 5; $i++ ) {
+		$customer_id = $customer_ids[ array_rand( $customer_ids ) ];
+		$total       = 50000 + ( $i * 5000 );
+		$advance     = 10000;
+		$net         = $total - $advance;
+		$count       = 5;
+
+		$max_id        = (int) $wpdb->get_var( "SELECT MAX(id) FROM {$contracts_table}" );
+		$next          = $max_id + 1;
+		$contract_code = sprintf( 'INST-%04d', $next );
+
+		$start_date = gmdate( 'Y-m-d', strtotime( '+' . ( $i + 1 ) . ' days' ) );
+		$end_date   = gmdate( 'Y-m-d', strtotime( '+' . ( $i + 1 + ( $count - 1 ) ) . ' months' ) );
+
+		$ok = $wpdb->insert(
+			$contracts_table,
+			array(
+				'contract_code'       => $contract_code,
+				'customer_id'         => $customer_id,
+				'sale_date'           => gmdate( 'Y-m-d' ),
+				'total_amount'        => jwpm_installments_sanitize_decimal( $total ),
+				'advance_amount'      => jwpm_installments_sanitize_decimal( $advance ),
+				'net_amount'          => jwpm_installments_sanitize_decimal( $net ),
+				'installment_count'   => $count,
+				'installment_frequency' => 'monthly',
+				'start_date'          => $start_date,
+				'end_date'            => $end_date,
+				'status'              => 'active',
+				'current_outstanding' => jwpm_installments_sanitize_decimal( $net ),
+				'is_demo'             => 1,
+				'created_by'          => $current_user,
+			)
+		);
+
+		if ( ! $ok ) {
+			continue;
+		}
+
+		$contract_id = (int) $wpdb->insert_id;
+		$per         = jwpm_installments_sanitize_decimal( $net / $count );
+		$date        = new DateTime( $start_date );
+
+		for ( $n = 1; $n <= $count; $n++ ) {
+			if ( $n > 1 ) {
+				$date->modify( '+1 month' );
+			}
+			$wpdb->insert(
+				$schedule_table,
+				array(
+					'contract_id'    => $contract_id,
+					'installment_no' => $n,
+					'due_date'       => $date->format( 'Y-m-d' ),
+					'amount'         => $per,
+					'paid_amount'    => '0.000',
+					'status'         => 'pending',
+					'is_demo'        => 1,
+				)
+			);
+		}
+
+		$created++;
+	}
+
+	wp_send_json_success(
+		array(
+			'message' => __( 'Demo Installments بنا دیے گئے۔', 'jwpm' ),
+			'created' => $created,
+		)
+	);
+}
+
+/**
+ * 9) Demo Installments Clear
+ */
+add_action( 'wp_ajax_jwpm_installments_demo_clear', 'jwpm_ajax_installments_demo_clear' );
+function jwpm_ajax_installments_demo_clear() {
+	check_ajax_referer( 'jwpm_installments_demo_nonce', 'nonce' );
+	jwpm_installments_ensure_capability();
+
+	global $wpdb;
+
+	$contracts_table = jwpm_installments_table_name();
+	$schedule_table  = jwpm_installments_schedule_table_name();
+	$payments_table  = jwpm_installments_payments_table_name();
+
+	$demo_ids = $wpdb->get_col( "SELECT id FROM {$contracts_table} WHERE is_demo = 1" );
+
+	if ( ! empty( $demo_ids ) ) {
+		$ids_placeholders = implode( ',', array_fill( 0, count( $demo_ids ), '%d' ) );
+
+		// schedule
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$schedule_table} WHERE contract_id IN ({$ids_placeholders})",
+				$demo_ids
+			)
+		);
+
+		// payments
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$payments_table} WHERE contract_id IN ({$ids_placeholders})",
+				$demo_ids
+			)
+		);
+
+		// contracts
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$contracts_table} WHERE id IN ({$ids_placeholders})",
+				$demo_ids
+			)
+		);
+	}
+
+	wp_send_json_success(
+		array(
+			'message' => __( 'Demo Installments حذف ہو گئے۔', 'jwpm' ),
+			'deleted' => is_array( $demo_ids ) ? count( $demo_ids ) : 0,
+		)
+	);
+}
+
+/**
+ * 10) Import Installments (CSV)
+ */
+add_action( 'wp_ajax_jwpm_import_installments', 'jwpm_ajax_import_installments' );
+function jwpm_ajax_import_installments() {
+	check_ajax_referer( 'jwpm_installments_import_nonce', 'nonce' );
+	jwpm_installments_ensure_capability();
+
+	if ( empty( $_FILES['file']['tmp_name'] ) ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'فائل موصول نہیں ہوئی۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	$file = $_FILES['file']['tmp_name'];
+
+	if ( ! file_exists( $file ) ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'فائل دستیاب نہیں۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	$skip_duplicates = ! empty( $_POST['skip_duplicates'] );
+
+	global $wpdb;
+
+	$contracts_table = jwpm_installments_table_name();
+	$customers_table = $wpdb->prefix . 'jwpm_customers';
+
+	$handle = fopen( $file, 'r' );
+	if ( ! $handle ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'فائل نہیں کھولی جا سکی۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	$total    = 0;
+	$inserted = 0;
+	$skipped  = 0;
+
+	$header = fgetcsv( $handle );
+	if ( ! $header ) {
+		fclose( $handle );
+		wp_send_json_error(
+			array(
+				'message' => __( 'فائل میں header row نہیں ملا۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	$map = array();
+	foreach ( $header as $index => $col ) {
+		$key        = strtolower( trim( $col ) );
+		$map[ $key ] = $index;
+	}
+
+	if ( ! isset( $map['customer_phone'], $map['total_amount'], $map['installment_count'] ) ) {
+		fclose( $handle );
+		wp_send_json_error(
+			array(
+				'message' => __( 'کم از کم customer_phone, total_amount اور installment_count کالم ضروری ہیں۔', 'jwpm' ),
+			),
+			400
+		);
+	}
+
+	$current_user = get_current_user_id();
+
+	while ( ( $row = fgetcsv( $handle ) ) !== false ) {
+		$total++;
+
+		$phone = sanitize_text_field( $row[ $map['customer_phone'] ] ?? '' );
+		$total_amount_raw = $row[ $map['total_amount'] ] ?? '0';
+		$count_raw        = $row[ $map['installment_count'] ] ?? '0';
+
+		if ( '' === $phone ) {
+			$skipped++;
+			continue;
+		}
+
+		$customer_id = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT id FROM {$customers_table} WHERE phone = %s",
+				$phone
+			)
+		);
+
+		if ( ! $customer_id ) {
+			$skipped++;
+			continue;
+		}
+
+		$total_amount   = jwpm_installments_sanitize_decimal( $total_amount_raw );
+		$installments_n = max( 1, intval( $count_raw ) );
+		$advance_amount = jwpm_installments_sanitize_decimal( $row[ $map['advance_amount'] ] ?? '0' );
+		$net_amount     = jwpm_installments_sanitize_decimal( (float) $total_amount - (float) $advance_amount );
+		$sale_date      = isset( $map['sale_date'] ) ? sanitize_text_field( $row[ $map['sale_date'] ] ) : gmdate( 'Y-m-d' );
+		$start_date     = isset( $map['start_date'] ) ? sanitize_text_field( $row[ $map['start_date'] ] ) : $sale_date;
+
+		// skip duplicates by contract_code اگر موجود ہو
+		$contract_code = null;
+		if ( isset( $map['contract_code'] ) && ! empty( $row[ $map['contract_code'] ] ) ) {
+			$contract_code = sanitize_text_field( $row[ $map['contract_code'] ] );
+			if ( $skip_duplicates ) {
+				$exists = $wpdb->get_var(
+					$wpdb->prepare(
+						"SELECT id FROM {$contracts_table} WHERE contract_code = %s",
+						$contract_code
+					)
+				);
+				if ( $exists ) {
+					$skipped++;
+					continue;
+				}
+			}
+		}
+
+		if ( ! $contract_code ) {
+			$max_id        = (int) $wpdb->get_var( "SELECT MAX(id) FROM {$contracts_table}" );
+			$next          = $max_id + 1;
+			$contract_code = sprintf( 'INST-%04d', $next );
+		}
+
+		$ok = $wpdb->insert(
+			$contracts_table,
+			array(
+				'contract_code'       => $contract_code,
+				'customer_id'         => $customer_id,
+				'sale_date'           => $sale_date,
+				'total_amount'        => $total_amount,
+				'advance_amount'      => $advance_amount,
+				'net_amount'          => $net_amount,
+				'installment_count'   => $installments_n,
+				'installment_frequency' => 'monthly',
+				'start_date'          => $start_date,
+				'status'              => 'active',
+				'current_outstanding' => $net_amount,
+				'is_demo'             => 0,
+				'created_by'          => $current_user,
+			)
+		);
+
+		if ( ! $ok ) {
+			$skipped++;
+			continue;
+		}
+
+		$contract_id = (int) $wpdb->insert_id;
+
+		// simple even schedule
+		$schedule_table = jwpm_installments_schedule_table_name();
+		$per            = jwpm_installments_sanitize_decimal( $net_amount / $installments_n );
+		$dt             = new DateTime( $start_date );
+		for ( $i = 1; $i <= $installments_n; $i++ ) {
+			if ( $i > 1 ) {
+				$dt->modify( '+1 month' );
+			}
+			$wpdb->insert(
+				$schedule_table,
+				array(
+					'contract_id'    => $contract_id,
+					'installment_no' => $i,
+					'due_date'       => $dt->format( 'Y-m-d' ),
+					'amount'         => $per,
+					'paid_amount'    => '0.000',
+					'status'         => 'pending',
+					'is_demo'        => 0,
+				)
+			);
+		}
+
+		$inserted++;
+	}
+
+	fclose( $handle );
+
+	wp_send_json_success(
+		array(
+			'message'  => __( 'Import مکمل ہو گیا۔', 'jwpm' ),
+			'total'    => $total,
+			'inserted' => $inserted,
+			'skipped'  => $skipped,
+		)
+	);
+}
+
+/**
+ * 11) Export Installments (CSV for Excel)
+ */
+add_action( 'wp_ajax_jwpm_export_installments', 'jwpm_ajax_export_installments' );
+function jwpm_ajax_export_installments() {
+	check_ajax_referer( 'jwpm_installments_export_nonce', 'nonce' );
+	jwpm_installments_ensure_capability();
+
+	global $wpdb;
+
+	$contracts_table = jwpm_installments_table_name();
+	$customers_table = $wpdb->prefix . 'jwpm_customers';
+
+	$filename = 'jwpm-installments-' . gmdate( 'Ymd-His' ) . '.csv';
+
+	nocache_headers();
+	header( 'Content-Type: text/csv; charset=utf-8' );
+	header( 'Content-Disposition: attachment; filename=' . $filename );
+
+	$output = fopen( 'php://output', 'w' );
+
+	$headers = array(
+		'id',
+		'contract_code',
+		'customer_id',
+		'customer_name',
+		'customer_phone',
+		'sale_date',
+		'total_amount',
+		'advance_amount',
+		'net_amount',
+		'installment_count',
+		'installment_frequency',
+		'start_date',
+		'end_date',
+		'status',
+		'current_outstanding',
+		'remarks',
+		'is_demo',
+		'created_at',
+		'updated_at',
+	);
+
+	fputcsv( $output, $headers );
+
+	$sql  = "SELECT i.*, c.name AS customer_name, c.phone AS customer_phone
+		FROM {$contracts_table} i
+		LEFT JOIN {$customers_table} c ON i.customer_id = c.id
+		ORDER BY i.created_at DESC";
+	$rows = $wpdb->get_results( $sql, ARRAY_A );
+
+	if ( $rows ) {
+		foreach ( $rows as $row ) {
+			$line = array();
+			foreach ( $headers as $key ) {
+				$line[] = isset( $row[ $key ] ) ? $row[ $key ] : '';
+			}
+			fputcsv( $output, $line );
+		}
+	}
+
+	fclose( $output );
+	exit;
+}
+
+// 🔴 یہاں پر [Installments AJAX Handlers] ختم ہو رہا ہے
+// ✅ Syntax verified block end
