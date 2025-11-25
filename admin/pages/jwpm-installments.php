@@ -9,10 +9,9 @@ if ( ! function_exists( 'jwpm_render_installments_page' ) ) {
 
 	/**
 	 * JWPM Installments Page Render
-	 * یہاں Root DIV اور HTML <template> بلاکس ہیں، اصل UI (JavaScript) سے رینڈر ہو گا۔
+	 * Root DIV + HTML <template> blocks, اصل UI (JavaScript) سے آئے گا۔
 	 */
 	function jwpm_render_installments_page() {
-
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'آپ کو اس صفحے تک رسائی کی اجازت نہیں۔', 'jwpm' ) );
 		}
@@ -45,7 +44,6 @@ if ( ! function_exists( 'jwpm_render_installments_page' ) ) {
 			<?php
 			/**
 			 * Main Layout Template
-			 * Header + Filters + Actions + Contracts Table + Side Panel
 			 */
 			?>
 			<template id="jwpm-installments-layout-template">
@@ -54,7 +52,7 @@ if ( ! function_exists( 'jwpm_render_installments_page' ) ) {
 						<div class="jwpm-page-title-group">
 							<h1 class="jwpm-page-title"><?php esc_html_e( 'Installments / Credit Sales', 'jwpm' ); ?></h1>
 							<p class="jwpm-page-subtitle">
-								<?php esc_html_e( 'تمام قسطی معاملات، شیڈول اور ادائیگیاں یہاں سے کنٹرول کریں۔', 'jwpm' ); ?>
+								<?php esc_html_e( 'تمام قسطی معاہدوں، شیڈول اور ادائیگیوں کو منظم کریں۔', 'jwpm' ); ?>
 							</p>
 						</div>
 						<div class="jwpm-page-header-stats">
@@ -107,7 +105,7 @@ if ( ! function_exists( 'jwpm_render_installments_page' ) ) {
 							<button type="button" class="button button-primary" data-jwpm-installments-action="add">
 								<?php esc_html_e( '➕ New Installment Plan', 'jwpm' ); ?>
 							</button>
-							<button type="button" class="button" data-jwpm-installments-action="receive-payment">
+							<button type="button" class="button" data-jwpm-installments-action="receive">
 								<?php esc_html_e( '💰 Receive Payment', 'jwpm' ); ?>
 							</button>
 							<button type="button" class="button" data-jwpm-installments-action="import">
@@ -125,14 +123,14 @@ if ( ! function_exists( 'jwpm_render_installments_page' ) ) {
 								</button>
 								<div class="jwpm-dropdown-menu">
 									<button type="button" class="jwpm-dropdown-item" data-jwpm-installments-action="demo-create">
-										<?php esc_html_e( 'Demo Installment Plans بنائیں', 'jwpm' ); ?>
+										<?php esc_html_e( 'Demo Installments بنائیں', 'jwpm' ); ?>
 									</button>
 									<button type="button" class="jwpm-dropdown-item" data-jwpm-installments-action="demo-clear">
-										<?php esc_html_e( 'Demo Installment Data حذف کریں', 'jwpm' ); ?>
+										<?php esc_html_e( 'Demo Installments حذف کریں', 'jwpm' ); ?>
 									</button>
 								</div>
 							</div>
-                        </div>
+						</div>
 					</section>
 
 					<section class="jwpm-installments-main">
@@ -142,7 +140,7 @@ if ( ! function_exists( 'jwpm_render_installments_page' ) ) {
 									<tr>
 										<th><?php esc_html_e( 'Contract Code', 'jwpm' ); ?></th>
 										<th><?php esc_html_e( 'Customer', 'jwpm' ); ?></th>
-										<th><?php esc_html_e( 'Mobile', 'jwpm' ); ?></th>
+										<th><?php esc_html_e( 'Phone', 'jwpm' ); ?></th>
 										<th><?php esc_html_e( 'Total', 'jwpm' ); ?></th>
 										<th><?php esc_html_e( 'Advance', 'jwpm' ); ?></th>
 										<th><?php esc_html_e( 'Net Amount', 'jwpm' ); ?></th>
@@ -156,19 +154,17 @@ if ( ! function_exists( 'jwpm_render_installments_page' ) ) {
 								<tbody data-jwpm-installments-table-body>
 									<tr class="jwpm-empty-row">
 										<td colspan="11">
-											<?php esc_html_e( 'کوئی Installment Contract نہیں ملا۔ اوپر سے فلٹر تبدیل کریں یا نیا پلان بنائیں۔', 'jwpm' ); ?>
+											<?php esc_html_e( 'کوئی قسطی معاہدہ نہیں ملا۔ اوپر سے فلٹر تبدیل کریں یا نیا پلان بنائیں۔', 'jwpm' ); ?>
 										</td>
 									</tr>
 								</tbody>
 							</table>
 
-							<div class="jwpm-pagination" data-jwpm-installments-pagination>
-								<!-- (JavaScript) یہاں pagination رینڈر کرے گا -->
-							</div>
+							<div class="jwpm-pagination" data-jwpm-installments-pagination></div>
 						</div>
 
 						<aside class="jwpm-installments-side-panel" data-jwpm-installments-side-panel hidden>
-							<!-- (JavaScript) یہاں Installment Panel (Tabs) رینڈر کرے گا -->
+							<!-- (JavaScript) یہاں Side Panel (Overview / Schedule / Payments) رینڈر کرے گا -->
 						</aside>
 					</section>
 				</div>
@@ -176,7 +172,7 @@ if ( ! function_exists( 'jwpm_render_installments_page' ) ) {
 
 			<?php
 			/**
-			 * Installment Row Template
+			 * Contracts Table Row Template
 			 */
 			?>
 			<template id="jwpm-installments-row-template">
@@ -189,16 +185,16 @@ if ( ! function_exists( 'jwpm_render_installments_page' ) ) {
 					<td data-jwpm-installment-field="net_amount"></td>
 					<td data-jwpm-installment-field="installment_count"></td>
 					<td data-jwpm-installment-field="next_due_date"></td>
-					<td data-jwpm-installment-field="current_outstanding"></td>
+					<td data-jwpm-installment-field="outstanding"></td>
 					<td data-jwpm-installment-field="status_badge"></td>
 					<td class="jwpm-table-actions">
 						<button type="button" class="button-link" data-jwpm-installments-action="view">
-							<?php esc_html_e( 'View/Edit', 'jwpm' ); ?>
+							<?php esc_html_e( 'View / Edit', 'jwpm' ); ?>
 						</button>
-						<button type="button" class="button-link" data-jwpm-installments-action="quick-payment">
+						<button type="button" class="button-link" data-jwpm-installments-action="quick-receive">
 							<?php esc_html_e( 'Receive', 'jwpm' ); ?>
 						</button>
-						<button type="button" class="button-link jwpm-text-danger" data-jwpm-installments-action="cancel">
+						<button type="button" class="button-link jwpm-text-danger" data-jwpm-installments-action="cancel-contract">
 							<?php esc_html_e( 'Cancel', 'jwpm' ); ?>
 						</button>
 					</td>
@@ -207,7 +203,7 @@ if ( ! function_exists( 'jwpm_render_installments_page' ) ) {
 
 			<?php
 			/**
-			 * Installments Side Panel Template (Overview + Schedule + Payments Tabs)
+			 * Side Panel Template (Overview / Schedule / Payments)
 			 */
 			?>
 			<template id="jwpm-installments-panel-template">
@@ -217,40 +213,38 @@ if ( ! function_exists( 'jwpm_render_installments_page' ) ) {
 							<h2 class="jwpm-side-panel-title" data-jwpm-installments-panel-title>
 								<?php esc_html_e( 'New Installment Plan', 'jwpm' ); ?>
 							</h2>
-							<div class="jwpm-side-panel-subtitle">
-								<span class="jwpm-status-badge" data-jwpm-installments-contract-status-badge data-status="active">
-									<?php esc_html_e( 'Active', 'jwpm' ); ?>
-								</span>
-							</div>
+							<div class="jwpm-side-panel-subtitle" data-jwpm-installments-panel-subtitle></div>
 						</div>
-						<button type="button" class="jwpm-side-panel-close" data-jwpm-installments-action="close-panel" aria-label="<?php echo esc_attr__( 'بند کریں', 'jwpm' ); ?>">×</button>
+						<div class="jwpm-side-panel-header-actions">
+							<span class="jwpm-status-badge" data-jwpm-installments-contract-status></span>
+							<button type="button" class="jwpm-side-panel-close" data-jwpm-installments-action="close-panel" aria-label="<?php echo esc_attr__( 'بند کریں', 'jwpm' ); ?>">×</button>
+						</div>
 					</header>
 
 					<div class="jwpm-side-panel-tabs">
-						<button type="button" class="jwpm-tab-button is-active" data-jwpm-installments-tab="overview">
+						<button type="button" class="jwpm-tab is-active" data-jwpm-installments-tab="overview">
 							<?php esc_html_e( 'Overview', 'jwpm' ); ?>
 						</button>
-						<button type="button" class="jwpm-tab-button" data-jwpm-installments-tab="schedule">
+						<button type="button" class="jwpm-tab" data-jwpm-installments-tab="schedule">
 							<?php esc_html_e( 'Schedule', 'jwpm' ); ?>
 						</button>
-						<button type="button" class="jwpm-tab-button" data-jwpm-installments-tab="payments">
+						<button type="button" class="jwpm-tab" data-jwpm-installments-tab="payments">
 							<?php esc_html_e( 'Payments', 'jwpm' ); ?>
 						</button>
 					</div>
 
 					<div class="jwpm-side-panel-body">
-						<form data-jwpm-installments-form novalidate>
-							<input type="hidden" name="id" value="" data-jwpm-installments-input="id" />
+						<div class="jwpm-tab-panel is-active" data-jwpm-installments-tab-panel="overview">
+							<form data-jwpm-installments-form>
+								<input type="hidden" name="id" value="" data-jwpm-installments-input="id" />
 
-							<div class="jwpm-tab-content is-active" data-jwpm-installments-tab-panel="overview">
 								<section class="jwpm-form-section">
 									<h3 class="jwpm-form-section-title"><?php esc_html_e( 'Basic Info', 'jwpm' ); ?></h3>
 									<div class="jwpm-form-grid">
 										<label class="jwpm-field jwpm-field-full">
 											<span class="jwpm-field-label"><?php esc_html_e( 'Customer', 'jwpm' ); ?> *</span>
 											<select class="jwpm-select" name="customer_id" data-jwpm-installments-input="customer_id">
-												<option value=""><?php esc_html_e( 'Select Customer…', 'jwpm' ); ?></option>
-												<!-- (JavaScript) یہاں Customers options ڈالے گا -->
+												<option value=""><?php esc_html_e( 'Select customer…', 'jwpm' ); ?></option>
 											</select>
 										</label>
 										<label class="jwpm-field">
@@ -258,11 +252,7 @@ if ( ! function_exists( 'jwpm_render_installments_page' ) ) {
 											<input type="date" class="jwpm-input" name="sale_date" data-jwpm-installments-input="sale_date" />
 										</label>
 										<label class="jwpm-field">
-											<span class="jwpm-field-label"><?php esc_html_e( 'Sale Reference (Invoice)', 'jwpm' ); ?></span>
-											<input type="text" class="jwpm-input" name="sale_reference" data-jwpm-installments-input="sale_reference" />
-										</label>
-										<label class="jwpm-field">
-											<span class="jwpm-field-label"><?php esc_html_e( 'Total Amount', 'jwpm' ); ?> *</span>
+											<span class="jwpm-field-label"><?php esc_html_e( 'Total Amount', 'jwpm' ); ?></span>
 											<input type="number" step="0.001" class="jwpm-input" name="total_amount" data-jwpm-installments-input="total_amount" />
 										</label>
 										<label class="jwpm-field">
@@ -271,14 +261,8 @@ if ( ! function_exists( 'jwpm_render_installments_page' ) ) {
 										</label>
 										<label class="jwpm-field">
 											<span class="jwpm-field-label"><?php esc_html_e( 'Net Installment Amount', 'jwpm' ); ?></span>
-											<input type="number" step="0.001" class="jwpm-input" name="net_installment_amount" data-jwpm-installments-input="net_installment_amount" readonly />
+											<input type="number" step="0.001" class="jwpm-input" name="net_amount" data-jwpm-installments-input="net_amount" readonly />
 										</label>
-									</div>
-								</section>
-
-								<section class="jwpm-form-section">
-									<h3 class="jwpm-form-section-title"><?php esc_html_e( 'Plan Details', 'jwpm' ); ?></h3>
-									<div class="jwpm-form-grid">
 										<label class="jwpm-field">
 											<span class="jwpm-field-label"><?php esc_html_e( 'Installment Count', 'jwpm' ); ?></span>
 											<input type="number" class="jwpm-input" name="installment_count" data-jwpm-installments-input="installment_count" />
@@ -306,87 +290,91 @@ if ( ! function_exists( 'jwpm_render_installments_page' ) ) {
 										</label>
 										<label class="jwpm-field jwpm-field-full">
 											<span class="jwpm-field-label"><?php esc_html_e( 'Remarks', 'jwpm' ); ?></span>
-											<textarea class="jwpm-textarea" name="remarks" rows="2" data-jwpm-installments-input="remarks"></textarea>
+											<textarea class="jwpm-textarea" name="remarks" rows="3" data-jwpm-installments-input="remarks"></textarea>
 										</label>
 									</div>
+									<label class="jwpm-field-inline">
+										<input type="checkbox" name="auto_generate_schedule" value="1" data-jwpm-installments-input="auto_generate_schedule" checked />
+										<span class="jwpm-field-label"><?php esc_html_e( 'Schedule خود بخود بنائیں (equal installments)', 'jwpm' ); ?></span>
+									</label>
 								</section>
-							</div>
+							</form>
+						</div>
 
-							<div class="jwpm-tab-content" data-jwpm-installments-tab-panel="schedule">
-								<section class="jwpm-form-section">
-									<h3 class="jwpm-form-section-title"><?php esc_html_e( 'Installment Schedule', 'jwpm' ); ?></h3>
-									<div class="jwpm-schedule-summary" data-jwpm-installments-schedule-summary>
-										<!-- (JavaScript) یہاں total / paid / pending / overdue summary ڈالے گا -->
-									</div>
-									<div class="jwpm-schedule-actions">
-										<button type="button" class="button" data-jwpm-installments-action="schedule-generate">
-											<?php esc_html_e( 'Generate Schedule', 'jwpm' ); ?>
-										</button>
-										<button type="button" class="button" data-jwpm-installments-action="schedule-even">
-											<?php esc_html_e( 'Recalculate Evenly', 'jwpm' ); ?>
-										</button>
-									</div>
-									<table class="jwpm-table jwpm-table-schedule">
-										<thead>
-											<tr>
-												<th><?php esc_html_e( '#', 'jwpm' ); ?></th>
-												<th><?php esc_html_e( 'Due Date', 'jwpm' ); ?></th>
-												<th><?php esc_html_e( 'Amount', 'jwpm' ); ?></th>
-												<th><?php esc_html_e( 'Paid', 'jwpm' ); ?></th>
-												<th><?php esc_html_e( 'Status', 'jwpm' ); ?></th>
-												<th><?php esc_html_e( 'Paid Date', 'jwpm' ); ?></th>
-												<th><?php esc_html_e( 'Notes', 'jwpm' ); ?></th>
-											</tr>
-										</thead>
-										<tbody data-jwpm-installments-schedule-body>
-											<tr class="jwpm-empty-row">
-												<td colspan="7">
-													<?php esc_html_e( 'ابھی تک کوئی schedule نہیں بنا۔ اوپر سے Generate Schedule کا بٹن دبائیں۔', 'jwpm' ); ?>
-												</td>
-											</tr>
-										</tbody>
-									</table>
-								</section>
+						<div class="jwpm-tab-panel" data-jwpm-installments-tab-panel="schedule">
+							<div class="jwpm-schedule-summary">
+								<span data-jwpm-installments-sched-stat="total"></span>
+								<span data-jwpm-installments-sched-stat="paid"></span>
+								<span data-jwpm-installments-sched-stat="pending"></span>
+								<span data-jwpm-installments-sched-stat="overdue"></span>
 							</div>
+							<div class="jwpm-schedule-actions">
+								<button type="button" class="button" data-jwpm-installments-action="recalc-even">
+									<?php esc_html_e( 'Recalculate Evenly', 'jwpm' ); ?>
+								</button>
+								<button type="button" class="button" data-jwpm-installments-action="refresh-schedule">
+									<?php esc_html_e( 'Refresh Schedule', 'jwpm' ); ?>
+								</button>
+							</div>
+							<div class="jwpm-schedule-table-wrap">
+								<table class="jwpm-table jwpm-table-schedule">
+									<thead>
+										<tr>
+											<th>#</th>
+											<th><?php esc_html_e( 'Due Date', 'jwpm' ); ?></th>
+											<th><?php esc_html_e( 'Amount', 'jwpm' ); ?></th>
+											<th><?php esc_html_e( 'Paid', 'jwpm' ); ?></th>
+											<th><?php esc_html_e( 'Status', 'jwpm' ); ?></th>
+											<th><?php esc_html_e( 'Paid Date', 'jwpm' ); ?></th>
+										</tr>
+									</thead>
+									<tbody data-jwpm-installments-schedule-body>
+										<tr class="jwpm-empty-row">
+											<td colspan="6">
+												<?php esc_html_e( 'ابھی کوئی Schedule موجود نہیں، Overview میں Auto-generate on save استعمال کریں۔', 'jwpm' ); ?>
+											</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
 
-							<div class="jwpm-tab-content" data-jwpm-installments-tab-panel="payments">
-								<section class="jwpm-form-section">
-									<h3 class="jwpm-form-section-title"><?php esc_html_e( 'Payments Log', 'jwpm' ); ?></h3>
-									<div class="jwpm-payments-actions">
-										<button type="button" class="button button-primary" data-jwpm-installments-action="add-payment">
-											<?php esc_html_e( 'Add Payment', 'jwpm' ); ?>
-										</button>
-									</div>
-									<table class="jwpm-table jwpm-table-payments">
-										<thead>
-											<tr>
-												<th><?php esc_html_e( 'Date', 'jwpm' ); ?></th>
-												<th><?php esc_html_e( 'Amount', 'jwpm' ); ?></th>
-												<th><?php esc_html_e( 'Method', 'jwpm' ); ?></th>
-												<th><?php esc_html_e( 'Reference', 'jwpm' ); ?></th>
-												<th><?php esc_html_e( 'Received By', 'jwpm' ); ?></th>
-												<th><?php esc_html_e( 'Note', 'jwpm' ); ?></th>
-											</tr>
-										</thead>
-										<tbody data-jwpm-installments-payments-body>
-											<tr class="jwpm-empty-row">
-												<td colspan="6">
-													<?php esc_html_e( 'اس Contract کیلئے ابھی کوئی payment ریکارڈ نہیں۔', 'jwpm' ); ?>
-												</td>
-											</tr>
-										</tbody>
-									</table>
-								</section>
+						<div class="jwpm-tab-panel" data-jwpm-installments-tab-panel="payments">
+							<div class="jwpm-payments-header">
+								<button type="button" class="button button-primary" data-jwpm-installments-action="add-payment">
+									<?php esc_html_e( 'Add Payment', 'jwpm' ); ?>
+								</button>
 							</div>
-						</form>
+							<div class="jwpm-payments-table-wrap">
+								<table class="jwpm-table jwpm-table-payments">
+									<thead>
+										<tr>
+											<th><?php esc_html_e( 'Date', 'jwpm' ); ?></th>
+											<th><?php esc_html_e( 'Amount', 'jwpm' ); ?></th>
+											<th><?php esc_html_e( 'Method', 'jwpm' ); ?></th>
+											<th><?php esc_html_e( 'Reference', 'jwpm' ); ?></th>
+											<th><?php esc_html_e( 'Received By', 'jwpm' ); ?></th>
+											<th><?php esc_html_e( 'Note', 'jwpm' ); ?></th>
+										</tr>
+									</thead>
+									<tbody data-jwpm-installments-payments-body>
+										<tr class="jwpm-empty-row">
+											<td colspan="6">
+												<?php esc_html_e( 'ابھی کوئی Payment درج نہیں ہوئی۔', 'jwpm' ); ?>
+											</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
 					</div>
 
 					<footer class="jwpm-side-panel-footer">
-						<button type="button" class="button button-primary" data-jwpm-installments-action="save">
+						<button type="button" class="button button-primary" data-jwpm-installments-action="save-contract">
 							<?php esc_html_e( 'Save Plan', 'jwpm' ); ?>
 						</button>
-						<button type="button" class="button" data-jwpm-installments-action="cancel">
-							<?php esc_html_e( 'Cancel', 'jwpm' ); ?>
+						<button type="button" class="button" data-jwpm-installments-action="close-panel">
+							<?php esc_html_e( 'Close', 'jwpm' ); ?>
 						</button>
 					</footer>
 				</div>
@@ -394,7 +382,62 @@ if ( ! function_exists( 'jwpm_render_installments_page' ) ) {
 
 			<?php
 			/**
-			 * Import Plans Modal Template
+			 * Payment Modal Template
+			 */
+			?>
+			<template id="jwpm-installments-payment-modal-template">
+				<div class="jwpm-modal jwpm-modal-payment" role="dialog" aria-modal="true">
+					<div class="jwpm-modal-overlay" data-jwpm-installments-action="close-payment"></div>
+					<div class="jwpm-modal-content">
+						<header class="jwpm-modal-header">
+							<h2 class="jwpm-modal-title"><?php esc_html_e( 'Receive Payment', 'jwpm' ); ?></h2>
+							<button type="button" class="jwpm-modal-close" data-jwpm-installments-action="close-payment">×</button>
+						</header>
+						<div class="jwpm-modal-body">
+							<form data-jwpm-installments-payment-form>
+								<input type="hidden" name="contract_id" data-jwpm-installments-payment-input="contract_id" />
+								<label class="jwpm-field">
+									<span class="jwpm-field-label"><?php esc_html_e( 'Payment Date', 'jwpm' ); ?></span>
+									<input type="date" class="jwpm-input" name="payment_date" data-jwpm-installments-payment-input="payment_date" />
+								</label>
+								<label class="jwpm-field">
+									<span class="jwpm-field-label"><?php esc_html_e( 'Amount', 'jwpm' ); ?></span>
+									<input type="number" step="0.001" class="jwpm-input" name="amount" data-jwpm-installments-payment-input="amount" />
+								</label>
+								<label class="jwpm-field">
+									<span class="jwpm-field-label"><?php esc_html_e( 'Method', 'jwpm' ); ?></span>
+									<select class="jwpm-select" name="method" data-jwpm-installments-payment-input="method">
+										<option value="cash"><?php esc_html_e( 'Cash', 'jwpm' ); ?></option>
+										<option value="card"><?php esc_html_e( 'Card', 'jwpm' ); ?></option>
+										<option value="bank"><?php esc_html_e( 'Bank Transfer', 'jwpm' ); ?></option>
+										<option value="other"><?php esc_html_e( 'Other', 'jwpm' ); ?></option>
+									</select>
+								</label>
+								<label class="jwpm-field">
+									<span class="jwpm-field-label"><?php esc_html_e( 'Reference No.', 'jwpm' ); ?></span>
+									<input type="text" class="jwpm-input" name="reference_no" data-jwpm-installments-payment-input="reference_no" />
+								</label>
+								<label class="jwpm-field jwpm-field-full">
+									<span class="jwpm-field-label"><?php esc_html_e( 'Note', 'jwpm' ); ?></span>
+									<textarea class="jwpm-textarea" name="note" rows="3" data-jwpm-installments-payment-input="note"></textarea>
+								</label>
+							</form>
+						</div>
+						<footer class="jwpm-modal-footer">
+							<button type="button" class="button button-primary" data-jwpm-installments-action="save-payment">
+								<?php esc_html_e( 'Save Payment', 'jwpm' ); ?>
+							</button>
+							<button type="button" class="button" data-jwpm-installments-action="close-payment">
+								<?php esc_html_e( 'Cancel', 'jwpm' ); ?>
+							</button>
+						</footer>
+					</div>
+				</div>
+			</template>
+
+			<?php
+			/**
+			 * Import Modal Template (Installment Plans)
 			 */
 			?>
 			<template id="jwpm-installments-import-template">
@@ -406,12 +449,12 @@ if ( ! function_exists( 'jwpm_render_installments_page' ) ) {
 							<button type="button" class="jwpm-modal-close" data-jwpm-installments-action="close-import">×</button>
 						</header>
 						<div class="jwpm-modal-body">
-							<p><?php esc_html_e( 'براہ کرم (CSV) فائل اپلوڈ کریں۔ کم از کم Customer Phone / ID، Total Amount، Installment Count اور Start Date ضروری ہیں۔', 'jwpm' ); ?></p>
+							<p><?php esc_html_e( 'براہ کرم (CSV) فائل اپلوڈ کریں، کم از کم Customer Phone، Total Amount اور Installment Count کالم ضروری ہیں۔', 'jwpm' ); ?></p>
 							<form data-jwpm-installments-import-form>
 								<input type="file" name="file" accept=".csv,text/csv" required />
 								<label class="jwpm-field-inline">
 									<input type="checkbox" name="skip_duplicates" value="1" checked />
-									<span><?php esc_html_e( 'Contract Code کے ڈپلیکیٹ ریکارڈز کو چھوڑ دیں۔', 'jwpm' ); ?></span>
+									<span><?php esc_html_e( 'Contract Code کے مطابق ڈپلیکیٹ پلان کو چھوڑ دیں۔', 'jwpm' ); ?></span>
 								</label>
 							</form>
 							<div class="jwpm-import-result" data-jwpm-installments-import-result></div>
@@ -427,61 +470,6 @@ if ( ! function_exists( 'jwpm_render_installments_page' ) ) {
 					</div>
 				</div>
 			</template>
-
-			<?php
-			/**
-			 * Add Payment Modal Template
-			 */
-			?>
-			<template id="jwpm-installments-payment-template">
-				<div class="jwpm-modal jwpm-modal-payment" role="dialog" aria-modal="true">
-					<div class="jwpm-modal-overlay" data-jwpm-installments-action="close-payment"></div>
-					<div class="jwpm-modal-content">
-						<header class="jwpm-modal-header">
-							<h2 class="jwpm-modal-title"><?php esc_html_e( 'Receive Installment Payment', 'jwpm' ); ?></h2>
-							<button type="button" class="jwpm-modal-close" data-jwpm-installments-action="close-payment">×</button>
-						</header>
-						<div class="jwpm-modal-body">
-							<form data-jwpm-installments-payment-form>
-								<input type="hidden" name="contract_id" value="" data-jwpm-installments-payment-input="contract_id" />
-								<label class="jwpm-field">
-									<span class="jwpm-field-label"><?php esc_html_e( 'Payment Date', 'jwpm' ); ?></span>
-									<input type="date" class="jwpm-input" name="payment_date" data-jwpm-installments-payment-input="payment_date" />
-								</label>
-								<label class="jwpm-field">
-									<span class="jwpm-field-label"><?php esc_html_e( 'Amount', 'jwpm' ); ?></span>
-									<input type="number" step="0.001" class="jwpm-input" name="paid_amount" data-jwpm-installments-payment-input="paid_amount" />
-								</label>
-								<label class="jwpm-field">
-									<span class="jwpm-field-label"><?php esc_html_e( 'Payment Method', 'jwpm' ); ?></span>
-									<select class="jwpm-select" name="payment_method" data-jwpm-installments-payment-input="payment_method">
-										<option value="cash"><?php esc_html_e( 'Cash', 'jwpm' ); ?></option>
-										<option value="card"><?php esc_html_e( 'Card', 'jwpm' ); ?></option>
-										<option value="bank"><?php esc_html_e( 'Bank Transfer', 'jwpm' ); ?></option>
-										<option value="other"><?php esc_html_e( 'Other', 'jwpm' ); ?></option>
-									</select>
-								</label>
-								<label class="jwpm-field">
-									<span class="jwpm-field-label"><?php esc_html_e( 'Reference No', 'jwpm' ); ?></span>
-									<input type="text" class="jwpm-input" name="reference_no" data-jwpm-installments-payment-input="reference_no" />
-								</label>
-								<label class="jwpm-field">
-									<span class="jwpm-field-label"><?php esc_html_e( 'Notes', 'jwpm' ); ?></span>
-									<textarea class="jwpm-textarea" name="remarks" rows="2" data-jwpm-installments-payment-input="remarks"></textarea>
-								</label>
-							</form>
-						</div>
-						<footer class="jwpm-modal-footer">
-							<button type="button" class="button button-primary" data-jwpm-installments-action="save-payment">
-								<?php esc_html_e( 'Save Payment', 'jwpm' ); ?>
-							</button>
-							<button type="button" class="button" data-jwpm-installments-action="close-payment">
-								<?php esc_html_e( 'Cancel', 'jwpm' ); ?>
-							</button>
-						</footer>
-					</div>
-				</div>
-			</template>
 		</div>
 		<?php
 	}
@@ -489,4 +477,3 @@ if ( ! function_exists( 'jwpm_render_installments_page' ) ) {
 
 // 🔴 یہاں پر [Installments Page Templates] ختم ہو رہا ہے
 // ✅ Syntax verified block end
-
