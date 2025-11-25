@@ -471,3 +471,177 @@ if ( is_admin() && function_exists( 'add_action' ) ) {
 
 // 🔴 یہاں پر [Customers Table Schema] ختم ہو رہا ہے
 // ✅ Syntax verified block end
+/** Part 42 — Installments Tables Schema */
+// 🟢 یہاں سے [Installments Tables Schema] شروع ہو رہا ہے
+
+if ( ! class_exists( 'JWPM_DB_Installments' ) ) {
+
+	class JWPM_DB_Installments {
+
+		const TABLE_INSTALLMENTS_SLUG         = 'jwpm_installments';
+		const TABLE_SCHEDULE_SLUG             = 'jwpm_installment_schedule';
+		const TABLE_PAYMENTS_SLUG             = 'jwpm_installment_payments';
+		const DB_VERSION_OPT_INSTALLMENTS     = 'jwpm_installments_db_version';
+		const DB_VERSION_OPT_SCHEDULE         = 'jwpm_installment_schedule_db_version';
+		const DB_VERSION_OPT_PAYMENTS         = 'jwpm_installment_payments_db_version';
+		const DB_VERSION                      = '1.0.0';
+
+		protected static function get_charset_collate() {
+			global $wpdb;
+
+			$charset_collate = '';
+			if ( ! empty( $wpdb->charset ) ) {
+				$charset_collate .= "DEFAULT CHARACTER SET {$wpdb->charset} ";
+			}
+			if ( ! empty( $wpdb->collate ) ) {
+				$charset_collate .= "COLLATE {$wpdb->collate} ";
+			}
+
+			return $charset_collate;
+		}
+
+		public static function get_installments_table() {
+			global $wpdb;
+			return $wpdb->prefix . self::TABLE_INSTALLMENTS_SLUG;
+		}
+
+		public static function get_schedule_table() {
+			global $wpdb;
+			return $wpdb->prefix . self::TABLE_SCHEDULE_SLUG;
+		}
+
+		public static function get_payments_table() {
+			global $wpdb;
+			return $wpdb->prefix . self::TABLE_PAYMENTS_SLUG;
+		}
+
+		public static function get_installments_schema() {
+			$table   = self::get_installments_table();
+			$charset = self::get_charset_collate();
+
+			$sql = "CREATE TABLE {$table} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				contract_code varchar(50) NOT NULL,
+				customer_id bigint(20) unsigned NOT NULL,
+				sale_id bigint(20) unsigned DEFAULT NULL,
+				sale_reference varchar(100) DEFAULT NULL,
+				sale_date date DEFAULT NULL,
+				total_amount decimal(15,3) NOT NULL DEFAULT 0.000,
+				advance_amount decimal(15,3) NOT NULL DEFAULT 0.000,
+				net_installment_amount decimal(15,3) NOT NULL DEFAULT 0.000,
+				installment_count int(11) NOT NULL DEFAULT 0,
+				installment_frequency varchar(20) NOT NULL DEFAULT 'monthly',
+				start_date date DEFAULT NULL,
+				end_date date DEFAULT NULL,
+				status varchar(20) NOT NULL DEFAULT 'active',
+				current_outstanding decimal(15,3) NOT NULL DEFAULT 0.000,
+				remarks text DEFAULT NULL,
+				is_demo tinyint(1) NOT NULL DEFAULT 0,
+				created_by bigint(20) unsigned DEFAULT NULL,
+				updated_by bigint(20) unsigned DEFAULT NULL,
+				created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+				PRIMARY KEY  (id),
+				UNIQUE KEY contract_code (contract_code),
+				KEY customer_id (customer_id),
+				KEY status (status),
+				KEY is_demo (is_demo),
+				KEY start_date (start_date),
+				KEY end_date (end_date)
+			) {$charset};";
+
+			return $sql;
+		}
+
+		public static function get_schedule_schema() {
+			$table   = self::get_schedule_table();
+			$charset = self::get_charset_collate();
+
+			$sql = "CREATE TABLE {$table} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				contract_id bigint(20) unsigned NOT NULL,
+				installment_no int(11) NOT NULL DEFAULT 1,
+				due_date date NOT NULL,
+				amount decimal(15,3) NOT NULL DEFAULT 0.000,
+				paid_amount decimal(15,3) NOT NULL DEFAULT 0.000,
+				status varchar(20) NOT NULL DEFAULT 'pending',
+				paid_date date DEFAULT NULL,
+				notes text DEFAULT NULL,
+				is_demo tinyint(1) NOT NULL DEFAULT 0,
+				PRIMARY KEY  (id),
+				KEY contract_id (contract_id),
+				KEY due_date (due_date),
+				KEY status (status),
+				KEY is_demo (is_demo)
+			) {$charset};";
+
+			return $sql;
+		}
+
+		public static function get_payments_schema() {
+			$table   = self::get_payments_table();
+			$charset = self::get_charset_collate();
+
+			$sql = "CREATE TABLE {$table} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				contract_id bigint(20) unsigned NOT NULL,
+				schedule_id bigint(20) unsigned DEFAULT NULL,
+				payment_date date NOT NULL,
+				paid_amount decimal(15,3) NOT NULL DEFAULT 0.000,
+				payment_method varchar(50) NOT NULL DEFAULT 'cash',
+				reference_no varchar(100) DEFAULT NULL,
+				received_by bigint(20) unsigned DEFAULT NULL,
+				remarks text DEFAULT NULL,
+				is_demo tinyint(1) NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				PRIMARY KEY  (id),
+				KEY contract_id (contract_id),
+				KEY schedule_id (schedule_id),
+				KEY payment_date (payment_date),
+				KEY is_demo (is_demo)
+			) {$charset};";
+
+			return $sql;
+		}
+
+		public static function maybe_create_tables() {
+			require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+			$current_installments = get_option( self::DB_VERSION_OPT_INSTALLMENTS );
+			$current_schedule     = get_option( self::DB_VERSION_OPT_SCHEDULE );
+			$current_payments     = get_option( self::DB_VERSION_OPT_PAYMENTS );
+
+			if ( self::DB_VERSION !== $current_installments ) {
+				dbDelta( self::get_installments_schema() );
+				update_option( self::DB_VERSION_OPT_INSTALLMENTS, self::DB_VERSION );
+			}
+
+			if ( self::DB_VERSION !== $current_schedule ) {
+				dbDelta( self::get_schedule_schema() );
+				update_option( self::DB_VERSION_OPT_SCHEDULE, self::DB_VERSION );
+			}
+
+			if ( self::DB_VERSION !== $current_payments ) {
+				dbDelta( self::get_payments_schema() );
+				update_option( self::DB_VERSION_OPT_PAYMENTS, self::DB_VERSION );
+			}
+		}
+	}
+}
+
+/**
+ * admin میں load ہوتے ہی Installments tables ensure
+ */
+if ( is_admin() && function_exists( 'add_action' ) ) {
+	add_action(
+		'admin_init',
+		static function () {
+			if ( class_exists( 'JWPM_DB_Installments' ) ) {
+				JWPM_DB_Installments::maybe_create_tables();
+			}
+		}
+	);
+}
+
+// 🔴 یہاں پر [Installments Tables Schema] ختم ہو رہا ہے
+// ✅ Syntax verified block end
