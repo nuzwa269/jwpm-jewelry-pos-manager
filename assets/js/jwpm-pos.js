@@ -1247,4 +1247,601 @@
 // 🔴 یہاں پر POS Customer Search & Loading ختم ہو رہا ہے
 
 // ✅ Syntax verified block end
+/** Part 5 — POS Payment + Installments */
+/**
+ * Payment + Installments Module:
+ * - Cart totals سے grand total لے کر Total Due سیٹ کرتا ہے
+ * - Cash / Card / Bank / Pending / Mixed ادائیگی ہینڈل کرتا ہے
+ * - Remaining Due calculate کرتا ہے
+ * - Installment mode میں advance + قسطوں کی تعداد کے حساب سے پلان بناتا ہے (simple preview)
+ * - Pos.state.payment میں سب کچھ محفوظ کرتا ہے
+ * - custom event: jwpm_pos_payment_updated emit کرتا ہے
+ */
+
+// 🟢 یہاں سے POS Payment + Installments شروع ہو رہا ہے
+(function (window, document) {
+    'use strict';
+
+    if (!window.JWPMPos) {
+        console.warn('JWPM POS: JWPMPos root object نہیں ملا، Payment Module initialise نہیں ہو سکا۔');
+        return;
+    }
+
+    var Pos = window.JWPMPos;
+    var jwpmPosData = window.jwpmPosData || window.JWPM_POS_DATA || {};
+
+    Pos.state = Pos.state || {};
+    Pos.state.payment = Pos.state.payment || {
+        method: 'cash',
+        totals: {
+            totalDue: 0,
+            amountPaid: 0,
+            remainingDue: 0
+        },
+        split: {
+            cash: 0,
+            card: 0,
+            bank: 0,
+            pending: 0
+        },
+        installment: {
+            enabled: false,
+            count: 0,
+            advance: 0,
+            perInstallment: 0,
+            schedule: []
+        }
+    };
+
+    var selectors = {
+        // بنیادی totals
+        totalDue: '#jwpm-pos-total-due',
+        amountPaid: '#jwpm-pos-amount-paid',
+        remainingDue: '#jwpm-pos-remaining-due',
+
+        // method selection (radio / buttons)
+        paymentMethodGroup: '[name="jwpm-pos-payment-method"]',
+
+        // amounts
+        cashAmount: '#jwpm-pos-pay-cash-amount',
+        cardAmount: '#jwpm-pos-pay-card-amount',
+        bankAmount: '#jwpm-pos-pay-bank-amount',
+        pendingAmount: '#jwpm-pos-pay-pending-amount',
+
+        // installments
+        installmentEnable: '#jwpm-pos-installment-enable',
+        installmentCount: '#jwpm-pos-installment-count',
+        installmentAdvance: '#jwpm-pos-installment-advance',
+        installmentTableBody: '#jwpm-pos-installment-body',
+        installmentPerAmount: '#jwpm-pos-installment-per-amount',
+
+        // helper / status
+        paymentNotice: '#jwpm-pos-payment-notice'
+    };
+
+    var cssClasses = {
+        methodActive: 'is-active',
+        installmentRow: 'jwpm-pos-installment-row'
+    };
+
+    function qs(selector, root) {
+        return (root || document).querySelector(selector);
+    }
+
+    function qsa(selector, root) {
+        return Array.prototype.slice.call((root || document).querySelectorAll(selector) || []);
+    }
+
+    function getNumericValue(el) {
+        if (!el) {
+            return 0;
+        }
+        var v;
+        if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') {
+            v = el.value;
+        } else {
+            v = el.textContent;
+        }
+        v = (v || '').toString().replace(/[^\d\.\-]/g, '');
+        var num = parseFloat(v);
+        return isFinite(num) ? num : 0;
+    }
+
+    function setNumericText(el, value, asCurrency) {
+        if (!el) {
+            return;
+        }
+        var num = isFinite(value) ? value : 0;
+        if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') {
+            el.value = num.toFixed(2);
+        } else {
+            if (asCurrency) {
+                el.textContent = formatCurrency(num);
+            } else {
+                el.textContent = num.toFixed(2);
+            }
+        }
+    }
+
+    function formatCurrency(amount) {
+        var num = isFinite(amount) ? amount : 0;
+        if (Pos.utils && typeof Pos.utils.formatCurrency === 'function') {
+            return Pos.utils.formatCurrency(num);
+        }
+        return num.toFixed(2);
+    }
+
+    function getCartTotals() {
+        // Cart Module Part 3 میں Pos.state.cartTotals set کرتا ہے
+        var ct = Pos.state.cartTotals || {};
+        return {
+            subtotal: ct.subtotal || 0,
+            overallDiscount: ct.overallDiscount || 0,
+            oldGoldNet: ct.oldGoldNet || 0,
+            grandTotal: ct.grandTotal || 0
+        };
+    }
+
+    // -------------------------------------------------------------
+    // Cart recalc hook wrap (cart totals update کے بعد payment کو بھی خبر)
+    // -------------------------------------------------------------
+    function installCartTotalsHook() {
+        if (!Pos.cart || typeof Pos.cart.recalcTotals !== 'function') {
+            return;
+        }
+
+        if (Pos.cart.__recalcPatched) {
+            return;
+        }
+
+        var original = Pos.cart.recalcTotals;
+        Pos.cart.recalcTotals = function () {
+            var result = original.apply(Pos.cart, arguments);
+            var totals = Pos.state.cartTotals || {};
+            try {
+                document.dispatchEvent(new CustomEvent('jwpm_pos_cart_totals_updated', {
+                    detail: { totals: totals }
+                }));
+            } catch (e) {
+                // ignore
+            }
+            // Payment بھی sync ہو جائے
+            syncFromCartTotals();
+            return result;
+        };
+
+        Pos.cart.__recalcPatched = true;
+    }
+
+    // Cart totals سے totalDue sync کرنا
+    function syncFromCartTotals() {
+        var ct = getCartTotals();
+        var totalDue = ct.grandTotal || 0;
+
+        var payment = Pos.state.payment;
+        if (!payment || !payment.totals) {
+            payment = Pos.state.payment = {
+                method: 'cash',
+                totals: {
+                    totalDue: totalDue,
+                    amountPaid: 0,
+                    remainingDue: totalDue
+                },
+                split: {
+                    cash: 0,
+                    card: 0,
+                    bank: 0,
+                    pending: totalDue
+                },
+                installment: {
+                    enabled: false,
+                    count: 0,
+                    advance: 0,
+                    perInstallment: 0,
+                    schedule: []
+                }
+            };
+        }
+
+        payment.totals.totalDue = totalDue;
+
+        // اگر amountPaid خالی ہو تو remainingDue کو totalDue کے برابر رکھیں
+        if (!payment.totals.amountPaid && !payment.split.cash && !payment.split.card && !payment.split.bank) {
+            payment.totals.amountPaid = 0;
+            payment.totals.remainingDue = totalDue;
+            payment.split.pending = totalDue;
+        }
+
+        renderPaymentToUI();
+    }
+
+    // -------------------------------------------------------------
+    // Payment method selection
+    // -------------------------------------------------------------
+    function getSelectedMethod() {
+        var radios = qsa(selectors.paymentMethodGroup);
+        var method = 'cash';
+        radios.forEach(function (r) {
+            if (r.checked) {
+                method = r.value || method;
+            }
+        });
+        return method;
+    }
+
+    function setSelectedMethod(method) {
+        var radios = qsa(selectors.paymentMethodGroup);
+        var found = false;
+        radios.forEach(function (r) {
+            if ((r.value || '') === method) {
+                r.checked = true;
+                found = true;
+            }
+            var label = r.closest('label') || r.closest('button');
+            if (label) {
+                label.classList.toggle(cssClasses.methodActive, r.checked);
+            }
+        });
+
+        if (!found && radios.length) {
+            radios[0].checked = true;
+            var label0 = radios[0].closest('label') || radios[0].closest('button');
+            if (label0) {
+                label0.classList.add(cssClasses.methodActive);
+            }
+        }
+    }
+
+    // -------------------------------------------------------------
+    // Installments helpers
+    // -------------------------------------------------------------
+    function buildInstallmentSchedule(baseAmount, count) {
+        var schedule = [];
+        if (!count || count < 1 || !baseAmount) {
+            return schedule;
+        }
+
+        var per = baseAmount / count;
+        per = Math.max(per, 0);
+
+        var today = new Date();
+        for (var i = 0; i < count; i++) {
+            var d = new Date(today.getTime());
+            // simple 30 days increment
+            d.setDate(d.getDate() + (30 * (i + 1)));
+            schedule.push({
+                index: i + 1,
+                amount: per,
+                dueDate: d
+            });
+        }
+
+        return schedule;
+    }
+
+    function renderInstallmentSchedule(schedule) {
+        var tbody = qs(selectors.installmentTableBody);
+        if (!tbody) {
+            return;
+        }
+
+        tbody.innerHTML = '';
+
+        if (!schedule || !schedule.length) {
+            return;
+        }
+
+        var frag = document.createDocumentFragment();
+
+        schedule.forEach(function (item) {
+            var tr = document.createElement('tr');
+            tr.className = cssClasses.installmentRow;
+
+            var idxTd = document.createElement('td');
+            var dateTd = document.createElement('td');
+            var amtTd = document.createElement('td');
+
+            idxTd.textContent = String(item.index);
+            dateTd.textContent = formatInstallmentDate(item.dueDate);
+            amtTd.textContent = formatCurrency(item.amount);
+
+            tr.appendChild(idxTd);
+            tr.appendChild(dateTd);
+            tr.appendChild(amtTd);
+            frag.appendChild(tr);
+        });
+
+        tbody.appendChild(frag);
+    }
+
+    function formatInstallmentDate(d) {
+        if (!(d instanceof Date)) {
+            return '';
+        }
+        // simple DD/MM/YYYY
+        var day = String(d.getDate()).padStart(2, '0');
+        var month = String(d.getMonth() + 1).padStart(2, '0');
+        var year = d.getFullYear();
+        return day + '/' + month + '/' + year;
+    }
+
+    // -------------------------------------------------------------
+    // Core payment recalculation
+    // -------------------------------------------------------------
+    function recalcPayment() {
+        var payment = Pos.state.payment || {};
+        payment.method = getSelectedMethod();
+
+        var totalDue = getCartTotals().grandTotal || 0;
+
+        // amounts from inputs
+        var cash = getNumericValue(qs(selectors.cashAmount));
+        var card = getNumericValue(qs(selectors.cardAmount));
+        var bank = getNumericValue(qs(selectors.bankAmount));
+        var pendingInput = getNumericValue(qs(selectors.pendingAmount));
+
+        // method کے لحاظ سے کچھ auto adjustments
+        if (payment.method === 'cash') {
+            // صرف cash allow، باقی 0
+            card = 0;
+            bank = 0;
+            pendingInput = 0;
+        } else if (payment.method === 'card') {
+            cash = 0;
+            bank = 0;
+            pendingInput = 0;
+        } else if (payment.method === 'bank') {
+            cash = 0;
+            card = 0;
+            pendingInput = 0;
+        } else if (payment.method === 'pending') {
+            cash = 0;
+            card = 0;
+            bank = 0;
+        } else {
+            // mixed mode — کچھ خاص نہیں، user خود split کرے گا
+        }
+
+        if (cash < 0) cash = 0;
+        if (card < 0) card = 0;
+        if (bank < 0) bank = 0;
+        if (pendingInput < 0) pendingInput = 0;
+
+        var amountPaid = cash + card + bank;
+        var remainingDue = totalDue - amountPaid;
+
+        if (remainingDue < 0) {
+            remainingDue = 0;
+        }
+
+        // اگر pendingInput manual دیا ہو تو اسے override کے طور پر treat کریں
+        var pending = pendingInput || remainingDue;
+
+        // اگر method pending ہو تو amountPaid = 0, pending = totalDue
+        if (payment.method === 'pending') {
+            amountPaid = 0;
+            pending = totalDue;
+            remainingDue = totalDue;
+        }
+
+        payment.totals = {
+            totalDue: totalDue,
+            amountPaid: amountPaid,
+            remainingDue: remainingDue
+        };
+
+        payment.split = {
+            cash: cash,
+            card: card,
+            bank: bank,
+            pending: pending
+        };
+
+        // Installment section
+        var enableEl = qs(selectors.installmentEnable);
+        var countEl = qs(selectors.installmentCount);
+        var advEl = qs(selectors.installmentAdvance);
+
+        var enabled = !!(enableEl && enableEl.checked);
+        var count = countEl ? parseInt(countEl.value || '0', 10) : 0;
+        var advance = advEl ? getNumericValue(advEl) : 0;
+
+        if (count < 0) count = 0;
+        if (advance < 0) advance = 0;
+
+        // installment base amount = remainingDue - advance
+        var baseForInstall = remainingDue - advance;
+        if (baseForInstall < 0) {
+            baseForInstall = 0;
+        }
+
+        var perInstall = 0;
+        var schedule = [];
+
+        if (enabled && count > 0 && baseForInstall > 0) {
+            schedule = buildInstallmentSchedule(baseForInstall, count);
+            if (schedule.length) {
+                perInstall = schedule[0].amount || 0;
+            }
+        }
+
+        payment.installment = {
+            enabled: enabled,
+            count: enabled ? count : 0,
+            advance: enabled ? advance : 0,
+            perInstallment: enabled ? perInstall : 0,
+            schedule: enabled ? schedule : []
+        };
+
+        Pos.state.payment = payment;
+
+        renderPaymentToUI();
+        notifyPaymentUpdated();
+    }
+
+    function renderPaymentToUI() {
+        var payment = Pos.state.payment || {};
+        var totals = payment.totals || {};
+        var split = payment.split || {};
+        var inst = payment.installment || {};
+
+        // totals
+        setNumericText(qs(selectors.totalDue), totals.totalDue || 0, true);
+        setNumericText(qs(selectors.amountPaid), totals.amountPaid || 0, true);
+        setNumericText(qs(selectors.remainingDue), totals.remainingDue || 0, true);
+
+        // split (inputs میں بھی sync)
+        setNumericText(qs(selectors.cashAmount), split.cash || 0, false);
+        setNumericText(qs(selectors.cardAmount), split.card || 0, false);
+        setNumericText(qs(selectors.bankAmount), split.bank || 0, false);
+        setNumericText(qs(selectors.pendingAmount), split.pending || 0, false);
+
+        // method highlight
+        setSelectedMethod(payment.method || 'cash');
+
+        // installments UI
+        var enableEl = qs(selectors.installmentEnable);
+        var countEl = qs(selectors.installmentCount);
+        var advEl = qs(selectors.installmentAdvance);
+        var perEl = qs(selectors.installmentPerAmount);
+
+        if (enableEl) {
+            enableEl.checked = !!inst.enabled;
+        }
+        if (countEl) {
+            countEl.value = inst.enabled ? (inst.count || 0) : (countEl.value || '');
+        }
+        if (advEl) {
+            setNumericText(advEl, inst.enabled ? (inst.advance || 0) : 0, false);
+        }
+        if (perEl) {
+            setNumericText(perEl, inst.enabled ? (inst.perInstallment || 0) : 0, true);
+        }
+
+        renderInstallmentSchedule(inst.enabled ? inst.schedule || [] : []);
+
+        // payment notice (simple hint)
+        var notice = qs(selectors.paymentNotice);
+        if (notice) {
+            if (totals.remainingDue > 0 && !inst.enabled && split.pending <= 0) {
+                notice.textContent = 'ابھی کچھ رقم باقی ہے، آپ Pending یا Installments منتخب کر سکتے ہیں۔';
+            } else if (inst.enabled && totals.remainingDue > 0) {
+                notice.textContent = 'قسطوں کی رقم اور تاریخوں کو چیک کر لیں، پھر سیل مکمل کریں۔';
+            } else {
+                notice.textContent = '';
+            }
+        }
+    }
+
+    function notifyPaymentUpdated() {
+        try {
+            document.dispatchEvent(new CustomEvent('jwpm_pos_payment_updated', {
+                detail: {
+                    payment: Pos.state.payment || {}
+                }
+            }));
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    // -------------------------------------------------------------
+    // Event handlers
+    // -------------------------------------------------------------
+    function handleMethodChange(event) {
+        var target = event.target;
+        if (!target) return;
+        if (target.name !== 'jwpm-pos-payment-method') return;
+        recalcPayment();
+    }
+
+    function handleAmountInput() {
+        recalcPayment();
+    }
+
+    function handleInstallmentToggle() {
+        recalcPayment();
+    }
+
+    function handleInstallmentFieldsChange() {
+        recalcPayment();
+    }
+
+    function handleCartTotalsUpdated() {
+        syncFromCartTotals();
+    }
+
+    // -------------------------------------------------------------
+    // Initialisation
+    // -------------------------------------------------------------
+    function initPaymentModule() {
+        installCartTotalsHook();
+        syncFromCartTotals();
+
+        // method change
+        qsa(selectors.paymentMethodGroup).forEach(function (r) {
+            r.addEventListener('change', handleMethodChange);
+        });
+
+        // amounts
+        var fields = [
+            selectors.cashAmount,
+            selectors.cardAmount,
+            selectors.bankAmount,
+            selectors.pendingAmount
+        ];
+        fields.forEach(function (sel) {
+            var el = qs(sel);
+            if (el) {
+                el.addEventListener('input', handleAmountInput);
+                el.addEventListener('change', handleAmountInput);
+            }
+        });
+
+        // installments
+        var enableEl = qs(selectors.installmentEnable);
+        if (enableEl) {
+            enableEl.addEventListener('change', handleInstallmentToggle);
+        }
+        var countEl = qs(selectors.installmentCount);
+        if (countEl) {
+            countEl.addEventListener('input', handleInstallmentFieldsChange);
+            countEl.addEventListener('change', handleInstallmentFieldsChange);
+        }
+        var advEl = qs(selectors.installmentAdvance);
+        if (advEl) {
+            advEl.addEventListener('input', handleInstallmentFieldsChange);
+            advEl.addEventListener('change', handleInstallmentFieldsChange);
+        }
+
+        // cart totals updated event (Part 3 override کے ساتھ extra safety)
+        document.addEventListener('jwpm_pos_cart_totals_updated', handleCartTotalsUpdated);
+
+        // پہلی بار recalc
+        recalcPayment();
+
+        // Public API
+        Pos.payment = Pos.payment || {};
+        Pos.payment.getSummary = function () {
+            return Pos.state.payment || {};
+        };
+        Pos.payment.recalc = function () {
+            recalcPayment();
+        };
+    }
+
+    if (typeof Pos.onReady === 'function') {
+        Pos.onReady(initPaymentModule);
+    } else {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initPaymentModule);
+        } else {
+            initPaymentModule();
+        }
+    }
+
+})(window, document);
+// 🔴 یہاں پر POS Payment + Installments ختم ہو رہا ہے
+
+// ✅ Syntax verified block end
 
