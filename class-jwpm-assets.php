@@ -393,3 +393,169 @@ add_action( 'admin_enqueue_scripts', 'jwpm_enqueue_installments_assets' );
 
 // 🔴 یہاں پر [Installments Assets Enqueue] ختم ہو رہا ہے
 // ✅ Syntax verified block end
+/** Part 41 — Installments Assets Enqueue */
+// 🟢 یہاں سے [Installments Assets Enqueue] شروع ہو رہا ہے
+
+if ( ! function_exists( 'jwpm_enqueue_installments_assets' ) ) {
+
+	/**
+	 * Installments Page کیلئے (JS) اور (CSS) enqueue + localized data
+	 */
+	function jwpm_enqueue_installments_assets( $hook_suffix ) { // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable
+		if ( ! is_admin() ) {
+			return;
+		}
+
+		if ( ! function_exists( 'get_current_screen' ) ) {
+			return;
+		}
+
+		$screen = get_current_screen();
+		if ( empty( $screen ) || false === strpos( $screen->id, 'jwpm-installments' ) ) {
+			return;
+		}
+
+		$base_url = plugin_dir_url( __FILE__ );
+
+		wp_enqueue_style(
+			'jwpm-installments-css',
+			$base_url . 'assets/css/jwpm-installments.css',
+			array( 'jwpm-common-css' ),
+			defined( 'JWPM_VERSION' ) ? JWPM_VERSION : time()
+		);
+
+		wp_enqueue_script(
+			'jwpm-installments-js',
+			$base_url . 'assets/js/jwpm-installments.js',
+			array( 'jquery', 'jwpm-common-js' ),
+			defined( 'JWPM_VERSION' ) ? JWPM_VERSION : time(),
+			true
+		);
+
+		$main_nonce   = wp_create_nonce( 'jwpm_installments_main_nonce' );
+		$import_nonce = wp_create_nonce( 'jwpm_installments_import_nonce' );
+		$export_nonce = wp_create_nonce( 'jwpm_installments_export_nonce' );
+		$demo_nonce   = wp_create_nonce( 'jwpm_installments_demo_nonce' );
+
+		global $wpdb;
+
+		$localized = array(
+			'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
+			'mainNonce'   => $main_nonce,
+			'importNonce' => $import_nonce,
+			'exportNonce' => $export_nonce,
+			'demoNonce'   => $demo_nonce,
+			'strings'     => array(
+				'loading'           => __( 'Installments لوڈ ہو رہے ہیں…', 'jwpm' ),
+				'saving'            => __( 'ڈیٹا محفوظ ہو رہا ہے…', 'jwpm' ),
+				'saveSuccess'       => __( 'Installment Plan محفوظ ہو گیا۔', 'jwpm' ),
+				'saveError'         => __( 'محفوظ کرتے وقت مسئلہ آیا، دوبارہ کوشش کریں۔', 'jwpm' ),
+				'deleteConfirm'     => __( 'کیا آپ واقعی اس قسطی معاہدے کو Cancel کرنا چاہتے ہیں؟', 'jwpm' ),
+				'deleteSuccess'     => __( 'Contract کی Status اپڈیٹ ہو گئی۔', 'jwpm' ),
+				'paymentSave'       => __( 'Payment محفوظ ہو گئی۔', 'jwpm' ),
+				'paymentError'      => __( 'Payment محفوظ نہیں ہو سکی۔', 'jwpm' ),
+				'demoCreateSuccess' => __( 'Demo Installments بنا دیے گئے۔', 'jwpm' ),
+				'demoClearSuccess'  => __( 'Demo Installments حذف ہو گئے۔', 'jwpm' ),
+				'importSuccess'     => __( 'Import مکمل ہو گیا۔', 'jwpm' ),
+				'importError'       => __( 'Import کے دوران مسئلہ آیا۔', 'jwpm' ),
+				'noRecords'         => __( 'کوئی ریکارڈ نہیں ملا۔', 'jwpm' ),
+			),
+			'pagination'  => array(
+				'defaultPerPage' => 20,
+				'perPageOptions' => array( 20, 50, 100 ),
+			),
+		);
+
+		// اگر چاہیں تو future میں یہاں customers کیلئے dropdown data بھی دے سکتے ہیں۔
+
+		wp_localize_script( 'jwpm-installments-js', 'jwpmInstallmentsData', $localized );
+	}
+}
+
+add_action( 'admin_enqueue_scripts', 'jwpm_enqueue_installments_assets' );
+
+// 🔴 یہاں پر [Installments Assets Enqueue] ختم ہو رہا ہے
+// ✅ Syntax verified block end
+/** Part 41 — Installments Assets Enqueue */
+// 🟢 یہاں سے [Installments Assets Enqueue] شروع ہو رہا ہے
+
+if ( ! function_exists( 'jwpm_enqueue_installments_assets' ) ) {
+
+	/**
+	 * Installments Page کیلئے (JS) اور (CSS) enqueue + localized data
+	 */
+	function jwpm_enqueue_installments_assets( $hook_suffix ) { // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable
+		if ( ! is_admin() ) {
+			return;
+		}
+
+		if ( ! function_exists( 'get_current_screen' ) ) {
+			return;
+		}
+
+		$screen = get_current_screen();
+		if ( empty( $screen ) || false === strpos( $screen->id, 'jwpm-installments' ) ) {
+			return;
+		}
+
+		$base_url = plugin_dir_url( __FILE__ );
+
+		wp_enqueue_style(
+			'jwpm-installments-css',
+			$base_url . 'assets/css/jwpm-installments.css',
+			array( 'jwpm-common-css' ),
+			defined( 'JWPM_VERSION' ) ? JWPM_VERSION : time()
+		);
+
+		wp_enqueue_script(
+			'jwpm-installments-js',
+			$base_url . 'assets/js/jwpm-installments.js',
+			array( 'jquery', 'jwpm-common-js' ),
+			defined( 'JWPM_VERSION' ) ? JWPM_VERSION : time(),
+			true
+		);
+
+		$main_nonce   = wp_create_nonce( 'jwpm_installments_main_nonce' );
+		$import_nonce = wp_create_nonce( 'jwpm_installments_import_nonce' );
+		$export_nonce = wp_create_nonce( 'jwpm_installments_export_nonce' );
+		$demo_nonce   = wp_create_nonce( 'jwpm_installments_demo_nonce' );
+
+		global $wpdb;
+
+		$localized = array(
+			'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
+			'mainNonce'   => $main_nonce,
+			'importNonce' => $import_nonce,
+			'exportNonce' => $export_nonce,
+			'demoNonce'   => $demo_nonce,
+			'strings'     => array(
+				'loading'           => __( 'Installments لوڈ ہو رہے ہیں…', 'jwpm' ),
+				'saving'            => __( 'ڈیٹا محفوظ ہو رہا ہے…', 'jwpm' ),
+				'saveSuccess'       => __( 'Installment Plan محفوظ ہو گیا۔', 'jwpm' ),
+				'saveError'         => __( 'محفوظ کرتے وقت مسئلہ آیا، دوبارہ کوشش کریں۔', 'jwpm' ),
+				'deleteConfirm'     => __( 'کیا آپ واقعی اس قسطی معاہدے کو Cancel کرنا چاہتے ہیں؟', 'jwpm' ),
+				'deleteSuccess'     => __( 'Contract کی Status اپڈیٹ ہو گئی۔', 'jwpm' ),
+				'paymentSave'       => __( 'Payment محفوظ ہو گئی۔', 'jwpm' ),
+				'paymentError'      => __( 'Payment محفوظ نہیں ہو سکی۔', 'jwpm' ),
+				'demoCreateSuccess' => __( 'Demo Installments بنا دیے گئے۔', 'jwpm' ),
+				'demoClearSuccess'  => __( 'Demo Installments حذف ہو گئے۔', 'jwpm' ),
+				'importSuccess'     => __( 'Import مکمل ہو گیا۔', 'jwpm' ),
+				'importError'       => __( 'Import کے دوران مسئلہ آیا۔', 'jwpm' ),
+				'noRecords'         => __( 'کوئی ریکارڈ نہیں ملا۔', 'jwpm' ),
+			),
+			'pagination'  => array(
+				'defaultPerPage' => 20,
+				'perPageOptions' => array( 20, 50, 100 ),
+			),
+		);
+
+		// اگر چاہیں تو future میں یہاں customers کیلئے dropdown data بھی دے سکتے ہیں۔
+
+		wp_localize_script( 'jwpm-installments-js', 'jwpmInstallmentsData', $localized );
+	}
+}
+
+add_action( 'admin_enqueue_scripts', 'jwpm_enqueue_installments_assets' );
+
+// 🔴 یہاں پر [Installments Assets Enqueue] ختم ہو رہا ہے
+// ✅ Syntax verified block end
