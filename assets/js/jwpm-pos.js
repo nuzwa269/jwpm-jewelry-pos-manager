@@ -808,4 +808,443 @@
 // 🔴 یہاں پر POS Cart Logic ختم ہو رہا ہے
 
 // ✅ Syntax verified block end
+/** Part 4 — POS Customer Search & Loading */
+/**
+ * Customer Search & Loading:
+ * - کسٹمر سرچ باکس سے (AJAX) کے ذریعے کسٹمر لسٹ لاتا ہے
+ * - سرچ رزلٹس میں سے کسٹمر select کر کے POS state میں سیٹ کرتا ہے
+ * - منتخب کسٹمر کی تفصیل Customer Summary panel میں دکھاتا ہے
+ * - custom event: jwpm_pos_customer_selected emit کرتا ہے
+ */
+
+// 🟢 یہاں سے POS Customer Search & Loading شروع ہو رہا ہے
+(function (window, document) {
+    'use strict';
+
+    if (!window.JWPMPos) {
+        console.warn('JWPM POS: JWPMPos root object نہیں ملا، Customer Module initialise نہیں ہو سکا۔');
+        return;
+    }
+
+    var Pos = window.JWPMPos;
+    var jwpmPosData = window.jwpmPosData || window.JWPM_POS_DATA || {};
+
+    Pos.state = Pos.state || {};
+    Pos.state.customer = Pos.state.customer || null;
+
+    var selectors = {
+        searchInput: '#jwpm-pos-customer-search-input',
+        searchClear: '#jwpm-pos-customer-search-clear',
+        resultContainer: '#jwpm-pos-customer-results',
+        rowTemplate: '#jwpm-pos-customer-row-template',
+        noResults: '#jwpm-pos-customer-no-results',
+
+        selectedWrapper: '#jwpm-pos-customer-selected-wrapper',
+        selectedName: '#jwpm-pos-customer-name',
+        selectedPhone: '#jwpm-pos-customer-phone',
+        selectedEmail: '#jwpm-pos-customer-email',
+        selectedIdHidden: '#jwpm-pos-customer-id',
+        selectedLoyalty: '#jwpm-pos-customer-loyalty',
+
+        clearSelected: '#jwpm-pos-customer-clear-selected'
+    };
+
+    var cssClasses = {
+        row: 'jwpm-pos-customer-row',
+        rowSelected: 'is-selected'
+    };
+
+    function qs(selector, root) {
+        return (root || document).querySelector(selector);
+    }
+
+    function qsa(selector, root) {
+        return Array.prototype.slice.call((root || document).querySelectorAll(selector) || []);
+    }
+
+    function getAjaxConfig() {
+        var actions = jwpmPosData.actions || {};
+        var nonces = jwpmPosData.nonces || {};
+
+        return {
+            url: jwpmPosData.ajax_url || window.ajaxurl || '',
+            action: actions.customer_search || 'jwpm_pos_customer_search',
+            nonce: nonces.customer_search || jwpmPosData.nonce_customer_search || ''
+        };
+    }
+
+    function ensureDebounce(fn, wait) {
+        if (Pos.utils && typeof Pos.utils.debounce === 'function') {
+            return Pos.utils.debounce(fn, wait);
+        }
+        var timeout;
+        return function () {
+            var ctx = this;
+            var args = arguments;
+            clearTimeout(timeout);
+            timeout = setTimeout(function () {
+                fn.apply(ctx, args);
+            }, wait);
+        };
+    }
+
+    function wpAjaxRequest(payload) {
+        if (Pos.utils && typeof Pos.utils.wpAjax === 'function') {
+            return Pos.utils.wpAjax(payload);
+        }
+
+        var url = payload.url || (jwpmPosData.ajax_url || window.ajaxurl || '');
+        var data = payload.data || {};
+
+        var body = new URLSearchParams();
+        Object.keys(data).forEach(function (key) {
+            if (data[key] !== undefined && data[key] !== null) {
+                body.append(key, data[key]);
+            }
+        });
+
+        return fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+            },
+            body: body.toString()
+        }).then(function (res) {
+            return res.json();
+        });
+    }
+
+    function buildCustomerRow(customer) {
+        var tpl = qs(selectors.rowTemplate);
+        var row;
+
+        if (tpl && tpl.content && tpl.content.firstElementChild) {
+            row = tpl.content.firstElementChild.cloneNode(true);
+        } else {
+            row = document.createElement('div');
+            row.className = cssClasses.row;
+            row.innerHTML =
+                '<div class="jwpm-pos-customer-row-main">' +
+                    '<div class="jwpm-pos-customer-row-name"></div>' +
+                    '<div class="jwpm-pos-customer-row-phone"></div>' +
+                '</div>';
+        }
+
+        row.classList.add(cssClasses.row);
+        row.dataset.customerId = String(customer.id || customer.customer_id || '');
+        row.__jwpmCustomer = customer;
+
+        var nameEl = row.querySelector('.jwpm-pos-customer-row-name');
+        var phoneEl = row.querySelector('.jwpm-pos-customer-row-phone');
+
+        if (nameEl) {
+            nameEl.textContent = customer.name || customer.full_name || 'Customer';
+        }
+        if (phoneEl) {
+            phoneEl.textContent = customer.phone || customer.mobile || '';
+        }
+
+        return row;
+    }
+
+    function clearResults(message) {
+        var container = qs(selectors.resultContainer);
+        if (!container) {
+            return;
+        }
+        container.innerHTML = '';
+
+        var noRes = qs(selectors.noResults);
+        if (noRes) {
+            noRes.textContent = message || '';
+            noRes.style.display = message ? '' : 'none';
+        } else if (message) {
+            var div = document.createElement('div');
+            div.className = 'jwpm-pos-customer-empty';
+            div.textContent = message;
+            container.appendChild(div);
+        }
+    }
+
+    function renderResults(list) {
+        var container = qs(selectors.resultContainer);
+        if (!container) {
+            return;
+        }
+
+        container.innerHTML = '';
+
+        if (!list || !list.length) {
+            clearResults('کوئی کسٹمر نہیں ملا۔');
+            return;
+        }
+
+        var frag = document.createDocumentFragment();
+        list.forEach(function (customer) {
+            var row = buildCustomerRow(customer);
+            frag.appendChild(row);
+        });
+
+        container.appendChild(frag);
+
+        var current = Pos.state.customer;
+        if (current && current.id) {
+            qsa('.' + cssClasses.row, container).forEach(function (row) {
+                var rowCust = row.__jwpmCustomer || {};
+                if (String(rowCust.id || rowCust.customer_id || '') === String(current.id)) {
+                    row.classList.add(cssClasses.rowSelected);
+                }
+            });
+        }
+    }
+
+    function setSelectedCustomer(customer) {
+        if (!customer) {
+            Pos.state.customer = null;
+
+            var wrap = qs(selectors.selectedWrapper);
+            var nameEl = qs(selectors.selectedName);
+            var phoneEl = qs(selectors.selectedPhone);
+            var emailEl = qs(selectors.selectedEmail);
+            var idHidden = qs(selectors.selectedIdHidden);
+            var loyaltyEl = qs(selectors.selectedLoyalty);
+
+            if (wrap) {
+                wrap.classList.remove('has-customer');
+            }
+            if (nameEl) {
+                nameEl.textContent = 'Guest';
+            }
+            if (phoneEl) {
+                phoneEl.textContent = '';
+            }
+            if (emailEl) {
+                emailEl.textContent = '';
+            }
+            if (loyaltyEl) {
+                loyaltyEl.textContent = '';
+            }
+            if (idHidden) {
+                idHidden.value = '';
+            }
+
+            document.dispatchEvent(new CustomEvent('jwpm_pos_customer_selected', {
+                detail: { customer: null }
+            }));
+
+            highlightSelectedRow(null);
+            return;
+        }
+
+        var normalized = {
+            id: customer.id || customer.customer_id || '',
+            name: customer.name || customer.full_name || '',
+            phone: customer.phone || customer.mobile || '',
+            email: customer.email || '',
+            loyalty_points: customer.loyalty_points || customer.points || 0,
+            raw: customer
+        };
+
+        Pos.state.customer = normalized;
+
+        var wrapSel = qs(selectors.selectedWrapper);
+        var nameSel = qs(selectors.selectedName);
+        var phoneSel = qs(selectors.selectedPhone);
+        var emailSel = qs(selectors.selectedEmail);
+        var idHiddenSel = qs(selectors.selectedIdHidden);
+        var loyaltySel = qs(selectors.selectedLoyalty);
+
+        if (wrapSel) {
+            wrapSel.classList.add('has-customer');
+        }
+        if (nameSel) {
+            nameSel.textContent = normalized.name || 'Customer';
+        }
+        if (phoneSel) {
+            phoneSel.textContent = normalized.phone || '';
+        }
+        if (emailSel) {
+            emailSel.textContent = normalized.email || '';
+        }
+        if (loyaltySel) {
+            loyaltySel.textContent = String(normalized.loyalty_points || 0);
+        }
+        if (idHiddenSel) {
+            idHiddenSel.value = String(normalized.id || '');
+        }
+
+        document.dispatchEvent(new CustomEvent('jwpm_pos_customer_selected', {
+            detail: { customer: normalized }
+        }));
+
+        highlightSelectedRow(normalized.id);
+    }
+
+    function highlightSelectedRow(customerId) {
+        var container = qs(selectors.resultContainer);
+        if (!container) {
+            return;
+        }
+
+        qsa('.' + cssClasses.row, container).forEach(function (row) {
+            row.classList.remove(cssClasses.rowSelected);
+            var cust = row.__jwpmCustomer || {};
+            var id = cust.id || cust.customer_id || '';
+            if (customerId && String(id) === String(customerId)) {
+                row.classList.add(cssClasses.rowSelected);
+            }
+        });
+    }
+
+    function handleResultsClick(event) {
+        var target = event.target;
+        if (!target) {
+            return;
+        }
+
+        var row = target.closest('.' + cssClasses.row);
+        if (!row || !row.__jwpmCustomer) {
+            return;
+        }
+
+        setSelectedCustomer(row.__jwpmCustomer);
+    }
+
+    function handleSearchTermChange(value) {
+        var term = (value || '').trim();
+        var minChars = 2;
+
+        if (!term) {
+            clearResults('');
+            return;
+        }
+
+        if (term.length < minChars) {
+            clearResults('کم از کم ' + minChars + ' حروف ٹائپ کریں۔');
+            return;
+        }
+
+        var ajaxCfg = getAjaxConfig();
+        if (!ajaxCfg.url) {
+            console.warn('JWPM POS: (ajax_url) نہیں ملا، Customer Search نہیں چل سکے گی۔');
+            return;
+        }
+
+        clearResults('تلاش جاری ہے...');
+
+        wpAjaxRequest({
+            url: ajaxCfg.url,
+            data: {
+                action: ajaxCfg.action,
+                nonce: ajaxCfg.nonce,
+                term: term
+            }
+        }).then(function (response) {
+            if (!response) {
+                clearResults('سرور سے غلط جواب ملا۔');
+                return;
+            }
+            if (response.success === false) {
+                clearResults(response.data && response.data.message ? response.data.message : 'کچھ مسئلہ آ گیا، دوبارہ کوشش کریں۔');
+                return;
+            }
+
+            var list = response.data && (response.data.customers || response.data.items || response.data) || [];
+            if (!Array.isArray(list)) {
+                list = [];
+            }
+
+            if (!list.length) {
+                clearResults('کوئی کسٹمر نہیں ملا۔');
+                return;
+            }
+
+            renderResults(list);
+        }).catch(function (err) {
+            console.error('JWPM POS: Customer Search error', err);
+            clearResults('سرور سے رابطہ نہ ہو سکا۔');
+        });
+    }
+
+    var debouncedSearch = ensureDebounce(function (value) {
+        handleSearchTermChange(value);
+    }, 300);
+
+    function handleSearchInput(event) {
+        var value = event.target ? event.target.value : '';
+        debouncedSearch(value);
+    }
+
+    function handleSearchClear() {
+        var input = qs(selectors.searchInput);
+        if (input) {
+            input.value = '';
+        }
+        clearResults('');
+    }
+
+    function handleClearSelectedCustomer() {
+        setSelectedCustomer(null);
+    }
+
+    function mountExistingCustomerFromData() {
+        var existing = Pos.state.customer;
+        if (!existing && jwpmPosData.current_customer) {
+            existing = jwpmPosData.current_customer;
+        }
+        if (existing) {
+            setSelectedCustomer(existing);
+        }
+    }
+
+    function initCustomerModule() {
+        var searchInput = qs(selectors.searchInput);
+        if (!searchInput) {
+            console.warn('JWPM POS: Customer search input نہیں ملا، Customer Module محدود موڈ میں چلے گا۔');
+        } else {
+            searchInput.addEventListener('input', handleSearchInput);
+            searchInput.addEventListener('change', handleSearchInput);
+        }
+
+        var searchClear = qs(selectors.searchClear);
+        if (searchClear) {
+            searchClear.addEventListener('click', handleSearchClear);
+        }
+
+        var resultContainer = qs(selectors.resultContainer);
+        if (resultContainer) {
+            resultContainer.addEventListener('click', handleResultsClick);
+        }
+
+        var clearSelBtn = qs(selectors.clearSelected);
+        if (clearSelBtn) {
+            clearSelBtn.addEventListener('click', handleClearSelectedCustomer);
+        }
+
+        mountExistingCustomerFromData();
+
+        Pos.customer = Pos.customer || {};
+        Pos.customer.getSelected = function () {
+            return Pos.state.customer || null;
+        };
+        Pos.customer.setSelected = function (customer) {
+            setSelectedCustomer(customer || null);
+        };
+    }
+
+    if (typeof Pos.onReady === 'function') {
+        Pos.onReady(initCustomerModule);
+    } else {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initCustomerModule);
+        } else {
+            initCustomerModule();
+        }
+    }
+
+})(window, document);
+// 🔴 یہاں پر POS Customer Search & Loading ختم ہو رہا ہے
+
+// ✅ Syntax verified block end
 
