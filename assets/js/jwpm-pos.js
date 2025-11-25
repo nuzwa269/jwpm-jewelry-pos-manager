@@ -1844,4 +1844,509 @@
 // 🔴 یہاں پر POS Payment + Installments ختم ہو رہا ہے
 
 // ✅ Syntax verified block end
+/** Part 6 — POS Complete Sale Request */
+/**
+ * Complete Sale Request:
+ * - Cart + Payment + Customer + Meta کو ایک مکمل payload میں جمع کرتا ہے
+ * - Basic validation کرتا ہے (cart empty, totalDue > 0 وغیرہ)
+ * - AJAX کے ذریعے "complete sale" endpoint پر request بھیجتا ہے
+ * - Success پر cart / payment reset، اور optional redirect / print
+ * - custom events:
+ *      - jwpm_pos_before_complete_sale
+ *      - jwpm_pos_sale_completed
+ *      - jwpm_pos_sale_failed
+ */
+
+// 🟢 یہاں سے POS Complete Sale Request شروع ہو رہا ہے
+(function (window, document) {
+    'use strict';
+
+    if (!window.JWPMPos) {
+        console.warn('JWPM POS: JWPMPos root object نہیں ملا، Complete Sale Module initialise نہیں ہو سکا۔');
+        return;
+    }
+
+    var Pos = window.JWPMPos;
+    var jwpmPosData = window.jwpmPosData || window.JWPM_POS_DATA || {};
+
+    var selectors = {
+        completeBtn: '#jwpm-pos-complete-sale-btn',
+        errorNotice: '#jwpm-pos-complete-sale-error',
+        loadingOverlay: '#jwpm-pos-loading-overlay',
+
+        saleNote: '#jwpm-pos-sale-note',
+        saleDate: '#jwpm-pos-sale-date',
+        saleRef: '#jwpm-pos-sale-ref',
+        saleBranch: '#jwpm-pos-sale-branch',
+        saleType: '#jwpm-pos-sale-type', // e.g. "Cash", "Credit", "Old Gold Exchange"
+        OldGoldSummary: '#jwpm-pos-old-gold-summary' // can be hidden field / textarea (JSON/string)
+    };
+
+    var cssClasses = {
+        btnLoading: 'is-loading',
+        disabled: 'is-disabled',
+        overlayVisible: 'is-visible'
+    };
+
+    function qs(selector, root) {
+        return (root || document).querySelector(selector);
+    }
+
+    function getAjaxConfig() {
+        var actions = jwpmPosData.actions || {};
+        var nonces = jwpmPosData.nonces || {};
+        return {
+            url: jwpmPosData.ajax_url || window.ajaxurl || '',
+            action: actions.complete_sale || 'jwpm_pos_complete_sale',
+            nonce: nonces.complete_sale || jwpmPosData.nonce_complete_sale || ''
+        };
+    }
+
+    function wpAjaxRequest(payload) {
+        if (Pos.utils && typeof Pos.utils.wpAjax === 'function') {
+            return Pos.utils.wpAjax(payload);
+        }
+
+        var url = payload.url || (jwpmPosData.ajax_url || window.ajaxurl || '');
+        var data = payload.data || {};
+
+        var body = new URLSearchParams();
+        Object.keys(data).forEach(function (key) {
+            if (data[key] !== undefined && data[key] !== null) {
+                body.append(key, typeof data[key] === 'object'
+                    ? JSON.stringify(data[key])
+                    : data[key]
+                );
+            }
+        });
+
+        return fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+            },
+            body: body.toString()
+        }).then(function (res) {
+            return res.json();
+        });
+    }
+
+    // -------------------------------------------------------------
+    // Payload Builders
+    // -------------------------------------------------------------
+    function gatherCartPayload() {
+        var items = [];
+        if (Pos.cart && typeof Pos.cart.getItems === 'function') {
+            var cartItems = Pos.cart.getItems() || [];
+            items = cartItems.map(function (it) {
+                return {
+                    row_id: it._rowId || null,
+                    id: it.id || it.item_id || null,
+                    name: it.name || '',
+                    code: it.code || '',
+                    karat: it.karat || '',
+                    weight: it.weight || 0,
+                    unit_price: it.unitPrice || 0,
+                    qty: it.qty || 0,
+                    line_discount: it.lineDiscount || 0,
+                    line_total: it.lineTotal || 0
+                };
+            });
+        }
+
+        var totals = Pos.state.cartTotals || {
+            subtotal: 0,
+            overallDiscount: 0,
+            oldGoldNet: 0,
+            grandTotal: 0
+        };
+
+        return {
+            items: items,
+            totals: {
+                subtotal: totals.subtotal || 0,
+                overall_discount: totals.overallDiscount || 0,
+                old_gold_net: totals.oldGoldNet || 0,
+                grand_total: totals.grandTotal || 0
+            }
+        };
+    }
+
+    function gatherPaymentPayload() {
+        var summary = {};
+        if (Pos.payment && typeof Pos.payment.getSummary === 'function') {
+            summary = Pos.payment.getSummary() || {};
+        } else {
+            summary = Pos.state.payment || {};
+        }
+
+        var totals = summary.totals || {};
+        var split = summary.split || {};
+        var inst = summary.installment || {};
+
+        return {
+            method: summary.method || 'cash',
+            totals: {
+                total_due: totals.totalDue || 0,
+                amount_paid: totals.amountPaid || 0,
+                remaining_due: totals.remainingDue || 0
+            },
+            split: {
+                cash: split.cash || 0,
+                card: split.card || 0,
+                bank: split.bank || 0,
+                pending: split.pending || 0
+            },
+            installment: {
+                enabled: !!inst.enabled,
+                count: inst.count || 0,
+                advance: inst.advance || 0,
+                per_installment: inst.perInstallment || 0,
+                schedule: (inst.schedule || []).map(function (row) {
+                    return {
+                        index: row.index || 0,
+                        amount: row.amount || 0,
+                        due_date: row.dueDate instanceof Date
+                            ? row.dueDate.toISOString()
+                            : (row.dueDate || '')
+                    };
+                })
+            }
+        };
+    }
+
+    function gatherCustomerPayload() {
+        var customer = null;
+        if (Pos.customer && typeof Pos.customer.getSelected === 'function') {
+            customer = Pos.customer.getSelected();
+        } else {
+            customer = Pos.state.customer || null;
+        }
+
+        if (!customer) {
+            return {
+                id: null,
+                type: 'guest',
+                name: 'Guest',
+                phone: '',
+                email: '',
+                loyalty_points: 0
+            };
+        }
+
+        return {
+            id: customer.id || null,
+            type: 'registered',
+            name: customer.name || '',
+            phone: customer.phone || '',
+            email: customer.email || '',
+            loyalty_points: customer.loyalty_points || 0,
+            raw: customer.raw || customer
+        };
+    }
+
+    function gatherMetaPayload() {
+        var noteEl = qs(selectors.saleNote);
+        var dateEl = qs(selectors.saleDate);
+        var refEl = qs(selectors.saleRef);
+        var branchEl = qs(selectors.saleBranch);
+        var typeEl = qs(selectors.saleType);
+        var oldGoldSummaryEl = qs(selectors.OldGoldSummary);
+
+        var meta = {
+            note: noteEl ? noteEl.value || '' : '',
+            sale_date: dateEl ? (dateEl.value || '') : '',
+            reference_no: refEl ? (refEl.value || '') : '',
+            branch: branchEl ? (branchEl.value || '') : '',
+            sale_type: typeEl ? (typeEl.value || '') : '',
+            old_gold_summary: oldGoldSummaryEl ? (oldGoldSummaryEl.value || oldGoldSummaryEl.textContent || '') : ''
+        };
+
+        // کچھ global context بھی شامل کر دیں (اگر available ہو)
+        if (jwpmPosData.context) {
+            meta.context = jwpmPosData.context;
+        }
+        if (jwpmPosData.pos_register_id) {
+            meta.pos_register_id = jwpmPosData.pos_register_id;
+        }
+
+        return meta;
+    }
+
+    // -------------------------------------------------------------
+    // Validation
+    // -------------------------------------------------------------
+    function validateSalePayload(sale) {
+        var errors = [];
+
+        // Cart
+        if (!sale.cart || !Array.isArray(sale.cart.items) || !sale.cart.items.length) {
+            errors.push('Please add at least one item to the cart.');
+        }
+
+        var totalDue = (sale.payment && sale.payment.totals && sale.payment.totals.total_due) || 0;
+        if (totalDue <= 0) {
+            errors.push('Total amount must be greater than zero.');
+        }
+
+        // Simple sanity check: اگر pending / installment دونوں نہیں ہیں اور remaining_due > 0 ہو
+        var remainingDue = (sale.payment && sale.payment.totals && sale.payment.totals.remaining_due) || 0;
+        var payMethod = (sale.payment && sale.payment.method) || 'cash';
+        var instEnabled = sale.payment && sale.payment.installment && sale.payment.installment.enabled;
+
+        if (!instEnabled && payMethod !== 'pending' && remainingDue > 0.01) {
+            errors.push('Some amount is still unpaid. Please adjust payment or mark as pending/installment.');
+        }
+
+        // اگر installment enabled ہے لیکن count zero ہے
+        if (instEnabled && (!sale.payment.installment.count || sale.payment.installment.count < 1)) {
+            errors.push('Installment count must be at least 1.');
+        }
+
+        return {
+            valid: !errors.length,
+            errors: errors
+        };
+    }
+
+    // -------------------------------------------------------------
+    // UI Helpers
+    // -------------------------------------------------------------
+    function showError(message) {
+        var box = qs(selectors.errorNotice);
+        if (!box) {
+            if (message) {
+                alert(message); // fall-back, صرف emergency کیلئے
+            }
+            return;
+        }
+
+        box.textContent = message || '';
+        box.style.display = message ? '' : 'none';
+    }
+
+    function showErrors(list) {
+        if (!list || !list.length) {
+            showError('');
+            return;
+        }
+        // ایک لائن میں جوائن، UI انگریزی میں رہے گا
+        showError(list.join(' '));
+    }
+
+    function setLoadingState(isLoading) {
+        var btn = qs(selectors.completeBtn);
+        var overlay = qs(selectors.loadingOverlay);
+
+        if (btn) {
+            btn.disabled = !!isLoading;
+            btn.classList.toggle(cssClasses.btnLoading, !!isLoading);
+            btn.classList.toggle(cssClasses.disabled, !!isLoading);
+        }
+        if (overlay) {
+            overlay.classList.toggle(cssClasses.overlayVisible, !!isLoading);
+        }
+    }
+
+    function showToast(type, message) {
+        // اگر Pos.utils.toast موجود ہو تو وہ استعمال کریں، ورنہ console
+        if (Pos.utils && typeof Pos.utils.toast === 'function') {
+            Pos.utils.toast(type, message);
+        } else if (message) {
+            if (type === 'error') {
+                console.error('JWPM POS:', message);
+            } else {
+                console.log('JWPM POS:', message);
+            }
+        }
+    }
+
+    // -------------------------------------------------------------
+    // Main Complete Sale Flow
+    // -------------------------------------------------------------
+    function buildSalePayload() {
+        var cartPayload = gatherCartPayload();
+        var paymentPayload = gatherPaymentPayload();
+        var customerPayload = gatherCustomerPayload();
+        var metaPayload = gatherMetaPayload();
+
+        return {
+            cart: cartPayload,
+            payment: paymentPayload,
+            customer: customerPayload,
+            meta: metaPayload
+        };
+    }
+
+    function handleCompleteSaleClick(event) {
+        event.preventDefault();
+
+        var ajaxCfg = getAjaxConfig();
+        if (!ajaxCfg.url) {
+            showError('AJAX URL is missing. Please check POS settings.');
+            console.warn('JWPM POS: ajax_url missing, cannot complete sale.');
+            return;
+        }
+
+        var salePayload = buildSalePayload();
+        var validation = validateSalePayload(salePayload);
+
+        if (!validation.valid) {
+            showErrors(validation.errors);
+            showToast('error', 'Please fix the highlighted issues before completing the sale.');
+            return;
+        }
+
+        showErrors([]);
+        setLoadingState(true);
+
+        try {
+            document.dispatchEvent(new CustomEvent('jwpm_pos_before_complete_sale', {
+                detail: { sale: salePayload }
+            }));
+        } catch (e) {
+            // ignore
+        }
+
+        wpAjaxRequest({
+            url: ajaxCfg.url,
+            data: {
+                action: ajaxCfg.action,
+                nonce: ajaxCfg.nonce,
+                sale: salePayload
+            }
+        }).then(function (response) {
+            setLoadingState(false);
+
+            if (!response) {
+                showError('Unexpected server response. Please try again.');
+                showToast('error', 'Unexpected server response.');
+                try {
+                    document.dispatchEvent(new CustomEvent('jwpm_pos_sale_failed', {
+                        detail: { sale: salePayload, response: response }
+                    }));
+                } catch (e) {}
+                return;
+            }
+
+            if (response.success === false) {
+                var msg = (response.data && (response.data.message || response.data.error)) ||
+                    'Could not complete the sale. Please try again.';
+                showError(msg);
+                showToast('error', msg);
+                try {
+                    document.dispatchEvent(new CustomEvent('jwpm_pos_sale_failed', {
+                        detail: { sale: salePayload, response: response }
+                    }));
+                } catch (e) {}
+                return;
+            }
+
+            // Success
+            showError('');
+            var successMsg = (response.data && response.data.message) || 'Sale completed successfully.';
+            showToast('success', successMsg);
+
+            try {
+                document.dispatchEvent(new CustomEvent('jwpm_pos_sale_completed', {
+                    detail: { sale: salePayload, response: response }
+                }));
+            } catch (e) {}
+
+            // Cart & Payment reset (simple version)
+            if (Pos.cart && typeof Pos.cart.clear === 'function') {
+                Pos.cart.clear();
+            }
+
+            if (Pos.payment && typeof Pos.payment.recalc === 'function') {
+                // payment state کو fresh cart totals کے ساتھ sync کرنے کیلئے
+                Pos.payment.recalc();
+            } else {
+                // fallback: state reset
+                Pos.state.payment = {
+                    method: 'cash',
+                    totals: {
+                        totalDue: 0,
+                        amountPaid: 0,
+                        remainingDue: 0
+                    },
+                    split: {
+                        cash: 0,
+                        card: 0,
+                        bank: 0,
+                        pending: 0
+                    },
+                    installment: {
+                        enabled: false,
+                        count: 0,
+                        advance: 0,
+                        perInstallment: 0,
+                        schedule: []
+                    }
+                };
+            }
+
+            // Inputs clear
+            var noteEl = qs(selectors.saleNote);
+            if (noteEl) {
+                noteEl.value = '';
+            }
+            var refEl = qs(selectors.saleRef);
+            if (refEl) {
+                refEl.value = '';
+            }
+
+            // If server sent redirect url (e.g. invoice print)
+            if (response.data && response.data.redirect_url) {
+                window.location.href = response.data.redirect_url;
+                return;
+            }
+
+            // اگر popup invoice open کرنی ہو (optional)
+            if (response.data && response.data.invoice_url && response.data.open_invoice === true) {
+                window.open(response.data.invoice_url, '_blank');
+            }
+
+        }).catch(function (error) {
+            setLoadingState(false);
+            console.error('JWPM POS: Complete sale error', error);
+            showError('Could not connect to the server. Please try again.');
+            showToast('error', 'Network error while completing the sale.');
+
+            try {
+                document.dispatchEvent(new CustomEvent('jwpm_pos_sale_failed', {
+                    detail: { sale: salePayload, error: error }
+                }));
+            } catch (e) {}
+        });
+    }
+
+    // -------------------------------------------------------------
+    // Initialisation
+    // -------------------------------------------------------------
+    function initCompleteSaleModule() {
+        var btn = qs(selectors.completeBtn);
+        if (!btn) {
+            console.warn('JWPM POS: Complete Sale button نہیں ملا، sale submit دستی طور پر ہینڈل کرنا ہو گا۔');
+            return;
+        }
+
+        btn.addEventListener('click', handleCompleteSaleClick);
+    }
+
+    if (typeof Pos.onReady === 'function') {
+        Pos.onReady(initCompleteSaleModule);
+    } else {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initCompleteSaleModule);
+        } else {
+            initCompleteSaleModule();
+        }
+    }
+
+})(window, document);
+// 🔴 یہاں پر POS Complete Sale Request ختم ہو رہا ہے
+
+// ✅ Syntax verified block end
 
