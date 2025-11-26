@@ -1,1 +1,765 @@
+/** Part 2 — JWPM Repair Jobs Page Styles */
+/* 🟢 یہاں سے [JWPM Repair Styles] شروع ہو رہا ہے */
+
+/* بنیادی ٹوکنز (fallback اگر common میں نہ ہوں) */
+.jwpm-page-repair {
+	--jwpm-color-bg: var(--jwpm-color-bg, #f5f7fb);
+	--jwpm-color-bg-alt: var(--jwpm-color-bg-alt, #ffffff);
+	--jwpm-color-border: var(--jwpm-color-border, #d4d7e0);
+	--jwpm-color-text: var(--jwpm-color-text, #111827);
+	--jwpm-color-muted: var(--jwpm-color-muted, #6b7280);
+	--jwpm-color-accent: var(--jwpm-color-accent, #2563eb);
+	--jwpm-color-danger: var(--jwpm-color-danger, #dc2626);
+	--jwpm-color-success: var(--jwpm-color-success, #16a34a);
+	--jwpm-color-warning: #f59e0b;
+	--jwpm-color-purple: #7c3aed;
+	--jwpm-radius-sm: var(--jwpm-radius-sm, 4px);
+	--jwpm-radius-md: var(--jwpm-radius-md, 8px);
+	--jwpm-radius-lg: var(--jwpm-radius-lg, 12px);
+	--jwpm-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08);
+	--jwpm-shadow-md: 0 10px 25px rgba(15, 23, 42, 0.12);
+	--jwpm-gap-xs: 4px;
+	--jwpm-gap-sm: 8px;
+	--jwpm-gap-md: 12px;
+	--jwpm-gap-lg: 20px;
+}
+
+/* Wrap + loading */
+.jwpm-page-repair-wrap {
+	position: relative;
+}
+
+.jwpm-page-repair-wrap.jwpm-is-loading {
+	opacity: 0.7;
+	pointer-events: none;
+}
+
+.jwpm-loading-row td {
+	text-align: center;
+	color: var(--jwpm-color-muted);
+}
+
+/* مین پیج لی آؤٹ */
+.jwpm-page-repair {
+	display: flex;
+	flex-direction: column;
+	gap: var(--jwpm-gap-lg);
+	background: var(--jwpm-color-bg);
+	padding: 16px 20px;
+	border-radius: var(--jwpm-radius-lg);
+}
+
+/* Header + Summary Cards */
+.jwpm-page-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: var(--jwpm-gap-lg);
+}
+
+.jwpm-page-title-group {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.jwpm-page-title {
+	margin: 0;
+	font-size: 22px;
+	line-height: 1.2;
+	font-weight: 600;
+	color: var(--jwpm-color-text);
+}
+
+.jwpm-page-subtitle {
+	margin: 0;
+	font-size: 13px;
+	color: var(--jwpm-color-muted);
+}
+
+.jwpm-page-header-stats {
+	display: flex;
+	gap: var(--jwpm-gap-md);
+	flex-wrap: wrap;
+}
+
+.jwpm-stat-card {
+	min-width: 130px;
+	padding: 8px 10px;
+	border-radius: var(--jwpm-radius-md);
+	background: var(--jwpm-color-bg-alt);
+	box-shadow: var(--jwpm-shadow-sm);
+	border: 1px solid var(--jwpm-color-border);
+}
+
+.jwpm-stat-label {
+	font-size: 11px;
+	color: var(--jwpm-color-muted);
+	margin-bottom: 2px;
+}
+
+.jwpm-stat-value {
+	font-size: 18px;
+	font-weight: 600;
+	color: var(--jwpm-color-text);
+}
+
+/* Toolbar */
+.jwpm-toolbar.jwpm-repair-toolbar {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: var(--jwpm-gap-md);
+	flex-wrap: wrap;
+	padding: 10px 12px;
+	border-radius: var(--jwpm-radius-md);
+	background: var(--jwpm-color-bg-alt);
+	border: 1px solid var(--jwpm-color-border);
+}
+
+.jwpm-toolbar-filters,
+.jwpm-toolbar-actions {
+	display: flex;
+	align-items: center;
+	gap: var(--jwpm-gap-sm);
+	flex-wrap: wrap;
+}
+
+/* Inputs / Selects / Textarea */
+.jwpm-input,
+.jwpm-select,
+.jwpm-textarea {
+	border-radius: var(--jwpm-radius-sm);
+	border: 1px solid var(--jwpm-color-border);
+	padding: 5px 8px;
+	font-size: 12px;
+	color: var(--jwpm-color-text);
+	background-color: #ffffff;
+	min-height: 30px;
+}
+
+.jwpm-textarea {
+	resize: vertical;
+}
+
+.jwpm-input:focus,
+.jwpm-select:focus,
+.jwpm-textarea:focus {
+	outline: 2px solid rgba(37, 99, 235, 0.35);
+	outline-offset: 0;
+	border-color: var(--jwpm-color-accent);
+}
+
+/* Demo dropdown */
+.jwpm-dropdown {
+	position: relative;
+	display: inline-block;
+}
+
+.jwpm-dropdown-menu {
+	position: absolute;
+	right: 0;
+	top: 100%;
+	margin-top: 4px;
+	min-width: 190px;
+	border-radius: var(--jwpm-radius-md);
+	background: #ffffff;
+	border: 1px solid var(--jwpm-color-border);
+	box-shadow: var(--jwpm-shadow-md);
+	padding: 4px 0;
+	z-index: 999;
+	display: none;
+}
+
+.jwpm-dropdown:hover .jwpm-dropdown-menu {
+	display: block;
+}
+
+.jwpm-dropdown-item {
+	display: block;
+	width: 100%;
+	text-align: left;
+	background: transparent;
+	border: none;
+	padding: 6px 10px;
+	font-size: 12px;
+	color: var(--jwpm-color-text);
+	cursor: pointer;
+}
+
+.jwpm-dropdown-item:hover {
+	background: rgba(37, 99, 235, 0.07);
+}
+
+/* مین سیکشن: Table + Side Panel */
+.jwpm-repair-main {
+	display: grid;
+	grid-template-columns: minmax(0, 2.3fr) minmax(260px, 1.2fr);
+	gap: var(--jwpm-gap-lg);
+	align-items: flex-start;
+}
+
+/* Table wrap */
+.jwpm-repair-table-wrap {
+	background: var(--jwpm-color-bg-alt);
+	border-radius: var(--jwpm-radius-md);
+	border: 1px solid var(--jwpm-color-border);
+	box-shadow: var(--jwpm-shadow-sm);
+	overflow: hidden;
+}
+
+/* Generic table style */
+.jwpm-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 12px;
+}
+
+.jwpm-table th,
+.jwpm-table td {
+	border-bottom: 1px solid var(--jwpm-color-border);
+	padding: 6px 8px;
+	text-align: left;
+	vertical-align: middle;
+}
+
+.jwpm-table th {
+	background: #f3f4f6;
+	font-weight: 600;
+	color: var(--jwpm-color-muted);
+	font-size: 11px;
+	white-space: nowrap;
+}
+
+.jwpm-table tbody tr:nth-child(odd) {
+	background: #f9fafb;
+}
+
+.jwpm-table tbody tr:hover {
+	background: #eef2ff;
+}
+
+.jwpm-empty-row td {
+	text-align: center;
+	color: var(--jwpm-color-muted);
+	font-style: italic;
+}
+
+/* Repairs table specifics */
+.jwpm-table-repairs td[data-jwpm-repair-field="job_code"] {
+	font-weight: 600;
+	color: var(--jwpm-color-text);
+}
+
+.jwpm-table-repairs td[data-jwpm-repair-field="item_description"] {
+	max-width: 200px;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	overflow: hidden;
+}
+
+/* Actions column */
+.jwpm-table-actions {
+	white-space: nowrap;
+}
+
+.jwpm-table-actions .button-link {
+	font-size: 11px;
+	margin-right: 4px;
+}
+
+.jwpm-text-danger {
+	color: var(--jwpm-color-danger);
+}
+
+/* Status badges — Repair status کیلئے رنگ */
+.jwpm-status-badge {
+	display: inline-block;
+	padding: 2px 6px;
+	border-radius: 999px;
+	font-size: 11px;
+	cursor: pointer;
+	border: 1px solid transparent;
+}
+
+.jwpm-status-badge[data-status="received"] {
+	background: #e5e7eb;
+	color: #374151;
+	border-color: #d1d5db;
+}
+
+.jwpm-status-badge[data-status="in_workshop"] {
+	background: rgba(59, 130, 246, 0.08);
+	color: #1d4ed8;
+	border-color: rgba(59, 130, 246, 0.5);
+}
+
+.jwpm-status-badge[data-status="ready"] {
+	background: rgba(22, 163, 74, 0.08);
+	color: var(--jwpm-color-success);
+	border-color: rgba(22, 163, 74, 0.5);
+}
+
+.jwpm-status-badge[data-status="delivered"] {
+	background: rgba(5, 150, 105, 0.1);
+	color: #047857;
+	border-color: rgba(5, 150, 105, 0.6);
+}
+
+.jwpm-status-badge[data-status="cancelled"] {
+	background: rgba(220, 38, 38, 0.08);
+	color: var(--jwpm-color-danger);
+	border-color: rgba(220, 38, 38, 0.5);
+}
+
+/* Priority badges */
+.jwpm-priority-badge {
+	display: inline-block;
+	padding: 2px 6px;
+	border-radius: 999px;
+	font-size: 11px;
+	cursor: pointer;
+	border: 1px solid transparent;
+}
+
+.jwpm-priority-badge[data-priority="normal"] {
+	background: #e5e7eb;
+	color: #374151;
+	border-color: #d1d5db;
+}
+
+.jwpm-priority-badge[data-priority="urgent"] {
+	background: rgba(245, 158, 11, 0.1);
+	color: var(--jwpm-color-warning);
+	border-color: rgba(245, 158, 11, 0.6);
+}
+
+.jwpm-priority-badge[data-priority="vip"] {
+	background: rgba(124, 58, 237, 0.1);
+	color: var(--jwpm-color-purple);
+	border-color: rgba(124, 58, 237, 0.6);
+}
+
+/* Pagination */
+.jwpm-pagination {
+	padding: 8px 10px;
+	display: flex;
+	justify-content: flex-end;
+}
+
+.jwpm-pagination-inner {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 11px;
+}
+
+.jwpm-page-info {
+	color: var(--jwpm-color-muted);
+}
+
+.jwpm-page-prev,
+.jwpm-page-next {
+	min-width: 26px;
+	padding: 3px 6px;
+}
+
+/* Side Panel */
+.jwpm-repair-side-panel {
+	background: var(--jwpm-color-bg-alt);
+	border-radius: var(--jwpm-radius-md);
+	border: 1px solid var(--jwpm-color-border);
+	box-shadow: var(--jwpm-shadow-md);
+	max-height: 100%;
+	overflow: hidden;
+	position: relative;
+}
+
+.jwpm-side-panel-inner {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+/* Side panel header */
+.jwpm-side-panel-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 10px 12px;
+	border-bottom: 1px solid var(--jwpm-color-border);
+}
+
+.jwpm-side-panel-title {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--jwpm-color-text);
+}
+
+.jwpm-side-panel-subtitle {
+	font-size: 11px;
+	color: var(--jwpm-color-muted);
+	margin-top: 2px;
+}
+
+.jwpm-side-panel-header-meta {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.jwpm-side-panel-header-actions {
+	display: flex;
+	align-items: center;
+	gap: var(--jwpm-gap-sm);
+}
+
+.jwpm-side-panel-close {
+	border: none;
+	background: transparent;
+	font-size: 18px;
+	line-height: 1;
+	cursor: pointer;
+	color: var(--jwpm-color-muted);
+}
+
+.jwpm-side-panel-close:hover {
+	color: var(--jwpm-color-text);
+}
+
+/* Tabs */
+.jwpm-side-panel-tabs {
+	display: flex;
+	border-bottom: 1px solid var(--jwpm-color-border);
+}
+
+.jwpm-tab {
+	flex: 1 1 0;
+	padding: 8px 10px;
+	border: none;
+	background: transparent;
+	font-size: 12px;
+	color: var(--jwpm-color-muted);
+	cursor: pointer;
+	text-align: center;
+	position: relative;
+}
+
+.jwpm-tab.is-active {
+	color: var(--jwpm-color-accent);
+	font-weight: 600;
+}
+
+.jwpm-tab.is-active::after {
+	content: '';
+	position: absolute;
+	left: 12px;
+	right: 12px;
+	bottom: 0;
+	height: 2px;
+	border-radius: 999px;
+	background: var(--jwpm-color-accent);
+}
+
+/* Panel body + footer */
+.jwpm-side-panel-body {
+	padding: 10px 12px;
+	overflow-y: auto;
+	max-height: calc(100vh - 170px);
+}
+
+.jwpm-side-panel-footer {
+	padding: 8px 12px;
+	border-top: 1px solid var(--jwpm-color-border);
+	display: flex;
+	justify-content: flex-end;
+	gap: 6px;
+}
+
+/* Tab panels */
+.jwpm-tab-panel {
+	display: none;
+}
+
+.jwpm-tab-panel.is-active {
+	display: block;
+}
+
+/* Form sections */
+.jwpm-form-section {
+	margin-bottom: 12px;
+}
+
+.jwpm-form-section-title {
+	margin: 0 0 6px;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--jwpm-color-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.jwpm-form-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+}
+
+.jwpm-field {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.jwpm-field-full {
+	grid-column: 1 / -1;
+}
+
+.jwpm-field-label {
+	font-size: 11px;
+	color: var(--jwpm-color-muted);
+}
+
+.jwpm-field-inline {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 6px;
+	font-size: 11px;
+	color: var(--jwpm-color-muted);
+}
+
+/* Timeline / History */
+.jwpm-repair-timeline-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-end;
+	gap: var(--jwpm-gap-sm);
+	margin-bottom: 6px;
+}
+
+.jwpm-repair-timeline-mini-form {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--jwpm-gap-sm);
+	font-size: 11px;
+}
+
+.jwpm-repair-timeline-mini-form .jwpm-select,
+.jwpm-repair-timeline-mini-form .jwpm-input {
+	min-width: 120px;
+}
+
+.jwpm-repair-logs-table-wrap {
+	border-radius: var(--jwpm-radius-sm);
+	border: 1px solid var(--jwpm-color-border);
+	overflow: hidden;
+	background: #ffffff;
+}
+
+/* Modal (Import) */
+.jwpm-modal {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 9999;
+}
+
+.jwpm-modal-overlay {
+	position: absolute;
+	inset: 0;
+	background: rgba(15, 23, 42, 0.45);
+}
+
+.jwpm-modal-content {
+	position: relative;
+	z-index: 1;
+	width: 100%;
+	max-width: 440px;
+	background: #ffffff;
+	border-radius: var(--jwpm-radius-lg);
+	box-shadow: var(--jwpm-shadow-md);
+	display: flex;
+	flex-direction: column;
+	max-height: 90vh;
+}
+
+.jwpm-modal-header {
+	padding: 10px 14px;
+	border-bottom: 1px solid var(--jwpm-color-border);
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.jwpm-modal-title {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--jwpm-color-text);
+}
+
+.jwpm-modal-close {
+	border: none;
+	background: transparent;
+	font-size: 18px;
+	line-height: 1;
+	cursor: pointer;
+	color: var(--jwpm-color-muted);
+}
+
+.jwpm-modal-close:hover {
+	color: var(--jwpm-color-text);
+}
+
+.jwpm-modal-body {
+	padding: 10px 14px 14px;
+	font-size: 12px;
+	color: var(--jwpm-color-text);
+	overflow-y: auto;
+}
+
+.jwpm-modal-body p {
+	margin-top: 0;
+	margin-bottom: 8px;
+}
+
+.jwpm-modal-footer {
+	padding: 8px 14px;
+	border-top: 1px solid var(--jwpm-color-border);
+	display: flex;
+	justify-content: flex-end;
+	gap: 6px;
+}
+
+.jwpm-repair-import-result,
+[data-jwpm-repair-import-result] {
+	margin-top: 8px;
+	font-size: 11px;
+	color: var(--jwpm-color-muted);
+}
+
+/* RTL سپورٹ */
+body.rtl .jwpm-page-header,
+body[dir="rtl"] .jwpm-page-header {
+	flex-direction: row-reverse;
+}
+
+body.rtl .jwpm-page-header-stats,
+body[dir="rtl"] .jwpm-page-header-stats {
+	flex-direction: row-reverse;
+}
+
+body.rtl .jwpm-toolbar.jwpm-repair-toolbar,
+body[dir="rtl"] .jwpm-toolbar.jwpm-repair-toolbar {
+	direction: rtl;
+}
+
+body.rtl .jwpm-toolbar-actions,
+body[dir="rtl"] .jwpm-toolbar-actions {
+	margin-left: auto;
+	margin-right: 0;
+}
+
+body.rtl .jwpm-dropdown-menu,
+body[dir="rtl"] .jwpm-dropdown-menu {
+	right: auto;
+	left: 0;
+}
+
+body.rtl .jwpm-modal-title,
+body[dir="rtl"] .jwpm-modal-title {
+	text-align: right;
+}
+
+body.rtl .jwpm-tab {
+	direction: rtl;
+}
+
+/* Responsive (Tablet & Mobile) */
+@media (max-width: 1040px) {
+	.jwpm-repair-main {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.jwpm-repair-side-panel {
+		max-height: none;
+	}
+}
+
+@media (max-width: 768px) {
+	.jwpm-page-repair {
+		padding: 12px 10px;
+	}
+
+	.jwpm-page-header {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.jwpm-page-header-stats {
+		width: 100%;
+	}
+
+	.jwpm-stat-card {
+		flex: 1 1 0;
+	}
+
+	.jwpm-toolbar.jwpm-repair-toolbar {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.jwpm-toolbar-filters,
+	.jwpm-toolbar-actions {
+		width: 100%;
+		justify-content: flex-start;
+	}
+
+	.jwpm-repair-side-panel {
+		position: fixed;
+		inset: 0;
+		max-width: none;
+		border-radius: 0;
+		z-index: 999;
+	}
+
+	.jwpm-side-panel-body {
+		max-height: calc(100vh - 130px);
+	}
+}
+
+/* Print View */
+@media print {
+	.jwpm-page-repair-wrap,
+	.jwpm-page-repair {
+		background: #ffffff !important;
+		padding: 0 !important;
+		box-shadow: none !important;
+	}
+
+	.jwpm-toolbar.jwpm-repair-toolbar,
+	.jwpm-repair-side-panel,
+	.jwpm-pagination,
+	.jwpm-modal {
+		display: none !important;
+	}
+
+	.jwpm-repair-table-wrap {
+		border: 1px solid #000;
+		box-shadow: none;
+	}
+
+	.jwpm-table-repairs th,
+	.jwpm-table-repairs td {
+		font-size: 11px;
+		border-color: #000;
+	}
+}
+
+/* 🔴 یہاں پر [JWPM Repair Styles] ختم ہو رہا ہے */
+/* ✅ Syntax verified block end */
 
