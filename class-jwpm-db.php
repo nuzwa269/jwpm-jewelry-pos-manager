@@ -816,3 +816,255 @@ if ( is_admin() && function_exists( 'add_action' ) ) {
 
 // 🔴 یہاں پر [Installments Tables Schema] ختم ہو رہا ہے
 // ✅ Syntax verified block end
+<?php
+/** Part 8 — JWPM Repair Tables Schema
+ * یہاں Repair Jobs کے لیے (SQL) schema helper موجود ہے۔
+ */
+
+// 🟢 یہاں سے [JWPM Repair DB Schema] شروع ہو رہا ہے
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * Activation کے وقت dbDelta() میں use کرنے کیلئے:
+ *
+ * require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+ * foreach ( jwpm_repair_get_table_schemas() as $sql ) {
+ *     dbDelta( $sql );
+ * }
+ */
+function jwpm_repair_get_table_schemas() {
+	global $wpdb;
+
+	$charset_collate = $wpdb->get_charset_collate();
+	$repairs         = $wpdb->prefix . 'jwpm_repairs';
+	$logs            = $wpdb->prefix . 'jwpm_repair_logs';
+
+	$sql_repairs = "CREATE TABLE {$repairs} (
+		id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+		job_code VARCHAR(50) NOT NULL,
+		tag_no VARCHAR(50) DEFAULT '' NOT NULL,
+		customer_id BIGINT(20) UNSIGNED DEFAULT 0,
+		customer_name VARCHAR(191) DEFAULT '' NOT NULL,
+		customer_phone VARCHAR(50) DEFAULT '' NOT NULL,
+		item_description TEXT,
+		job_type VARCHAR(50) DEFAULT '' NOT NULL,
+		problems TEXT,
+		instructions TEXT,
+		received_date DATE DEFAULT NULL,
+		promised_date DATE DEFAULT NULL,
+		delivered_date DATE DEFAULT NULL,
+		gold_weight_in DECIMAL(16,3) DEFAULT 0,
+		gold_weight_out DECIMAL(16,3) DEFAULT 0,
+		estimated_charges DECIMAL(16,3) DEFAULT 0,
+		actual_charges DECIMAL(16,3) DEFAULT 0,
+		advance_amount DECIMAL(16,3) DEFAULT 0,
+		balance_amount DECIMAL(16,3) DEFAULT 0,
+		payment_status VARCHAR(20) DEFAULT 'unpaid' NOT NULL,
+		job_status VARCHAR(20) DEFAULT 'received' NOT NULL,
+		assigned_to VARCHAR(191) DEFAULT '' NOT NULL,
+		priority VARCHAR(20) DEFAULT 'normal' NOT NULL,
+		workshop_notes TEXT,
+		internal_remarks TEXT,
+		is_demo TINYINT(1) DEFAULT 0,
+		created_by BIGINT(20) UNSIGNED DEFAULT 0,
+		updated_by BIGINT(20) UNSIGNED DEFAULT 0,
+		created_at DATETIME DEFAULT NULL,
+		updated_at DATETIME DEFAULT NULL,
+		PRIMARY KEY (id),
+		KEY job_code (job_code),
+		KEY tag_no (tag_no),
+		KEY customer_phone (customer_phone),
+		KEY job_status (job_status),
+		KEY priority (priority),
+		KEY promised_date (promised_date)
+	) {$charset_collate};";
+
+	$sql_logs = "CREATE TABLE {$logs} (
+		id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+		repair_id BIGINT(20) UNSIGNED NOT NULL,
+		status VARCHAR(20) DEFAULT '' NOT NULL,
+		note TEXT,
+		updated_at DATETIME DEFAULT NULL,
+		updated_by BIGINT(20) UNSIGNED DEFAULT 0,
+		PRIMARY KEY (id),
+		KEY repair_id (repair_id),
+		KEY status (status),
+		KEY updated_at (updated_at)
+	) {$charset_collate};";
+
+	return array( $sql_repairs, $sql_logs );
+}
+
+// 🔴 یہاں پر [JWPM Repair DB Schema] ختم ہو رہا ہے
+// ✅ Syntax verified block end
+<?php
+/** Part 8 — JWPM Repair Tables Schema
+ * یہاں Repair Jobs کے لیے (SQL) schema helper موجود ہے۔
+ */
+
+// 🟢 یہاں سے [JWPM Repair DB Schema] شروع ہو رہا ہے
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * Activation کے وقت dbDelta() میں use کرنے کیلئے:
+ *
+ * require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+ * foreach ( jwpm_repair_get_table_schemas() as $sql ) {
+ *     dbDelta( $sql );
+ * }
+ */
+function jwpm_repair_get_table_schemas() {
+	global $wpdb;
+
+	$charset_collate = $wpdb->get_charset_collate();
+	$repairs         = $wpdb->prefix . 'jwpm_repairs';
+	$logs            = $wpdb->prefix . 'jwpm_repair_logs';
+
+	$sql_repairs = "CREATE TABLE {$repairs} (
+		id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+		job_code VARCHAR(50) NOT NULL,
+		tag_no VARCHAR(50) DEFAULT '' NOT NULL,
+		customer_id BIGINT(20) UNSIGNED DEFAULT 0,
+		customer_name VARCHAR(191) DEFAULT '' NOT NULL,
+		customer_phone VARCHAR(50) DEFAULT '' NOT NULL,
+		item_description TEXT,
+		job_type VARCHAR(50) DEFAULT '' NOT NULL,
+		problems TEXT,
+		instructions TEXT,
+		received_date DATE DEFAULT NULL,
+		promised_date DATE DEFAULT NULL,
+		delivered_date DATE DEFAULT NULL,
+		gold_weight_in DECIMAL(16,3) DEFAULT 0,
+		gold_weight_out DECIMAL(16,3) DEFAULT 0,
+		estimated_charges DECIMAL(16,3) DEFAULT 0,
+		actual_charges DECIMAL(16,3) DEFAULT 0,
+		advance_amount DECIMAL(16,3) DEFAULT 0,
+		balance_amount DECIMAL(16,3) DEFAULT 0,
+		payment_status VARCHAR(20) DEFAULT 'unpaid' NOT NULL,
+		job_status VARCHAR(20) DEFAULT 'received' NOT NULL,
+		assigned_to VARCHAR(191) DEFAULT '' NOT NULL,
+		priority VARCHAR(20) DEFAULT 'normal' NOT NULL,
+		workshop_notes TEXT,
+		internal_remarks TEXT,
+		is_demo TINYINT(1) DEFAULT 0,
+		created_by BIGINT(20) UNSIGNED DEFAULT 0,
+		updated_by BIGINT(20) UNSIGNED DEFAULT 0,
+		created_at DATETIME DEFAULT NULL,
+		updated_at DATETIME DEFAULT NULL,
+		PRIMARY KEY (id),
+		KEY job_code (job_code),
+		KEY tag_no (tag_no),
+		KEY customer_phone (customer_phone),
+		KEY job_status (job_status),
+		KEY priority (priority),
+		KEY promised_date (promised_date)
+	) {$charset_collate};";
+
+	$sql_logs = "CREATE TABLE {$logs} (
+		id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+		repair_id BIGINT(20) UNSIGNED NOT NULL,
+		status VARCHAR(20) DEFAULT '' NOT NULL,
+		note TEXT,
+		updated_at DATETIME DEFAULT NULL,
+		updated_by BIGINT(20) UNSIGNED DEFAULT 0,
+		PRIMARY KEY (id),
+		KEY repair_id (repair_id),
+		KEY status (status),
+		KEY updated_at (updated_at)
+	) {$charset_collate};";
+
+	return array( $sql_repairs, $sql_logs );
+}
+
+// 🔴 یہاں پر [JWPM Repair DB Schema] ختم ہو رہا ہے
+// ✅ Syntax verified block end
+<?php
+/** Part 8 — JWPM Repair Tables Schema
+ * یہاں Repair Jobs کے لیے (SQL) schema helper موجود ہے۔
+ */
+
+// 🟢 یہاں سے [JWPM Repair DB Schema] شروع ہو رہا ہے
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * Activation کے وقت dbDelta() میں use کرنے کیلئے:
+ *
+ * require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+ * foreach ( jwpm_repair_get_table_schemas() as $sql ) {
+ *     dbDelta( $sql );
+ * }
+ */
+function jwpm_repair_get_table_schemas() {
+	global $wpdb;
+
+	$charset_collate = $wpdb->get_charset_collate();
+	$repairs         = $wpdb->prefix . 'jwpm_repairs';
+	$logs            = $wpdb->prefix . 'jwpm_repair_logs';
+
+	$sql_repairs = "CREATE TABLE {$repairs} (
+		id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+		job_code VARCHAR(50) NOT NULL,
+		tag_no VARCHAR(50) DEFAULT '' NOT NULL,
+		customer_id BIGINT(20) UNSIGNED DEFAULT 0,
+		customer_name VARCHAR(191) DEFAULT '' NOT NULL,
+		customer_phone VARCHAR(50) DEFAULT '' NOT NULL,
+		item_description TEXT,
+		job_type VARCHAR(50) DEFAULT '' NOT NULL,
+		problems TEXT,
+		instructions TEXT,
+		received_date DATE DEFAULT NULL,
+		promised_date DATE DEFAULT NULL,
+		delivered_date DATE DEFAULT NULL,
+		gold_weight_in DECIMAL(16,3) DEFAULT 0,
+		gold_weight_out DECIMAL(16,3) DEFAULT 0,
+		estimated_charges DECIMAL(16,3) DEFAULT 0,
+		actual_charges DECIMAL(16,3) DEFAULT 0,
+		advance_amount DECIMAL(16,3) DEFAULT 0,
+		balance_amount DECIMAL(16,3) DEFAULT 0,
+		payment_status VARCHAR(20) DEFAULT 'unpaid' NOT NULL,
+		job_status VARCHAR(20) DEFAULT 'received' NOT NULL,
+		assigned_to VARCHAR(191) DEFAULT '' NOT NULL,
+		priority VARCHAR(20) DEFAULT 'normal' NOT NULL,
+		workshop_notes TEXT,
+		internal_remarks TEXT,
+		is_demo TINYINT(1) DEFAULT 0,
+		created_by BIGINT(20) UNSIGNED DEFAULT 0,
+		updated_by BIGINT(20) UNSIGNED DEFAULT 0,
+		created_at DATETIME DEFAULT NULL,
+		updated_at DATETIME DEFAULT NULL,
+		PRIMARY KEY (id),
+		KEY job_code (job_code),
+		KEY tag_no (tag_no),
+		KEY customer_phone (customer_phone),
+		KEY job_status (job_status),
+		KEY priority (priority),
+		KEY promised_date (promised_date)
+	) {$charset_collate};";
+
+	$sql_logs = "CREATE TABLE {$logs} (
+		id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+		repair_id BIGINT(20) UNSIGNED NOT NULL,
+		status VARCHAR(20) DEFAULT '' NOT NULL,
+		note TEXT,
+		updated_at DATETIME DEFAULT NULL,
+		updated_by BIGINT(20) UNSIGNED DEFAULT 0,
+		PRIMARY KEY (id),
+		KEY repair_id (repair_id),
+		KEY status (status),
+		KEY updated_at (updated_at)
+	) {$charset_collate};";
+
+	return array( $sql_repairs, $sql_logs );
+}
+
+// 🔴 یہاں پر [JWPM Repair DB Schema] ختم ہو رہا ہے
+// ✅ Syntax verified block end
