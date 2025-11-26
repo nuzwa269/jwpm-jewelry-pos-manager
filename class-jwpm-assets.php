@@ -559,3 +559,78 @@ add_action( 'admin_enqueue_scripts', 'jwpm_enqueue_installments_assets' );
 
 // 🔴 یہاں پر [Installments Assets Enqueue] ختم ہو رہا ہے
 // ✅ Syntax verified block end
+<?php
+/** Part 7 — JWPM Repair Assets Loader
+ * یہاں Repair Jobs پیج کے لیے (JS) / (CSS) enqueue + localize ہو رہا ہے۔
+ */
+
+// 🟢 یہاں سے [JWPM Repair Assets] شروع ہو رہا ہے
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * یہ helper موجودہ admin_enqueue_hooks کے اندر call کیا جا سکتا ہے:
+ * مثال:
+ * if ( isset( $_GET['page'] ) && 'jwpm-repair' === $_GET['page'] ) { jwpm_enqueue_repair_assets(); }
+ */
+function jwpm_enqueue_repair_assets() {
+	$screen_page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
+	if ( 'jwpm-repair' !== $screen_page ) {
+		return;
+	}
+
+	$plugin_url = plugin_dir_url( dirname( __FILE__ ) );
+
+	// CSS
+	wp_enqueue_style(
+		'jwpm-repair',
+		$plugin_url . 'assets/css/jwpm-repair.css',
+		array( 'jwpm-common' ),
+		defined( 'JWPM_VERSION' ) ? JWPM_VERSION : '1.0.0'
+	);
+
+	// JS
+	wp_enqueue_script(
+		'jwpm-repair',
+		$plugin_url . 'assets/js/jwpm-repair.js',
+		array( 'jquery', 'jwpm-common' ),
+		defined( 'JWPM_VERSION' ) ? JWPM_VERSION : '1.0.0',
+		true
+	);
+
+	$strings = array(
+		'loading'        => __( 'Repair Jobs لوڈ ہو رہے ہیں…', 'jwpm' ),
+		'saving'         => __( 'مرمت کا ریکارڈ محفوظ ہو رہا ہے…', 'jwpm' ),
+		'saveSuccess'    => __( 'Repair job محفوظ ہو گیا۔', 'jwpm' ),
+		'saveError'      => __( 'محفوظ کرتے وقت مسئلہ آیا، دوبارہ کوشش کریں۔', 'jwpm' ),
+		'deleteConfirm'  => __( 'کیا آپ واقعی اس Repair job کو cancel کرنا چاہتے ہیں؟', 'jwpm' ),
+		'deleteSuccess'  => __( 'Repair job cancel / update ہو گیا۔', 'jwpm' ),
+		'importSuccess'  => __( 'Repair jobs import مکمل ہو گیا۔', 'jwpm' ),
+		'importError'    => __( 'Import کے دوران مسئلہ آیا۔', 'jwpm' ),
+		'demoCreateSuccess' => __( 'Demo Repairs بنا دیے گئے۔', 'jwpm' ),
+		'demoClearSuccess'  => __( 'Demo Repairs حذف ہو گئے۔', 'jwpm' ),
+		'noRecords'      => __( 'کوئی Repair job نہیں ملا۔', 'jwpm' ),
+	);
+
+	wp_localize_script(
+		'jwpm-repair',
+		'jwpmRepairData',
+		array(
+			'ajaxUrl'    => admin_url( 'admin-ajax.php' ),
+			'mainNonce'  => wp_create_nonce( 'jwpm_repair_main_nonce' ),
+			'importNonce'=> wp_create_nonce( 'jwpm_repair_import_nonce' ),
+			'exportNonce'=> wp_create_nonce( 'jwpm_repair_export_nonce' ),
+			'demoNonce'  => wp_create_nonce( 'jwpm_repair_demo_nonce' ),
+			'strings'    => $strings,
+			'pagination' => array(
+				'defaultPerPage' => 20,
+				'perPageOptions' => array( 20, 50, 100 ),
+			),
+		)
+	);
+}
+
+// 🔴 یہاں پر [JWPM Repair Assets] ختم ہو رہا ہے
+// ✅ Syntax verified block end
