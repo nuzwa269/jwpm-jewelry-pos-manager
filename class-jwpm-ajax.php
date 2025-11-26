@@ -2981,3 +2981,532 @@ function jwpm_ajax_export_installments() {
 
 // 🔴 یہاں پر [Installments AJAX Handlers] ختم ہو رہا ہے
 // ✅ Syntax verified block end
+<?php
+/** Part 9 — JWPM Repair Jobs AJAX Handlers
+ * یہاں Repair Jobs module کے لیے (AJAX) endpoints ہیں۔
+ */
+
+// 🟢 یہاں سے [JWPM Repair AJAX] شروع ہو رہا ہے
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * مشترکہ helper — main nonce چیک
+ */
+function jwpm_repair_check_main_nonce() {
+	$nonce = isset( $_REQUEST['nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ) : '';
+	if ( ! wp_verify_nonce( $nonce, 'jwpm_repair_main_nonce' ) ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'Security check failed (repair nonce).', 'jwpm' ),
+			)
+		);
+	}
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'آپ کو اس action کی اجازت نہیں۔', 'jwpm' ),
+			)
+		);
+	}
+}
+
+/**
+ * Repair list — jwpm_get_repairs
+ */
+function jwpm_ajax_get_repairs() {
+	global $wpdb;
+	jwpm_repair_check_main_nonce();
+
+	$table = $wpdb->prefix . 'jwpm_repairs';
+
+	$search      = isset( $_REQUEST['search'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['search'] ) ) : '';
+	$status      = isset( $_REQUEST['status'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['status'] ) ) : '';
+	$priority    = isset( $_REQUEST['priority'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['priority'] ) ) : '';
+	$date_from   = isset( $_REQUEST['date_from'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['date_from'] ) ) : '';
+	$date_to     = isset( $_REQUEST['date_to'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['date_to'] ) ) : '';
+	$page        = isset( $_REQUEST['page'] ) ? max( 1, (int) $_REQUEST['page'] ) : 1;
+	$per_page    = isset( $_REQUEST['per_page'] ) ? max( 1, (int) $_REQUEST['per_page'] ) : 20;
+	$offset      = ( $page - 1 ) * $per_page;
+
+	$where  = 'WHERE 1=1';
+	$params = array();
+
+	if ( $search ) {
+		$like   = '%' . $wpdb->esc_like( $search ) . '%';
+		$where .= " AND (customer_name LIKE %s OR customer_phone LIKE %s OR tag_no LIKE %s OR job_code LIKE %s)";
+		$params = array_merge( $params, array( $like, $like, $like, $like ) );
+	}
+
+	if ( $status ) {
+		$where  .= ' AND job_status = %s';
+		$params[] = $status;
+	}
+
+	if ( $priority ) {
+		$where  .= ' AND priority = %s';
+		$params[] = $priority;
+	}
+
+	if ( $date_from ) {
+		$where  .= ' AND promised_date >= %s';
+		$params[] = $date_from;
+	}
+
+	if ( $date_to ) {
+		$where  .= ' AND promised_date <= %s';
+		$params[] = $date_to;
+	}
+
+	$sql_count = "SELECT COUNT(*) FROM {$table} {$where}";
+	$total     = (int) $wpdb->get_var( $wpdb->prepare( $sql_count, $params ) );
+
+	$sql_items = "SELECT * FROM {$table} {$where} ORDER BY promised_date ASC, id DESC LIMIT %d OFFSET %d";
+	$params_items = array_merge( $params, array( $per_page, $offset ) );
+
+	$rows = $wpdb->get_results( $wpdb->prepare( $sql_items, $params_items ), ARRAY_A );
+
+	$items = array();
+
+	if ( $rows ) {
+		foreach ( $rows as $row ) {
+			$items[] = array(
+				'id'              => (int) $row['id'],
+				'job_code'        => $row['job_code'],
+				'tag_no'          => $row['tag_no'],
+				'customer_name'   => $row['customer_name'],
+				'customer_phone'  => $row['customer_phone'],
+				'item_description'=> $row['item_description'],
+				'job_type'        => $row['job_type'],
+				'promised_date'   => $row['promised_date'],
+				'job_status'      => $row['job_status'],
+				'actual_charges'  => (float) $row['actual_charges'],
+				'balance_amount'  => (float) $row['balance_amount'],
+				'priority'        => $row['priority'],
+			);
+		}
+	}
+
+	$pagination = array(
+		'total'      => $total,
+		'page'       => $page,
+		'per_page'   => $per_page,
+		'total_page' => $per_page ? max( 1, (int) ceil( $total / $per_page ) ) : 1,
+	);
+
+	wp_send_json_success(
+		array(
+			'items'      => $items,
+			'pagination' => $pagination,
+		)
+	);
+}
+add_action( 'wp_ajax_jwpm_get_repairs', 'jwpm_ajax_get_repairs' );
+
+/**
+ * Single repair — jwpm_get_repair
+ */
+function jwpm_ajax_get_repair() {
+	global $wpdb;
+	jwpm_repair_check_main_nonce();
+
+	$id = isset( $_REQUEST['id'] ) ? (int) $_REQUEST['id'] : 0;
+	if ( ! $id ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'Invalid repair ID.', 'jwpm' ),
+			)
+		);
+	}
+
+	$table_repair = $wpdb->prefix . 'jwpm_repairs';
+	$table_logs   = $wpdb->prefix . 'jwpm_repair_logs';
+
+	$repair = $wpdb->get_row(
+		$wpdb->prepare( "SELECT * FROM {$table_repair} WHERE id = %d", $id ),
+		ARRAY_A
+	);
+
+	if ( ! $repair ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'Repair job not found.', 'jwpm' ),
+			)
+		);
+	}
+
+	$logs = $wpdb->get_results(
+		$wpdb->prepare( "SELECT * FROM {$table_logs} WHERE repair_id = %d ORDER BY updated_at DESC, id DESC", $id ),
+		ARRAY_A
+	);
+
+	$logs_out = array();
+	if ( $logs ) {
+		foreach ( $logs as $log ) {
+			$logs_out[] = array(
+				'id'         => (int) $log['id'],
+				'status'     => $log['status'],
+				'status_label' => $log['status'],
+				'note'       => $log['note'],
+				'updated_at' => $log['updated_at'],
+				'updated_by' => $log['updated_by'],
+			);
+		}
+	}
+
+	wp_send_json_success(
+		array(
+			'header' => $repair,
+			'logs'   => $logs_out,
+		)
+	);
+}
+add_action( 'wp_ajax_jwpm_get_repair', 'jwpm_ajax_get_repair' );
+
+/**
+ * Save repair (create/update + quick_update)
+ * action: jwpm_save_repair
+ */
+function jwpm_ajax_save_repair() {
+	global $wpdb;
+	jwpm_repair_check_main_nonce();
+
+	$id           = isset( $_REQUEST['id'] ) ? (int) $_REQUEST['id'] : 0;
+	$quick_update = isset( $_REQUEST['quick_update'] ) ? (int) $_REQUEST['quick_update'] : 0;
+
+	$table = $wpdb->prefix . 'jwpm_repairs';
+
+	if ( $quick_update && $id ) {
+		// Quick update: job_status / priority / payment_status وغیرہ
+		$fields = array();
+		$formats = array();
+
+		if ( isset( $_REQUEST['job_status'] ) ) {
+			$fields['job_status'] = sanitize_text_field( wp_unslash( $_REQUEST['job_status'] ) );
+			$formats[]            = '%s';
+		}
+		if ( isset( $_REQUEST['priority'] ) ) {
+			$fields['priority'] = sanitize_text_field( wp_unslash( $_REQUEST['priority'] ) );
+			$formats[]          = '%s';
+		}
+		if ( isset( $_REQUEST['payment_status'] ) ) {
+			$fields['payment_status'] = sanitize_text_field( wp_unslash( $_REQUEST['payment_status'] ) );
+			$formats[]                = '%s';
+		}
+
+		if ( ! empty( $fields ) ) {
+			$fields['updated_at'] = current_time( 'mysql' );
+			$fields['updated_by'] = get_current_user_id();
+			$formats[]            = '%s';
+			$formats[]            = '%d';
+
+			$wpdb->update(
+				$table,
+				$fields,
+				array( 'id' => $id ),
+				$formats,
+				array( '%d' )
+			);
+		}
+
+		wp_send_json_success(
+			array(
+				'id' => $id,
+			)
+		);
+	}
+
+	// Full save
+	$data = array();
+
+	$data['customer_name']   = isset( $_REQUEST['customer_name'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['customer_name'] ) ) : '';
+	$data['customer_phone']  = isset( $_REQUEST['customer_phone'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['customer_phone'] ) ) : '';
+	$data['tag_no']          = isset( $_REQUEST['tag_no'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['tag_no'] ) ) : '';
+	$data['job_code']        = isset( $_REQUEST['job_code'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['job_code'] ) ) : '';
+	$data['item_description']= isset( $_REQUEST['item_description'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['item_description'] ) ) : '';
+	$data['job_type']        = isset( $_REQUEST['job_type'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['job_type'] ) ) : 'other';
+	$data['problems']        = isset( $_REQUEST['problems'] ) ? wp_kses_post( wp_unslash( $_REQUEST['problems'] ) ) : '';
+	$data['instructions']    = isset( $_REQUEST['instructions'] ) ? wp_kses_post( wp_unslash( $_REQUEST['instructions'] ) ) : '';
+	$data['received_date']   = isset( $_REQUEST['received_date'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['received_date'] ) ) : '';
+	$data['promised_date']   = isset( $_REQUEST['promised_date'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['promised_date'] ) ) : '';
+	$data['delivered_date']  = isset( $_REQUEST['delivered_date'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['delivered_date'] ) ) : '';
+
+	$data['gold_weight_in']  = isset( $_REQUEST['gold_weight_in'] ) ? (float) $_REQUEST['gold_weight_in'] : 0;
+	$data['gold_weight_out'] = isset( $_REQUEST['gold_weight_out'] ) ? (float) $_REQUEST['gold_weight_out'] : 0;
+	$data['estimated_charges']= isset( $_REQUEST['estimated_charges'] ) ? (float) $_REQUEST['estimated_charges'] : 0;
+	$data['actual_charges']  = isset( $_REQUEST['actual_charges'] ) ? (float) $_REQUEST['actual_charges'] : 0;
+	$data['advance_amount']  = isset( $_REQUEST['advance_amount'] ) ? (float) $_REQUEST['advance_amount'] : 0;
+	$data['balance_amount']  = isset( $_REQUEST['balance_amount'] ) ? (float) $_REQUEST['balance_amount'] : ( $data['actual_charges'] - $data['advance_amount'] );
+
+	$data['payment_status']  = isset( $_REQUEST['payment_status'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['payment_status'] ) ) : 'unpaid';
+	$data['job_status']      = isset( $_REQUEST['job_status'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['job_status'] ) ) : 'received';
+	$data['assigned_to']     = isset( $_REQUEST['assigned_to'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['assigned_to'] ) ) : '';
+	$data['priority']        = isset( $_REQUEST['priority'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['priority'] ) ) : 'normal';
+	$data['workshop_notes']  = isset( $_REQUEST['workshop_notes'] ) ? wp_kses_post( wp_unslash( $_REQUEST['workshop_notes'] ) ) : '';
+	$data['internal_remarks']= isset( $_REQUEST['internal_remarks'] ) ? wp_kses_post( wp_unslash( $_REQUEST['internal_remarks'] ) ) : '';
+
+	if ( empty( $data['customer_name'] ) && empty( $data['customer_phone'] ) ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'Customer name یا phone ضروری ہے۔', 'jwpm' ),
+			)
+		);
+	}
+
+	$now = current_time( 'mysql' );
+	$user_id = get_current_user_id();
+
+	if ( $id ) {
+		$data['updated_at'] = $now;
+		$data['updated_by'] = $user_id;
+		$wpdb->update(
+			$table,
+			$data,
+			array( 'id' => $id ),
+			null,
+			array( '%d' )
+		);
+	} else {
+		if ( empty( $data['job_code'] ) ) {
+			// Simple auto code (RJ-0001)
+			$max_code = $wpdb->get_var( "SELECT MAX(id) FROM {$table}" );
+			$next     = (int) $max_code + 1;
+			$data['job_code'] = sprintf( 'RJ-%04d', $next );
+		}
+		$data['created_at'] = $now;
+		$data['updated_at'] = $now;
+		$data['created_by'] = $user_id;
+		$data['updated_by'] = $user_id;
+		$wpdb->insert( $table, $data );
+		$id = (int) $wpdb->insert_id;
+	}
+
+	wp_send_json_success(
+		array(
+			'id' => $id,
+		)
+	);
+}
+add_action( 'wp_ajax_jwpm_save_repair', 'jwpm_ajax_save_repair' );
+
+/**
+ * Soft delete / cancel — jwpm_delete_repair
+ */
+function jwpm_ajax_delete_repair() {
+	global $wpdb;
+	jwpm_repair_check_main_nonce();
+
+	$id = isset( $_REQUEST['id'] ) ? (int) $_REQUEST['id'] : 0;
+	if ( ! $id ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'Invalid repair ID.', 'jwpm' ),
+			)
+		);
+	}
+
+	$table = $wpdb->prefix . 'jwpm_repairs';
+
+	$wpdb->update(
+		$table,
+		array(
+			'job_status' => 'cancelled',
+			'updated_at' => current_time( 'mysql' ),
+			'updated_by' => get_current_user_id(),
+		),
+		array( 'id' => $id ),
+		array( '%s', '%s', '%d' ),
+		array( '%d' )
+	);
+
+	wp_send_json_success(
+		array(
+			'id' => $id,
+		)
+	);
+}
+add_action( 'wp_ajax_jwpm_delete_repair', 'jwpm_ajax_delete_repair' );
+
+/**
+ * Logs — jwpm_get_repair_logs + jwpm_save_repair_log
+ */
+function jwpm_ajax_get_repair_logs() {
+	global $wpdb;
+	jwpm_repair_check_main_nonce();
+
+	$repair_id = isset( $_REQUEST['repair_id'] ) ? (int) $_REQUEST['repair_id'] : 0;
+	if ( ! $repair_id ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'Invalid repair ID.', 'jwpm' ),
+			)
+		);
+	}
+
+	$table = $wpdb->prefix . 'jwpm_repair_logs';
+	$logs  = $wpdb->get_results(
+		$wpdb->prepare( "SELECT * FROM {$table} WHERE repair_id = %d ORDER BY updated_at DESC, id DESC", $repair_id ),
+		ARRAY_A
+	);
+
+	$out = array();
+	if ( $logs ) {
+		foreach ( $logs as $log ) {
+			$out[] = array(
+				'id'          => (int) $log['id'],
+				'status'      => $log['status'],
+				'status_label'=> $log['status'],
+				'note'        => $log['note'],
+				'updated_at'  => $log['updated_at'],
+				'updated_by'  => $log['updated_by'],
+			);
+		}
+	}
+
+	wp_send_json_success(
+		array(
+			'items' => $out,
+		)
+	);
+}
+add_action( 'wp_ajax_jwpm_get_repair_logs', 'jwpm_ajax_get_repair_logs' );
+
+function jwpm_ajax_save_repair_log() {
+	global $wpdb;
+	jwpm_repair_check_main_nonce();
+
+	$repair_id = isset( $_REQUEST['repair_id'] ) ? (int) $_REQUEST['repair_id'] : 0;
+	$status    = isset( $_REQUEST['status'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['status'] ) ) : '';
+	$note      = isset( $_REQUEST['note'] ) ? wp_kses_post( wp_unslash( $_REQUEST['note'] ) ) : '';
+
+	if ( ! $repair_id || ! $status ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'Repair ID اور status لازمی ہیں۔', 'jwpm' ),
+			)
+		);
+	}
+
+	$table = $wpdb->prefix . 'jwpm_repair_logs';
+
+	$wpdb->insert(
+		$table,
+		array(
+			'repair_id'  => $repair_id,
+			'status'     => $status,
+			'note'       => $note,
+			'updated_at' => current_time( 'mysql' ),
+			'updated_by' => get_current_user_id(),
+		),
+		array( '%d', '%s', '%s', '%s', '%d' )
+	);
+
+	wp_send_json_success(
+		array(
+			'id' => (int) $wpdb->insert_id,
+		)
+	);
+}
+add_action( 'wp_ajax_jwpm_save_repair_log', 'jwpm_ajax_save_repair_log' );
+
+/**
+ * Demo / Import / Export skeletons
+ * (Detail logic آپ بعد میں expand کر سکتے ہیں، یہاں basic structure ہے)
+ */
+function jwpm_ajax_repair_demo_create() {
+	jwpm_repair_check_main_nonce();
+	// یہاں demo rows insert کرنے کے لیے jwpm_repairs میں basic sample data add کریں (آپ پہلے modules کی demo logic reuse کر سکتے ہیں)
+	wp_send_json_success(
+		array(
+			'message' => __( 'Demo Repairs created (placeholder).', 'jwpm' ),
+		)
+	);
+}
+add_action( 'wp_ajax_jwpm_repair_demo_create', 'jwpm_ajax_repair_demo_create' );
+
+function jwpm_ajax_repair_demo_clear() {
+	jwpm_repair_check_main_nonce();
+	// یہاں is_demo = 1 والی rows delete / truncate کریں
+	wp_send_json_success(
+		array(
+			'message' => __( 'Demo Repairs cleared (placeholder).', 'jwpm' ),
+		)
+	);
+}
+add_action( 'wp_ajax_jwpm_repair_demo_clear', 'jwpm_ajax_repair_demo_clear' );
+
+function jwpm_ajax_import_repairs() {
+	// Import کیلئے الگ nonce:
+	$nonce = isset( $_REQUEST['nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ) : '';
+	if ( ! wp_verify_nonce( $nonce, 'jwpm_repair_import_nonce' ) ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'Security check failed (repair import).', 'jwpm' ),
+			)
+		);
+	}
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error(
+			array(
+				'message' => __( 'آپ کو Import چلانے کی اجازت نہیں۔', 'jwpm' ),
+			)
+		);
+	}
+
+	// Placeholder result
+	wp_send_json_success(
+		array(
+			'total'    => 0,
+			'inserted' => 0,
+			'skipped'  => 0,
+		)
+	);
+}
+add_action( 'wp_ajax_jwpm_import_repairs', 'jwpm_ajax_import_repairs' );
+
+function jwpm_ajax_export_repairs() {
+	// Export کیلئے nonce
+	$nonce = isset( $_GET['nonce'] ) ? sanitize_text_field( wp_unslash( $_GET['nonce'] ) ) : '';
+	if ( ! wp_verify_nonce( $nonce, 'jwpm_repair_export_nonce' ) ) {
+		wp_die( esc_html__( 'Security check failed (repair export).', 'jwpm' ) );
+	}
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( esc_html__( 'آپ کو اس action کی اجازت نہیں۔', 'jwpm' ) );
+	}
+
+	// یہاں CSV output بنائیں (پہلے modules کے export logic کی طرح)
+	header( 'Content-Type: text/csv; charset=utf-8' );
+	header( 'Content-Disposition: attachment; filename=repair-jobs.csv' );
+
+	$output = fopen( 'php://output', 'w' );
+	fputcsv(
+		$output,
+		array(
+			'job_code',
+			'tag_no',
+			'customer_name',
+			'customer_phone',
+			'item_description',
+			'job_type',
+			'received_date',
+			'promised_date',
+			'delivered_date',
+			'estimated_charges',
+			'actual_charges',
+			'advance_amount',
+			'balance_amount',
+			'job_status',
+			'priority',
+		)
+	);
+
+	// TODO: یہاں واقعی data لکھیں
+	fclose( $output );
+	exit;
+}
+add_action( 'wp_ajax_jwpm_export_repairs', 'jwpm_ajax_export_repairs' );
+
+// 🔴 یہاں پر [JWPM Repair AJAX] ختم ہو رہا ہے
+// ✅ Syntax verified block end
