@@ -134,3 +134,6 @@ class JWPM_Activator {
 }
 
 // ✅ Syntax verified block end
+foreach ( jwpm_repair_get_table_schemas() as $sql ) {
+    dbDelta( $sql );
+}
