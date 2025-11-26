@@ -598,6 +598,8 @@ function jwpm_enqueue_repair_assets() {
 		array( 'jquery', 'jwpm-common' ),
 		defined( 'JWPM_VERSION' ) ? JWPM_VERSION : '1.0.0',
 		true
+		jwpm_enqueue_repair_assets();
+
 	);
 
 	$strings = array(
