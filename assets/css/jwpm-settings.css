@@ -1,1 +1,229 @@
+/**
+ * JWPM — Settings Page CSS (Master Control Panel)
+ * یہ فائل Settings Page کی مکمل UI/UX styling رکھتی ہے — Logo, Theme, Language, API, Backup, Reset.
+ */
+
+/* 🟢 یہاں سے [Settings Page CSS] شروع ہو رہا ہے */
+
+/** Part 1 — CSS: Settings Page */
+
+
+/* -------------------------------------------- */
+/* Base Namespace + Tokens                      */
+/* -------------------------------------------- */
+.jwpm-settings-page {
+    --set-bg: #f0f4ff;
+    --set-surface: #ffffff;
+    --set-surface-alt: #eef2ff;
+
+    --set-primary: #4f46e5;
+    --set-primary-soft: rgba(79,70,229,0.12);
+
+    --set-text: #1e1b4b;
+    --set-text-muted: #6b6b8d;
+
+    --set-border: #dcdcff;
+    --set-radius: 14px;
+    --set-shadow: 0 10px 25px rgba(60,50,180,0.08);
+
+    --set-danger: #dc2626;
+    --set-danger-bg: #fee2e2;
+}
+
+/* Dark Mode */
+body.jwpm-dark-mode .jwpm-settings-page {
+    --set-bg: #1e1b4b;
+    --set-surface: #2e1065;
+    --set-surface-alt: #1e1b4b;
+
+    --set-primary: #a78bfa;
+    --set-primary-soft: rgba(167,139,250,0.25);
+
+    --set-text: #f5f3ff;
+    --set-text-muted: #dcdcff;
+
+    --set-border: #5b21b6;
+    --set-shadow: 0 12px 28px rgba(0,0,0,0.55);
+
+    --set-danger: #ef4444;
+    --set-danger-bg: #7f1d1d;
+}
+
+
+/* -------------------------------------------- */
+/* Page Wrapper                                 */
+/* -------------------------------------------- */
+.jwpm-settings-page {
+    background: var(--set-bg);
+    padding: 20px 0 40px;
+}
+
+.jwpm-settings-page .jwpm-page-title {
+    font-size: 24px;
+    color: var(--set-text);
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+
+
+/* -------------------------------------------- */
+/* Settings Wrapper                             */
+/* -------------------------------------------- */
+.jwpm-settings-page .jwpm-settings-wrapper {
+    display: grid;
+    gap: 20px;
+}
+
+
+/* -------------------------------------------- */
+/* Settings Section (Each Card)                 */
+/* -------------------------------------------- */
+.jwpm-settings-page .jwpm-settings-section {
+    background: var(--set-surface);
+    padding: 20px;
+    border-radius: var(--set-radius);
+    border: 1px solid var(--set-border);
+    box-shadow: var(--set-shadow);
+}
+
+.jwpm-settings-page .jwpm-settings-section h2 {
+    margin: 0 0 8px;
+    font-size: 17px;
+    color: var(--set-text);
+    font-weight: 600;
+}
+
+.jwpm-settings-page .jwpm-settings-section p {
+    margin: 0 0 14px;
+    font-size: 13px;
+    color: var(--set-text-muted);
+}
+
+
+/* -------------------------------------------- */
+/* Logo Manager                                 */
+/* -------------------------------------------- */
+.jwpm-settings-page .jwpm-logo-preview {
+    background: var(--set-surface-alt);
+    border: 1px dashed var(--set-border);
+    padding: 16px;
+    text-align: center;
+    border-radius: var(--set-radius);
+    margin-bottom: 14px;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.jwpm-settings-page .jwpm-logo-preview img {
+    max-height: 80px;
+}
+
+.jwpm-settings-page .jwpm-settings-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+}
+
+
+/* -------------------------------------------- */
+/* Inputs & Selects                             */
+/* -------------------------------------------- */
+.jwpm-settings-page .jwpm-input,
+.jwpm-settings-page .jwpm-select {
+    background: var(--set-surface-alt);
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--set-border);
+    font-size: 13px;
+    color: var(--set-text);
+    width: 100%;
+}
+
+.jwpm-settings-page .jwpm-input:focus,
+.jwpm-settings-page .jwpm-select:focus {
+    border-color: var(--set-primary);
+    box-shadow: 0 0 0 1px var(--set-primary);
+}
+
+
+/* -------------------------------------------- */
+/* Buttons                                      */
+/* -------------------------------------------- */
+.jwpm-settings-page .button {
+    border-radius: 8px;
+    font-size: 13px;
+    padding: 7px 14px;
+}
+
+.jwpm-settings-page .button-primary {
+    background: var(--set-primary);
+    border-color: var(--set-primary);
+    color: #fff;
+}
+
+.jwpm-settings-page .button-danger {
+    background: var(--set-danger);
+    border-color: var(--set-danger);
+    color: #fff;
+}
+
+
+/* -------------------------------------------- */
+/* Danger Zone                                  */
+/* -------------------------------------------- */
+.jwpm-settings-page .jwpm-danger-zone {
+    background: var(--set-danger-bg);
+    border-color: var(--set-danger);
+}
+
+.jwpm-settings-page .jwpm-danger-zone h2 {
+    color: var(--set-danger);
+}
+
+
+/* -------------------------------------------- */
+/* RTL Support                                   */
+/* -------------------------------------------- */
+[dir="rtl"] .jwpm-settings-page .jwpm-settings-actions {
+    flex-direction: row-reverse;
+}
+
+
+/* -------------------------------------------- */
+/* Responsive                                   */
+/* -------------------------------------------- */
+@media (max-width: 800px) {
+    .jwpm-settings-page .jwpm-settings-wrapper {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+
+/* -------------------------------------------- */
+/* Print Mode                                   */
+/* -------------------------------------------- */
+@media print {
+
+    .jwpm-settings-page .jwpm-settings-section {
+        page-break-inside: avoid;
+        border: none;
+        box-shadow: none;
+    }
+
+    .jwpm-settings-page .button,
+    .jwpm-settings-page input,
+    .jwpm-settings-page select {
+        display: none !important;
+    }
+
+    .jwpm-settings-page .jwpm-settings-wrapper {
+        padding: 0;
+    }
+}
+
+
+/* 🔴 یہاں پر [Settings Page CSS] ختم ہو رہا ہے */
+/* ✅ Syntax verified block end */
 
