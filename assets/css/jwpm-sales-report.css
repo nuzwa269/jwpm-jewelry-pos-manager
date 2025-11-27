@@ -1,0 +1,301 @@
+/**
+ * JWPM — Sales Report CSS (Layout A — Blue Premium Dashboard)
+ * یہ فائل Sales Report کی Blue Premium UI, Graph Layout, Summary Cards,
+ * Filters Bar, Table, Responsive Behaviour اور Print Styles رکھتی ہے۔
+ */
+
+/* 🟢 یہاں سے [Sales Report CSS] شروع ہو رہا ہے */
+
+/** Part 1 — CSS: Sales Report Page */
+
+/* ------------------------------ */
+/*  Base Namespace + Color Tokens */
+/* ------------------------------ */
+.jwpm-sales-report-page {
+    --srp-bg: #f3f4f6;
+    --srp-surface: #ffffff;
+    --srp-surface-alt: #f9fafb;
+
+    --srp-primary: #2563eb;          /* BLUE THEME MAIN */
+    --srp-primary-soft: rgba(37, 99, 235, 0.10);
+    --srp-primary-hard: #1d4ed8;
+
+    --srp-text: #111827;
+    --srp-text-muted: #6b7280;
+
+    --srp-border: #e5e7eb;
+    --srp-radius: 14px;
+    --srp-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+}
+
+/* Dark Mode */
+body.jwpm-dark-mode .jwpm-sales-report-page {
+    --srp-bg: #020617;
+    --srp-surface: #020617;
+    --srp-surface-alt: #111827;
+
+    --srp-primary: #60a5fa;
+    --srp-primary-soft: rgba(96, 165, 250, 0.18);
+    --srp-primary-hard: #3b82f6;
+
+    --srp-text: #f3f4f6;
+    --srp-text-muted: #9ca3af;
+
+    --srp-border: #374151;
+    --srp-shadow: 0 14px 30px rgba(0,0,0,0.45);
+}
+
+/* ------------------------------ */
+/* Page Wrapper                   */
+/* ------------------------------ */
+.jwpm-sales-report-page {
+    background: var(--srp-bg);
+    padding: 20px 0 30px;
+}
+
+.jwpm-sales-report-page .jwpm-page-title {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    color: var(--srp-text);
+}
+
+/* ------------------------------ */
+/* Blue Header Strip              */
+/* ------------------------------ */
+.jwpm-sales-report-page .jwpm-report-header-strip {
+    background: linear-gradient(135deg, var(--srp-primary) 0%, #3b82f6 100%);
+    padding: 18px 22px;
+    border-radius: var(--srp-radius);
+    color: #fff;
+    margin-bottom: 18px;
+    box-shadow: var(--srp-shadow);
+}
+
+.jwpm-sales-report-page .jwpm-report-header-strip h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.jwpm-sales-report-page .jwpm-report-header-strip p {
+    margin: 4px 0 0;
+    opacity: 0.9;
+    font-size: 13px;
+}
+
+/* ------------------------------ */
+/* Summary Cards Row              */
+/* ------------------------------ */
+.jwpm-sales-report-page .jwpm-report-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.jwpm-sales-report-page .jwpm-summary-card {
+    background: var(--srp-surface);
+    padding: 12px 14px;
+    border-radius: var(--srp-radius);
+    border: 1px solid var(--srp-border);
+    box-shadow: var(--srp-shadow);
+    display: flex;
+    flex-direction: column;
+}
+
+.jwpm-sales-report-page .jwpm-summary-label {
+    font-size: 11px;
+    color: var(--srp-text-muted);
+}
+
+.jwpm-sales-report-page .jwpm-summary-value {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--srp-primary);
+    margin-top: 4px;
+}
+
+/* ------------------------------ */
+/* Filters Toolbar                */
+/* ------------------------------ */
+.jwpm-sales-report-page .jwpm-toolbar {
+    background: var(--srp-surface);
+    padding: 14px 16px;
+    border-radius: var(--srp-radius);
+    border: 1px solid var(--srp-border);
+    margin-bottom: 18px;
+    box-shadow: var(--srp-shadow);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+
+.jwpm-sales-report-page .jwpm-field-group {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.jwpm-sales-report-page .jwpm-field-group label {
+    display: flex;
+    flex-direction: column;
+    font-size: 11px;
+    color: var(--srp-text-muted);
+}
+
+.jwpm-sales-report-page .jwpm-input {
+    padding: 6px 8px;
+    border: 1px solid var(--srp-border);
+    background: var(--srp-surface-alt);
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--srp-text);
+    transition: 0.2s;
+}
+
+.jwpm-sales-report-page .jwpm-input:focus {
+    border-color: var(--srp-primary);
+    box-shadow: 0 0 0 1px var(--srp-primary);
+}
+
+.jwpm-sales-report-page .jwpm-toolbar-right .button {
+    border-radius: 999px;
+    font-size: 11px;
+    padding: 5px 12px;
+}
+
+/* ------------------------------ */
+/* Graphs Section                 */
+/* ------------------------------ */
+.jwpm-sales-report-page .jwpm-graphs-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.jwpm-sales-report-page .jwpm-graph-card {
+    background: var(--srp-surface);
+    padding: 14px;
+    border-radius: var(--srp-radius);
+    border: 1px solid var(--srp-border);
+    box-shadow: var(--srp-shadow);
+}
+
+.jwpm-sales-report-page .jwpm-graph-card h3 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    color: var(--srp-text);
+}
+
+/* ------------------------------ */
+/* Table                          */
+/* ------------------------------ */
+.jwpm-sales-report-page .jwpm-layout-main {
+    background: var(--srp-surface);
+    border-radius: var(--srp-radius);
+    padding: 12px;
+    border: 1px solid var(--srp-border);
+    box-shadow: var(--srp-shadow);
+}
+
+.jwpm-sales-report-page .jwpm-table thead th {
+    background: var(--srp-surface-alt);
+    font-size: 11px;
+    color: var(--srp-text-muted);
+    padding: 7px;
+}
+
+.jwpm-sales-report-page .jwpm-table tbody td {
+    font-size: 12px;
+    padding: 8px;
+    color: var(--srp-text);
+}
+
+.jwpm-sales-report-page .jwpm-column-number {
+    text-align: right;
+}
+
+.jwpm-sales-report-page .jwpm-empty-row td {
+    text-align: center;
+    color: var(--srp-text-muted);
+}
+
+/* ------------------------------ */
+/* Pagination                     */
+/* ------------------------------ */
+.jwpm-sales-report-page .jwpm-pagination {
+    margin-top: 12px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.jwpm-sales-report-page .jwpm-page-btn {
+    padding: 4px 8px;
+    border: 1px solid var(--srp-border);
+    border-radius: 999px;
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--srp-text-muted);
+    background: var(--srp-surface-alt);
+    transition: 0.2s;
+}
+
+.jwpm-sales-report-page .jwpm-page-btn:hover {
+    border-color: var(--srp-primary);
+    color: var(--srp-primary-hard);
+}
+
+.jwpm-sales-report-page .jwpm-page-btn.active {
+    background: var(--srp-primary);
+    color: #fff;
+    border-color: var(--srp-primary-hard);
+}
+
+/* ------------------------------ */
+/* Responsive                     */
+/* ------------------------------ */
+@media (max-width: 900px) {
+    .jwpm-sales-report-page .jwpm-report-summary {
+        grid-template-columns: repeat(2, minmax(0,1fr));
+    }
+
+    .jwpm-sales-report-page .jwpm-graphs-grid {
+        grid-template-columns: minmax(0,1fr);
+    }
+}
+
+/* ------------------------------ */
+/* RTL Support                    */
+/* ------------------------------ */
+[dir="rtl"] .jwpm-sales-report-page .jwpm-column-number {
+    text-align: left;
+}
+
+/* ------------------------------ */
+/* Print Styles                   */
+/* ------------------------------ */
+@media print {
+    .jwpm-sales-report-page .jwpm-toolbar,
+    .jwpm-sales-report-page .jwpm-report-header-strip,
+    .jwpm-sales-report-page .jwpm-graphs-grid,
+    .jwpm-sales-report-page .jwpm-pagination,
+    .jwpm-sales-report-page canvas,
+    .jwpm-sales-report-page .button {
+        display: none !important;
+    }
+
+    .jwpm-sales-report-page .jwpm-layout-main {
+        border: none;
+        box-shadow: none;
+        padding: 0;
+    }
+}
+
+/* 🔴 یہاں پر [Sales Report CSS] ختم ہو رہا ہے */
+
+/* ✅ Syntax verified block end */
+
