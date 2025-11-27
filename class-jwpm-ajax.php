@@ -3988,4 +3988,469 @@ add_action( 'wp_ajax_jwpm_cashbook_demo', 'jwpm_cashbook_demo' );
 // 🔴 یہاں پر [Accounts Module AJAX: Cashbook] ختم ہو رہا ہے
 
 // ✅ Syntax verified block end
+<?php
+// ... یہاں آپ کا موجودہ class-jwpm-ajax.php کوڈ ہے ...
+
+// 🟢 یہاں سے [Accounts Module AJAX: Expenses] شروع ہو رہا ہے
+
+/** Part 23 — Accounts Module AJAX: Expenses */
+
+if ( ! function_exists( 'jwpm_ajax_require_expenses_cap' ) ) {
+    /**
+     * Common capability + nonce check for expenses actions
+     */
+    function jwpm_ajax_require_expenses_cap() {
+        check_ajax_referer( 'jwpm_expenses_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'jwpm_view_accounts' ) ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'آپ کو Accounts تک رسائی کی اجازت نہیں ہے۔', 'jwpm' ),
+                    'devHint' => 'Capability jwpm_view_accounts required.',
+                ),
+                403
+            );
+        }
+
+        if ( ! function_exists( 'jwpm_accounts_ensure_tables' ) ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'Accounts DB helpers لوڈ نہیں ہو سکے۔', 'jwpm' ),
+                    'devHint' => 'jwpm_accounts_ensure_tables() not found.',
+                ),
+                500
+            );
+        }
+
+        jwpm_accounts_ensure_tables();
+    }
+}
+
+/**
+ * Expenses Fetch
+ */
+if ( ! function_exists( 'jwpm_expenses_fetch' ) ) {
+    function jwpm_expenses_fetch() {
+        jwpm_ajax_require_expenses_cap();
+
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'jwpm_expenses';
+
+        $page     = isset( $_POST['page'] ) ? max( 1, absint( $_POST['page'] ) ) : 1;
+        $per_page = isset( $_POST['per_page'] ) ? max( 1, absint( $_POST['per_page'] ) ) : 25;
+
+        $from_date = isset( $_POST['from_date'] ) ? sanitize_text_field( wp_unslash( $_POST['from_date'] ) ) : '';
+        $to_date   = isset( $_POST['to_date'] ) ? sanitize_text_field( wp_unslash( $_POST['to_date'] ) ) : '';
+        $category  = isset( $_POST['category'] ) ? sanitize_text_field( wp_unslash( $_POST['category'] ) ) : '';
+        $vendor    = isset( $_POST['vendor'] ) ? sanitize_text_field( wp_unslash( $_POST['vendor'] ) ) : '';
+
+        $where  = array();
+        $params = array();
+
+        if ( $from_date ) {
+            $where[]  = 'expense_date >= %s';
+            $params[] = $from_date;
+        }
+        if ( $to_date ) {
+            $where[]  = 'expense_date <= %s';
+            $params[] = $to_date;
+        }
+        if ( $category ) {
+            $where[]  = 'category LIKE %s';
+            $params[] = '%' . $wpdb->esc_like( $category ) . '%';
+        }
+        if ( $vendor ) {
+            $where[]  = 'vendor LIKE %s';
+            $params[] = '%' . $wpdb->esc_like( $vendor ) . '%';
+        }
+
+        $where_sql = '';
+        if ( ! empty( $where ) ) {
+            $where_sql = 'WHERE ' . implode( ' AND ', $where );
+        }
+
+        $offset = ( $page - 1 ) * $per_page;
+
+        // Total count
+        $count_sql = "SELECT COUNT(*) FROM {$table} {$where_sql}";
+        $total     = (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) );
+
+        // Data
+        $data_sql    = "SELECT * FROM {$table} {$where_sql} ORDER BY expense_date DESC, id DESC LIMIT %d OFFSET %d";
+        $data_params = array_merge( $params, array( $per_page, $offset ) );
+        $rows        = $wpdb->get_results( $wpdb->prepare( $data_sql, $data_params ), ARRAY_A );
+
+        // Summary (total expenses)
+        $sum_sql = "SELECT SUM(amount) AS total_amount FROM {$table} {$where_sql}";
+        $sum_row = $wpdb->get_row( $wpdb->prepare( $sum_sql, $params ), ARRAY_A );
+
+        $total_amount = isset( $sum_row['total_amount'] ) ? (float) $sum_row['total_amount'] : 0;
+
+        wp_send_json_success(
+            array(
+                'items'   => $rows,
+                'total'   => $total,
+                'page'    => $page,
+                'perPage' => $per_page,
+                'summary' => array(
+                    'total_amount' => $total_amount,
+                ),
+            )
+        );
+    }
+}
+add_action( 'wp_ajax_jwpm_expenses_fetch', 'jwpm_expenses_fetch' );
+
+/**
+ * Expenses Save (Add / Update)
+ */
+if ( ! function_exists( 'jwpm_expenses_save' ) ) {
+    function jwpm_expenses_save() {
+        jwpm_ajax_require_expenses_cap();
+
+        if ( ! current_user_can( 'jwpm_add_accounts' ) && ! current_user_can( 'jwpm_edit_accounts' ) ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'آپ کو Expense محفوظ کرنے کی اجازت نہیں۔', 'jwpm' ),
+                    'devHint' => 'Capability jwpm_add_accounts یا jwpm_edit_accounts درکار ہے۔',
+                ),
+                403
+            );
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'jwpm_expenses';
+
+        $id          = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
+        $expense_date = isset( $_POST['expense_date'] ) ? sanitize_text_field( wp_unslash( $_POST['expense_date'] ) ) : '';
+        $category    = isset( $_POST['category'] ) ? sanitize_text_field( wp_unslash( $_POST['category'] ) ) : '';
+        $amount      = isset( $_POST['amount'] ) ? floatval( $_POST['amount'] ) : 0;
+        $vendor      = isset( $_POST['vendor'] ) ? sanitize_text_field( wp_unslash( $_POST['vendor'] ) ) : '';
+        $notes       = isset( $_POST['notes'] ) ? wp_kses_post( wp_unslash( $_POST['notes'] ) ) : '';
+        $receipt_url = isset( $_POST['receipt_url'] ) ? esc_url_raw( wp_unslash( $_POST['receipt_url'] ) ) : '';
+
+        if ( ! $expense_date || ! $category || $amount <= 0 ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'براہِ کرم تاریخ، Category اور Amount لازمی درج کریں۔', 'jwpm' ),
+                    'devHint' => 'Required: expense_date, category, amount>0.',
+                ),
+                400
+            );
+        }
+
+        $data = array(
+            'expense_date' => $expense_date,
+            'category'     => $category,
+            'amount'       => $amount,
+            'vendor'       => $vendor,
+            'notes'        => $notes,
+            'receipt_url'  => $receipt_url,
+            'updated_at'   => current_time( 'mysql' ),
+        );
+
+        $formats = array( '%s', '%s', '%f', '%s', '%s', '%s', '%s' );
+
+        if ( $id > 0 ) {
+            $result = $wpdb->update(
+                $table,
+                $data,
+                array( 'id' => $id ),
+                $formats,
+                array( '%d' )
+            );
+        } else {
+            $data['created_by'] = get_current_user_id();
+            $data['created_at'] = current_time( 'mysql' );
+            $formats[]          = '%d';
+            $formats[]          = '%s';
+
+            $result = $wpdb->insert(
+                $table,
+                $data,
+                $formats
+            );
+            $id = $wpdb->insert_id;
+        }
+
+        if ( false === $result ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'Expense محفوظ نہیں ہو سکا، دوبارہ کوشش کریں۔', 'jwpm' ),
+                    'devHint' => $wpdb->last_error,
+                ),
+                500
+            );
+        }
+
+        wp_send_json_success(
+            array(
+                'message' => __( 'Expense کامیابی سے محفوظ ہو گیا۔', 'jwpm' ),
+                'id'      => $id,
+            )
+        );
+    }
+}
+add_action( 'wp_ajax_jwpm_expenses_save', 'jwpm_expenses_save' );
+
+/**
+ * Expenses Delete
+ */
+if ( ! function_exists( 'jwpm_expenses_delete' ) ) {
+    function jwpm_expenses_delete() {
+        jwpm_ajax_require_expenses_cap();
+
+        if ( ! current_user_can( 'jwpm_delete_accounts' ) ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'آپ کو Expense حذف کرنے کی اجازت نہیں۔', 'jwpm' ),
+                    'devHint' => 'Capability jwpm_delete_accounts required.',
+                ),
+                403
+            );
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'jwpm_expenses';
+
+        $id = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
+
+        if ( $id <= 0 ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'غلط ریکارڈ منتخب کیا گیا ہے۔', 'jwpm' ),
+                    'devHint' => 'Invalid id in jwpm_expenses_delete.',
+                ),
+                400
+            );
+        }
+
+        $deleted = $wpdb->delete(
+            $table,
+            array( 'id' => $id ),
+            array( '%d' )
+        );
+
+        if ( false === $deleted ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'ریکارڈ حذف نہیں ہو سکا۔', 'jwpm' ),
+                    'devHint' => $wpdb->last_error,
+                ),
+                500
+            );
+        }
+
+        wp_send_json_success(
+            array(
+                'message' => __( 'Expense کامیابی سے حذف ہو گیا۔', 'jwpm' ),
+            )
+        );
+    }
+}
+add_action( 'wp_ajax_jwpm_expenses_delete', 'jwpm_expenses_delete' );
+
+/**
+ * Expenses Export (Excel-style data)
+ */
+if ( ! function_exists( 'jwpm_expenses_export' ) ) {
+    function jwpm_expenses_export() {
+        jwpm_ajax_require_expenses_cap();
+
+        if ( ! current_user_can( 'jwpm_export_accounts' ) ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'آپ کو Export کی اجازت نہیں۔', 'jwpm' ),
+                    'devHint' => 'Capability jwpm_export_accounts required.',
+                ),
+                403
+            );
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'jwpm_expenses';
+
+        $rows = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY expense_date DESC, id DESC", ARRAY_A );
+
+        wp_send_json_success(
+            array(
+                'headers' => array( 'Date', 'Category', 'Vendor', 'Notes', 'Amount', 'Receipt URL' ),
+                'rows'    => array_map(
+                    static function ( $row ) {
+                        return array(
+                            $row['expense_date'],
+                            $row['category'],
+                            $row['vendor'],
+                            $row['notes'],
+                            $row['amount'],
+                            $row['receipt_url'],
+                        );
+                    },
+                    $rows
+                ),
+            )
+        );
+    }
+}
+add_action( 'wp_ajax_jwpm_expenses_export', 'jwpm_expenses_export' );
+
+/**
+ * Expenses Import
+ */
+if ( ! function_exists( 'jwpm_expenses_import' ) ) {
+    function jwpm_expenses_import() {
+        jwpm_ajax_require_expenses_cap();
+
+        if ( ! current_user_can( 'jwpm_import_accounts' ) ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'آپ کو Import کی اجازت نہیں۔', 'jwpm' ),
+                    'devHint' => 'Capability jwpm_import_accounts required.',
+                ),
+                403
+            );
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'jwpm_expenses';
+
+        $rows = isset( $_POST['rows'] ) && is_array( $_POST['rows'] ) ? (array) $_POST['rows'] : array();
+
+        if ( empty( $rows ) ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'کوئی ڈیٹا موصول نہیں ہوا۔', 'jwpm' ),
+                    'devHint' => 'rows array is empty in jwpm_expenses_import.',
+                ),
+                400
+            );
+        }
+
+        $inserted = 0;
+
+        foreach ( $rows as $row ) {
+            $expense_date = isset( $row['expense_date'] ) ? sanitize_text_field( $row['expense_date'] ) : '';
+            $category     = isset( $row['category'] ) ? sanitize_text_field( $row['category'] ) : '';
+            $amount       = isset( $row['amount'] ) ? floatval( $row['amount'] ) : 0;
+            $vendor       = isset( $row['vendor'] ) ? sanitize_text_field( $row['vendor'] ) : '';
+            $notes        = isset( $row['notes'] ) ? wp_kses_post( $row['notes'] ) : '';
+            $receipt_url  = isset( $row['receipt_url'] ) ? esc_url_raw( $row['receipt_url'] ) : '';
+
+            if ( ! $expense_date || ! $category || $amount <= 0 ) {
+                continue;
+            }
+
+            $wpdb->insert(
+                $table,
+                array(
+                    'expense_date' => $expense_date,
+                    'category'     => $category,
+                    'amount'       => $amount,
+                    'vendor'       => $vendor,
+                    'notes'        => $notes,
+                    'receipt_url'  => $receipt_url,
+                    'created_by'   => get_current_user_id(),
+                    'created_at'   => current_time( 'mysql' ),
+                ),
+                array( '%s', '%s', '%f', '%s', '%s', '%s', '%d', '%s' )
+            );
+
+            if ( ! $wpdb->last_error ) {
+                $inserted++;
+            }
+        }
+
+        wp_send_json_success(
+            array(
+                'message'  => sprintf(
+                    __( '%d Expense ریکارڈ امپورٹ ہو گئے۔', 'jwpm' ),
+                    $inserted
+                ),
+                'inserted' => $inserted,
+            )
+        );
+    }
+}
+add_action( 'wp_ajax_jwpm_expenses_import', 'jwpm_expenses_import' );
+
+/**
+ * Expenses Demo Data
+ */
+if ( ! function_exists( 'jwpm_expenses_demo' ) ) {
+    function jwpm_expenses_demo() {
+        jwpm_ajax_require_expenses_cap();
+
+        if ( ! current_user_can( 'jwpm_add_accounts' ) ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'آپ کو Demo Data بنانے کی اجازت نہیں۔', 'jwpm' ),
+                    'devHint' => 'Capability jwpm_add_accounts required.',
+                ),
+                403
+            );
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'jwpm_expenses';
+
+        $today = current_time( 'Y-m-d' );
+
+        $demo_rows = array(
+            array(
+                'expense_date' => $today,
+                'category'     => 'Shop Rent',
+                'amount'       => 30000,
+                'vendor'       => 'Landlord',
+                'notes'        => 'Monthly shop rent',
+                'receipt_url'  => '',
+            ),
+            array(
+                'expense_date' => $today,
+                'category'     => 'Staff Salary',
+                'amount'       => 50000,
+                'vendor'       => 'Staff',
+                'notes'        => 'Monthly salary payment',
+                'receipt_url'  => '',
+            ),
+            array(
+                'expense_date' => $today,
+                'category'     => 'Utility Bills',
+                'amount'       => 8000,
+                'vendor'       => 'K-Electric / SSGC',
+                'notes'        => 'Electricity / Gas bills',
+                'receipt_url'  => '',
+            ),
+        );
+
+        $inserted = 0;
+
+        foreach ( $demo_rows as $row ) {
+            $row['created_by'] = get_current_user_id();
+            $row['created_at'] = current_time( 'mysql' );
+
+            $wpdb->insert(
+                $table,
+                $row,
+                array( '%s', '%s', '%f', '%s', '%s', '%s', '%d', '%s' )
+            );
+
+            if ( ! $wpdb->last_error ) {
+                $inserted++;
+            }
+        }
+
+        wp_send_json_success(
+            array(
+                'message'  => sprintf( __( '%d Demo Expense ریکارڈ شامل ہو گئے۔', 'jwpm' ), $inserted ),
+                'inserted' => $inserted,
+            )
+        );
+    }
+}
+add_action( 'wp_ajax_jwpm_expenses_demo', 'jwpm_expenses_demo' );
+
+// 🔴 یہاں پر [Accounts Module AJAX: Expenses] ختم ہو رہا ہے
+
+// ✅ Syntax verified block end
 
