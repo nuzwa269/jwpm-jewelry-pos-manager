@@ -1,0 +1,476 @@
+/**
+ * JWPM — Accounts Cashbook CSS
+ * یہ فائل صرف Cashbook پیج کی layout, spacing, colors اور responsive behaviour کیلئے ہے۔
+ * Root Wrapper Class: .jwpm-accounts-cashbook-page
+ */
+
+/* 🟢 یہاں سے [Accounts Cashbook CSS] شروع ہو رہا ہے */
+
+/** Part 1 — CSS: Accounts Cashbook Page */
+
+/* Namespace Base + Tokens */
+.jwpm-accounts-cashbook-page {
+    --jwpm-acc-bg: #f3f4f6;
+    --jwpm-acc-surface: #ffffff;
+    --jwpm-acc-surface-alt: #f9fafb;
+    --jwpm-acc-border: #e5e7eb;
+    --jwpm-acc-border-strong: #d1d5db;
+    --jwpm-acc-primary: #2563eb;
+    --jwpm-acc-primary-soft: rgba(37, 99, 235, 0.08);
+    --jwpm-acc-primary-strong: #1d4ed8;
+    --jwpm-acc-text: #111827;
+    --jwpm-acc-text-muted: #6b7280;
+    --jwpm-acc-danger: #dc2626;
+    --jwpm-acc-danger-soft: rgba(220, 38, 38, 0.08);
+    --jwpm-acc-radius-lg: 14px;
+    --jwpm-acc-radius-xl: 18px;
+    --jwpm-acc-shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.06);
+    --jwpm-acc-input-bg: #ffffff;
+    --jwpm-acc-input-border: #d1d5db;
+    --jwpm-acc-input-focus: #2563eb;
+}
+
+/* Dark Mode Support (فرض کیا گیا class: jwpm-dark-mode body پر) */
+body.jwpm-dark-mode .jwpm-accounts-cashbook-page {
+    --jwpm-acc-bg: #020617;
+    --jwpm-acc-surface: #020617;
+    --jwpm-acc-surface-alt: #020617;
+    --jwpm-acc-border: #1f2937;
+    --jwpm-acc-border-strong: #374151;
+    --jwpm-acc-primary: #60a5fa;
+    --jwpm-acc-primary-soft: rgba(96, 165, 250, 0.15);
+    --jwpm-acc-primary-strong: #3b82f6;
+    --jwpm-acc-text: #f9fafb;
+    --jwpm-acc-text-muted: #9ca3af;
+    --jwpm-acc-danger: #f97373;
+    --jwpm-acc-danger-soft: rgba(248, 113, 113, 0.15);
+    --jwpm-acc-shadow-soft: 0 18px 40px rgba(15, 23, 42, 0.85);
+    --jwpm-acc-input-bg: #020617;
+    --jwpm-acc-input-border: #374151;
+}
+
+/* Page Wrapper */
+.jwpm-accounts-cashbook-page {
+    background: var(--jwpm-acc-bg);
+    padding-top: 16px;
+    padding-bottom: 24px;
+}
+
+.jwpm-accounts-cashbook-page .jwpm-page-title {
+    margin-bottom: 12px;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--jwpm-acc-text);
+}
+
+/* Layout Split */
+.jwpm-accounts-cashbook-page .jwpm-layout {
+    background: transparent;
+}
+
+.jwpm-accounts-cashbook-page .jwpm-layout--split {
+    display: grid;
+    grid-template-columns: minmax(0, 2.2fr) minmax(280px, 1.2fr);
+    gap: 18px;
+}
+
+/* Toolbar */
+.jwpm-accounts-cashbook-page .jwpm-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    border-radius: var(--jwpm-acc-radius-xl);
+    background: var(--jwpm-acc-surface);
+    box-shadow: var(--jwpm-acc-shadow-soft);
+    border: 1px solid rgba(15, 23, 42, 0.02);
+}
+
+.jwpm-accounts-cashbook-page .jwpm-toolbar-left {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.jwpm-accounts-cashbook-page .jwpm-toolbar-right {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+/* Filter Fields Group */
+.jwpm-accounts-cashbook-page .jwpm-field-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+.jwpm-accounts-cashbook-page .jwpm-field-group label {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 11px;
+    color: var(--jwpm-acc-text-muted);
+    min-width: 140px;
+}
+
+.jwpm-accounts-cashbook-page .jwpm-input,
+.jwpm-accounts-cashbook-page .jwpm-select,
+.jwpm-accounts-cashbook-page .jwpm-textarea {
+    width: 100%;
+    padding: 6px 9px;
+    border-radius: 10px;
+    border: 1px solid var(--jwpm-acc-input-border);
+    background-color: var(--jwpm-acc-input-bg);
+    color: var(--jwpm-acc-text);
+    font-size: 12px;
+    line-height: 1.4;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.jwpm-accounts-cashbook-page .jwpm-input:focus,
+.jwpm-accounts-cashbook-page .jwpm-select:focus,
+.jwpm-accounts-cashbook-page .jwpm-textarea:focus {
+    outline: none;
+    border-color: var(--jwpm-acc-input-focus);
+    box-shadow: 0 0 0 1px var(--jwpm-acc-input-focus);
+}
+
+/* Toolbar Buttons (WP default button override تھوڑا soft) */
+.jwpm-accounts-cashbook-page .jwpm-toolbar-right .button {
+    border-radius: 999px;
+    padding-inline: 12px;
+    padding-block: 4px;
+    font-size: 11px;
+    border-width: 1px;
+}
+
+.jwpm-accounts-cashbook-page .jwpm-toolbar-right .button-primary {
+    background: var(--jwpm-acc-primary);
+    border-color: var(--jwpm-acc-primary-strong);
+    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.25);
+}
+
+.jwpm-accounts-cashbook-page .jwpm-toolbar-right .button-primary:hover {
+    background: var(--jwpm-acc-primary-strong);
+}
+
+/* Layout Body */
+.jwpm-accounts-cashbook-page .jwpm-layout-body {
+    display: grid;
+    grid-template-columns: minmax(0, 2.2fr) minmax(280px, 1.2fr);
+    gap: 18px;
+}
+
+/* Main Panel */
+.jwpm-accounts-cashbook-page .jwpm-layout-main {
+    background: var(--jwpm-acc-surface);
+    border-radius: var(--jwpm-acc-radius-xl);
+    box-shadow: var(--jwpm-acc-shadow-soft);
+    padding: 10px 12px 12px;
+    border: 1px solid rgba(15, 23, 42, 0.03);
+}
+
+/* Balance Summary */
+.jwpm-accounts-cashbook-page .jwpm-balance-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.jwpm-accounts-cashbook-page .jwpm-balance-card {
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: var(--jwpm-acc-surface-alt);
+    border: 1px solid var(--jwpm-acc-border);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.jwpm-accounts-cashbook-page .jwpm-balance-card--highlight {
+    background: var(--jwpm-acc-primary-soft);
+    border-color: var(--jwpm-acc-primary);
+}
+
+.jwpm-accounts-cashbook-page .jwpm-balance-label {
+    font-size: 11px;
+    color: var(--jwpm-acc-text-muted);
+}
+
+.jwpm-accounts-cashbook-page .jwpm-balance-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--jwpm-acc-text);
+}
+
+/* Table Styles */
+.jwpm-accounts-cashbook-page .jwpm-table {
+    margin-top: 4px;
+    border-radius: 10px;
+    overflow: hidden;
+    border-color: var(--jwpm-acc-border);
+}
+
+.jwpm-accounts-cashbook-page .jwpm-table thead th {
+    background: var(--jwpm-acc-surface-alt);
+    color: var(--jwpm-acc-text-muted);
+    font-size: 11px;
+    padding-block: 6px;
+    border-bottom: 1px solid var(--jwpm-acc-border);
+}
+
+.jwpm-accounts-cashbook-page .jwpm-table tbody td {
+    font-size: 12px;
+    padding-block: 7px;
+    vertical-align: middle;
+    color: var(--jwpm-acc-text);
+}
+
+.jwpm-accounts-cashbook-page .jwpm-table tbody tr:nth-child(even) {
+    background: rgba(15, 23, 42, 0.01);
+}
+
+.jwpm-accounts-cashbook-page .jwpm-table tbody tr:hover {
+    background: rgba(37, 99, 235, 0.06);
+}
+
+.jwpm-accounts-cashbook-page .jwpm-column-number {
+    text-align: right;
+    font-feature-settings: "lnum" 1, "tnum" 1;
+}
+
+.jwpm-accounts-cashbook-page .jwpm-empty-row td {
+    text-align: center;
+    font-size: 12px;
+    color: var(--jwpm-acc-text-muted);
+}
+
+/* Table Action Buttons */
+.jwpm-accounts-cashbook-page td [data-role="edit-entry"],
+.jwpm-accounts-cashbook-page td [data-role="delete-entry"] {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-right: 4px;
+}
+
+.jwpm-accounts-cashbook-page td [data-role="delete-entry"] {
+    background: var(--jwpm-acc-danger-soft);
+    border-color: var(--jwpm-acc-danger);
+    color: var(--jwpm-acc-danger);
+}
+
+/* Pagination */
+.jwpm-accounts-cashbook-page .jwpm-pagination {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.jwpm-accounts-cashbook-page .jwpm-page-btn {
+    min-width: 24px;
+    text-align: center;
+    padding: 4px 7px;
+    font-size: 11px;
+    border-radius: 999px;
+    cursor: pointer;
+    border: 1px solid var(--jwpm-acc-border);
+    color: var(--jwpm-acc-text-muted);
+    background: var(--jwpm-acc-surface-alt);
+    transition: all 0.15s ease;
+}
+
+.jwpm-accounts-cashbook-page .jwpm-page-btn:hover {
+    border-color: var(--jwpm-acc-primary);
+    color: var(--jwpm-acc-primary-strong);
+}
+
+.jwpm-accounts-cashbook-page .jwpm-page-btn.active {
+    background: var(--jwpm-acc-primary);
+    border-color: var(--jwpm-acc-primary-strong);
+    color: #ffffff;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.25);
+}
+
+/* Sidepanel */
+.jwpm-accounts-cashbook-page .jwpm-layout-side {
+    position: relative;
+    background: var(--jwpm-acc-surface);
+    border-radius: var(--jwpm-acc-radius-xl);
+    box-shadow: var(--jwpm-acc-shadow-soft);
+    padding: 10px 12px 12px;
+    border: 1px solid rgba(15, 23, 42, 0.03);
+    display: flex;
+    flex-direction: column;
+    max-height: 600px;
+}
+
+/* Mobile/Overlay Behaviour: JS .open class استعمال کررہا ہے */
+@media (max-width: 960px) {
+    .jwpm-accounts-cashbook-page .jwpm-layout-body {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .jwpm-accounts-cashbook-page .jwpm-layout-side {
+        position: fixed;
+        inset: 0;
+        max-height: none;
+        z-index: 9999;
+        transform: translateY(100%);
+        opacity: 0;
+        transition: transform 0.2s ease, opacity 0.2s ease;
+        border-radius: 0;
+    }
+
+    .jwpm-accounts-cashbook-page .jwpm-layout-side.open {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Desktop Slide Effect (optional subtle animation) */
+@media (min-width: 961px) {
+    .jwpm-accounts-cashbook-page .jwpm-layout-side {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    .jwpm-accounts-cashbook-page .jwpm-layout-side.open {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Sidepanel Header */
+.jwpm-accounts-cashbook-page .jwpm-sidepanel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.jwpm-accounts-cashbook-page .jwpm-sidepanel-header h2 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--jwpm-acc-text);
+    margin: 0;
+}
+
+.jwpm-accounts-cashbook-page .jwpm-close {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--jwpm-acc-text-muted);
+}
+
+.jwpm-accounts-cashbook-page .jwpm-close:hover {
+    color: var(--jwpm-acc-text);
+}
+
+/* Form Layout */
+.jwpm-accounts-cashbook-page .jwpm-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1 1 auto;
+}
+
+.jwpm-accounts-cashbook-page .jwpm-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 10px;
+}
+
+.jwpm-accounts-cashbook-page .jwpm-form-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--jwpm-acc-text-muted);
+}
+
+.jwpm-accounts-cashbook-page .jwpm-field-full {
+    grid-column: 1 / -1;
+}
+
+/* Form Actions */
+.jwpm-accounts-cashbook-page .jwpm-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-top: 6px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--jwpm-acc-border);
+}
+
+.jwpm-accounts-cashbook-page .jwpm-form-actions .button {
+    border-radius: 999px;
+    padding-inline: 14px;
+    padding-block: 5px;
+    font-size: 11px;
+}
+
+/* Textarea */
+.jwpm-accounts-cashbook-page .jwpm-textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+/* RTL Support */
+[dir="rtl"] .jwpm-accounts-cashbook-page .jwpm-toolbar {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .jwpm-accounts-cashbook-page .jwpm-toolbar-right {
+    justify-content: flex-start;
+}
+
+[dir="rtl"] .jwpm-accounts-cashbook-page td [data-role="edit-entry"],
+[dir="rtl"] .jwpm-accounts-cashbook-page td [data-role="delete-entry"] {
+    margin-right: 0;
+    margin-left: 4px;
+}
+
+[dir="rtl"] .jwpm-accounts-cashbook-page .jwpm-column-number {
+    text-align: left;
+}
+
+/* Print Styles */
+@media print {
+    .jwpm-accounts-cashbook-page .jwpm-toolbar,
+    .jwpm-accounts-cashbook-page .jwpm-layout-side,
+    .jwpm-accounts-cashbook-page .jwpm-pagination,
+    .jwpm-accounts-cashbook-page .button {
+        display: none !important;
+    }
+
+    .jwpm-accounts-cashbook-page .jwpm-layout-main {
+        box-shadow: none;
+        border-radius: 0;
+        border: none;
+        padding: 0;
+    }
+
+    .jwpm-accounts-cashbook-page .jwpm-table {
+        border-radius: 0;
+        font-size: 11px;
+    }
+
+    .jwpm-accounts-cashbook-page .jwpm-balance-summary {
+        margin-bottom: 6px;
+    }
+}
+
+/* 🔴 یہاں پر [Accounts Cashbook CSS] ختم ہو رہا ہے */
+
+/* ✅ Syntax verified block end */
+
