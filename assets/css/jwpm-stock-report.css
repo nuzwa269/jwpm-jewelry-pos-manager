@@ -1,1 +1,305 @@
+/**
+ * JWPM — Stock Report CSS (Layout E — Teal Blue Analytics)
+ * یہ فائل Stock Report کی Premium Teal/Blue UI, Charts, Summary Cards اور Table styling رکھتی ہے۔
+ */
+
+/* 🟢 یہاں سے [Stock Report CSS] شروع ہو رہا ہے */
+
+/** Part 1 — CSS: Stock Report Page */
+
+
+/* --------------------------------------------- */
+/* Base Namespace + Theme Tokens                 */
+/* --------------------------------------------- */
+.jwpm-stock-report-page {
+    --sr-bg: #f0f9ff;
+    --sr-surface: #ffffff;
+    --sr-surface-alt: #e0f2fe;
+
+    --sr-teal: #0ea5e9;
+    --sr-teal-hard: #0284c7;
+    --sr-teal-soft: rgba(14,165,233,0.12);
+
+    --sr-text: #0c4a6e;
+    --sr-text-muted: #0ea5e9;
+
+    --sr-border: #bae6fd;
+    --sr-radius: 14px;
+    --sr-shadow: 0 10px 25px rgba(0, 125, 160, 0.08);
+}
+
+/* Dark Mode */
+body.jwpm-dark-mode .jwpm-stock-report-page {
+    --sr-bg: #082f49;
+    --sr-surface: #0c4a6e;
+    --sr-surface-alt: #082f49;
+
+    --sr-teal: #38bdf8;
+    --sr-teal-hard: #0ea5e9;
+    --sr-teal-soft: rgba(56,189,248,0.25);
+
+    --sr-text: #e0f2fe;
+    --sr-text-muted: #bae6fd;
+
+    --sr-border: #0ea5e9;
+    --sr-shadow: 0 12px 28px rgba(0,0,0,0.55);
+}
+
+
+/* --------------------------------------------- */
+/* Page Wrapper                                  */
+/* --------------------------------------------- */
+.jwpm-stock-report-page {
+    background: var(--sr-bg);
+    padding: 20px 0 30px;
+}
+
+.jwpm-stock-report-page .jwpm-page-title {
+    color: var(--sr-text);
+    margin-bottom: 14px;
+    font-size: 22px;
+    font-weight: 600;
+}
+
+
+/* --------------------------------------------- */
+/* TEAL HEADER STRIP                             */
+/* --------------------------------------------- */
+.jwpm-stock-report-page .jwpm-report-teal-strip {
+    background: linear-gradient(120deg, var(--sr-teal) 0%, #38bdf8 100%);
+    padding: 18px 22px;
+    border-radius: var(--sr-radius);
+    color: #fff;
+    margin-bottom: 18px;
+    box-shadow: var(--sr-shadow);
+}
+
+.jwpm-stock-report-page .jwpm-report-teal-strip h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.jwpm-stock-report-page .jwpm-report-teal-strip p {
+    margin: 4px 0 0;
+    font-size: 13px;
+    opacity: 0.9;
+}
+
+
+/* --------------------------------------------- */
+/* Summary Cards                                 */
+/* --------------------------------------------- */
+.jwpm-stock-report-page .jwpm-report-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.jwpm-stock-report-page .jwpm-summary-card {
+    background: var(--sr-surface);
+    border: 1px solid var(--sr-border);
+    padding: 12px 14px;
+    border-radius: var(--sr-radius);
+    box-shadow: var(--sr-shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.jwpm-stock-report-page .jwpm-summary-label {
+    font-size: 11px;
+    color: var(--sr-text-muted);
+}
+
+.jwpm-stock-report-page .jwpm-summary-value {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--sr-teal-hard);
+}
+
+
+/* --------------------------------------------- */
+/* Filters Toolbar                               */
+/* --------------------------------------------- */
+.jwpm-stock-report-page .jwpm-toolbar {
+    background: var(--sr-surface);
+    padding: 14px 16px;
+    border-radius: var(--sr-radius);
+    border: 1px solid var(--sr-border);
+    box-shadow: var(--sr-shadow);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 18px;
+}
+
+.jwpm-stock-report-page .jwpm-field-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.jwpm-stock-report-page .jwpm-field-group label {
+    display: flex;
+    flex-direction: column;
+    color: var(--sr-text-muted);
+    font-size: 11px;
+}
+
+.jwpm-stock-report-page .jwpm-input,
+.jwpm-stock-report-page .jwpm-select {
+    background: var(--sr-surface-alt);
+    padding: 6px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--sr-border);
+    font-size: 12px;
+    color: var(--sr-text);
+}
+
+.jwpm-stock-report-page .jwpm-input:focus,
+.jwpm-stock-report-page .jwpm-select:focus {
+    border-color: var(--sr-teal-hard);
+    box-shadow: 0 0 0 1px var(--sr-teal-hard);
+}
+
+
+/* --------------------------------------------- */
+/* Graphs Section                                */
+/* --------------------------------------------- */
+.jwpm-stock-report-page .jwpm-graphs-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.jwpm-stock-report-page .jwpm-graph-card {
+    background: var(--sr-surface);
+    padding: 14px;
+    border-radius: var(--sr-radius);
+    border: 1px solid var(--sr-border);
+    box-shadow: var(--sr-shadow);
+}
+
+.jwpm-stock-report-page .jwpm-graph-card h3 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    color: var(--sr-text);
+}
+
+
+/* --------------------------------------------- */
+/* Table                                         */
+/* --------------------------------------------- */
+.jwpm-stock-report-page .jwpm-layout-main {
+    background: var(--sr-surface);
+    padding: 12px;
+    border-radius: var(--sr-radius);
+    border: 1px solid var(--sr-border);
+    box-shadow: var(--sr-shadow);
+}
+
+.jwpm-stock-report-page .jwpm-table thead th {
+    background: var(--sr-surface-alt);
+    font-size: 11px;
+    color: var(--sr-text-muted);
+    padding: 7px;
+}
+
+.jwpm-stock-report-page .jwpm-table tbody td {
+    font-size: 12px;
+    color: var(--sr-text);
+    padding: 8px;
+}
+
+.jwpm-stock-report-page .jwpm-column-number {
+    text-align: right;
+}
+
+.jwpm-stock-report-page .jwpm-empty-row td {
+    color: var(--sr-text-muted);
+    text-align: center;
+}
+
+
+/* --------------------------------------------- */
+/* Pagination                                    */
+/* --------------------------------------------- */
+.jwpm-stock-report-page .jwpm-pagination {
+    margin-top: 10px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.jwpm-stock-report-page .jwpm-page-btn {
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--sr-border);
+    background: var(--sr-surface-alt);
+    font-size: 11px;
+    color: var(--sr-text-muted);
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.jwpm-stock-report-page .jwpm-page-btn:hover {
+    border-color: var(--sr-teal-hard);
+    color: var(--sr-teal-hard);
+}
+
+.jwpm-stock-report-page .jwpm-page-btn.active {
+    background: var(--sr-teal);
+    border-color: var(--sr-teal-hard);
+    color: #fff;
+}
+
+
+/* --------------------------------------------- */
+/* Responsive                                    */
+/* --------------------------------------------- */
+@media (max-width: 900px) {
+    .jwpm-stock-report-page .jwpm-report-summary {
+        grid-template-columns: repeat(2, minmax(0,1fr));
+    }
+
+    .jwpm-stock-report-page .jwpm-graphs-grid {
+        grid-template-columns: minmax(0,1fr);
+    }
+}
+
+
+/* --------------------------------------------- */
+/* RTL Support                                   */
+/* --------------------------------------------- */
+[dir="rtl"] .jwpm-stock-report-page .jwpm-column-number {
+    text-align: left;
+}
+
+
+/* --------------------------------------------- */
+/* Print Mode                                    */
+/* --------------------------------------------- */
+@media print {
+
+    .jwpm-stock-report-page .jwpm-toolbar,
+    .jwpm-stock-report-page .jwpm-pagination,
+    .jwpm-stock-report-page .jwpm-graphs-grid,
+    .jwpm-stock-report-page .jwpm-report-teal-strip,
+    .jwpm-stock-report-page .button,
+    .jwpm-stock-report-page canvas {
+        display: none !important;
+    }
+
+    .jwpm-stock-report-page .jwpm-layout-main {
+        padding: 0;
+        border: none;
+        box-shadow: none;
+    }
+}
+
+
+/* 🔴 یہاں پر [Stock Report CSS] ختم ہو رہا ہے */
+/* ✅ Syntax verified block end */
 
