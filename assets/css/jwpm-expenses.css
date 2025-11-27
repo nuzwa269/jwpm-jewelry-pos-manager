@@ -1,1 +1,476 @@
+/**
+ * JWPM — Accounts Expenses CSS
+ * یہ فائل صرف Expenses پیج کی layout, spacing, colors اور responsive behaviour کیلئے ہے۔
+ * Root Wrapper Class: .jwpm-expenses-page
+ */
+
+/* 🟢 یہاں سے [Accounts Expenses CSS] شروع ہو رہا ہے */
+
+/** Part 1 — CSS: Accounts Expenses Page */
+
+/* Namespace Base + Tokens */
+.jwpm-expenses-page {
+    --jwpm-exp-bg: #f3f4f6;
+    --jwpm-exp-surface: #ffffff;
+    --jwpm-exp-surface-alt: #f9fafb;
+    --jwpm-exp-border: #e5e7eb;
+    --jwpm-exp-border-strong: #d1d5db;
+    --jwpm-exp-primary: #2563eb;
+    --jwpm-exp-primary-soft: rgba(37, 99, 235, 0.08);
+    --jwpm-exp-primary-strong: #1d4ed8;
+    --jwpm-exp-text: #111827;
+    --jwpm-exp-text-muted: #6b7280;
+    --jwpm-exp-danger: #dc2626;
+    --jwpm-exp-danger-soft: rgba(220, 38, 38, 0.08);
+    --jwpm-exp-radius-lg: 14px;
+    --jwpm-exp-radius-xl: 18px;
+    --jwpm-exp-shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.06);
+    --jwpm-exp-input-bg: #ffffff;
+    --jwpm-exp-input-border: #d1d5db;
+    --jwpm-exp-input-focus: #2563eb;
+}
+
+/* Dark Mode Support (body.jwpm-dark-mode) */
+body.jwpm-dark-mode .jwpm-expenses-page {
+    --jwpm-exp-bg: #020617;
+    --jwpm-exp-surface: #020617;
+    --jwpm-exp-surface-alt: #020617;
+    --jwpm-exp-border: #1f2937;
+    --jwpm-exp-border-strong: #374151;
+    --jwpm-exp-primary: #60a5fa;
+    --jwpm-exp-primary-soft: rgba(96, 165, 250, 0.15);
+    --jwpm-exp-primary-strong: #3b82f6;
+    --jwpm-exp-text: #f9fafb;
+    --jwpm-exp-text-muted: #9ca3af;
+    --jwpm-exp-danger: #f97373;
+    --jwpm-exp-danger-soft: rgba(248, 113, 113, 0.15);
+    --jwpm-exp-shadow-soft: 0 18px 40px rgba(15, 23, 42, 0.85);
+    --jwpm-exp-input-bg: #020617;
+    --jwpm-exp-input-border: #374151;
+}
+
+/* Page Wrapper */
+.jwpm-expenses-page {
+    background: var(--jwpm-exp-bg);
+    padding-top: 16px;
+    padding-bottom: 24px;
+}
+
+.jwpm-expenses-page .jwpm-page-title {
+    margin-bottom: 12px;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--jwpm-exp-text);
+}
+
+/* Layout Split */
+.jwpm-expenses-page .jwpm-layout {
+    background: transparent;
+}
+
+.jwpm-expenses-page .jwpm-layout--split {
+    display: grid;
+    grid-template-columns: minmax(0, 2.2fr) minmax(280px, 1.2fr);
+    gap: 18px;
+}
+
+/* Toolbar */
+.jwpm-expenses-page .jwpm-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    border-radius: var(--jwpm-exp-radius-xl);
+    background: var(--jwpm-exp-surface);
+    box-shadow: var(--jwpm-exp-shadow-soft);
+    border: 1px solid rgba(15, 23, 42, 0.02);
+}
+
+.jwpm-expenses-page .jwpm-toolbar-left {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.jwpm-expenses-page .jwpm-toolbar-right {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+/* Filter Fields Group */
+.jwpm-expenses-page .jwpm-field-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+.jwpm-expenses-page .jwpm-field-group label {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 11px;
+    color: var(--jwpm-exp-text-muted);
+    min-width: 140px;
+}
+
+.jwpm-expenses-page .jwpm-input,
+.jwpm-expenses-page .jwpm-select,
+.jwpm-expenses-page .jwpm-textarea {
+    width: 100%;
+    padding: 6px 9px;
+    border-radius: 10px;
+    border: 1px solid var(--jwpm-exp-input-border);
+    background-color: var(--jwpm-exp-input-bg);
+    color: var(--jwpm-exp-text);
+    font-size: 12px;
+    line-height: 1.4;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.jwpm-expenses-page .jwpm-input:focus,
+.jwpm-expenses-page .jwpm-select:focus,
+.jwpm-expenses-page .jwpm-textarea:focus {
+    outline: none;
+    border-color: var(--jwpm-exp-input-focus);
+    box-shadow: 0 0 0 1px var(--jwpm-exp-input-focus);
+}
+
+/* Toolbar Buttons */
+.jwpm-expenses-page .jwpm-toolbar-right .button {
+    border-radius: 999px;
+    padding-inline: 12px;
+    padding-block: 4px;
+    font-size: 11px;
+    border-width: 1px;
+}
+
+.jwpm-expenses-page .jwpm-toolbar-right .button-primary {
+    background: var(--jwpm-exp-primary);
+    border-color: var(--jwpm-exp-primary-strong);
+    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.25);
+}
+
+.jwpm-expenses-page .jwpm-toolbar-right .button-primary:hover {
+    background: var(--jwpm-exp-primary-strong);
+}
+
+/* Layout Body */
+.jwpm-expenses-page .jwpm-layout-body {
+    display: grid;
+    grid-template-columns: minmax(0, 2.2fr) minmax(280px, 1.2fr);
+    gap: 18px;
+}
+
+/* Main Panel */
+.jwpm-expenses-page .jwpm-layout-main {
+    background: var(--jwpm-exp-surface);
+    border-radius: var(--jwpm-exp-radius-xl);
+    box-shadow: var(--jwpm-exp-shadow-soft);
+    padding: 10px 12px 12px;
+    border: 1px solid rgba(15, 23, 42, 0.03);
+}
+
+/* Summary (Total Expenses) */
+.jwpm-expenses-page .jwpm-balance-summary {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.jwpm-expenses-page .jwpm-balance-card {
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: var(--jwpm-exp-surface-alt);
+    border: 1px solid var(--jwpm-exp-border);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.jwpm-expenses-page .jwpm-balance-card--highlight {
+    background: var(--jwpm-exp-primary-soft);
+    border-color: var(--jwpm-exp-primary);
+}
+
+.jwpm-expenses-page .jwpm-balance-label {
+    font-size: 11px;
+    color: var(--jwpm-exp-text-muted);
+}
+
+.jwpm-expenses-page .jwpm-balance-value {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--jwpm-exp-text);
+}
+
+/* Table Styles */
+.jwpm-expenses-page .jwpm-table {
+    margin-top: 4px;
+    border-radius: 10px;
+    overflow: hidden;
+    border-color: var(--jwpm-exp-border);
+}
+
+.jwpm-expenses-page .jwpm-table thead th {
+    background: var(--jwpm-exp-surface-alt);
+    color: var(--jwpm-exp-text-muted);
+    font-size: 11px;
+    padding-block: 6px;
+    border-bottom: 1px solid var(--jwpm-exp-border);
+}
+
+.jwpm-expenses-page .jwpm-table tbody td {
+    font-size: 12px;
+    padding-block: 7px;
+    vertical-align: middle;
+    color: var(--jwpm-exp-text);
+}
+
+.jwpm-expenses-page .jwpm-table tbody tr:nth-child(even) {
+    background: rgba(15, 23, 42, 0.01);
+}
+
+.jwpm-expenses-page .jwpm-table tbody tr:hover {
+    background: rgba(37, 99, 235, 0.06);
+}
+
+.jwpm-expenses-page .jwpm-column-number {
+    text-align: right;
+    font-feature-settings: "lnum" 1, "tnum" 1;
+}
+
+.jwpm-expenses-page .jwpm-empty-row td {
+    text-align: center;
+    font-size: 12px;
+    color: var(--jwpm-exp-text-muted);
+}
+
+/* Table Action Buttons */
+.jwpm-expenses-page td [data-role="edit-expense"],
+.jwpm-expenses-page td [data-role="delete-expense"] {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-right: 4px;
+}
+
+.jwpm-expenses-page td [data-role="delete-expense"] {
+    background: var(--jwpm-exp-danger-soft);
+    border-color: var(--jwpm-exp-danger);
+    color: var(--jwpm-exp-danger);
+}
+
+/* Pagination */
+.jwpm-expenses-page .jwpm-pagination {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.jwpm-expenses-page .jwpm-page-btn {
+    min-width: 24px;
+    text-align: center;
+    padding: 4px 7px;
+    font-size: 11px;
+    border-radius: 999px;
+    cursor: pointer;
+    border: 1px solid var(--jwpm-exp-border);
+    color: var(--jwpm-exp-text-muted);
+    background: var(--jwpm-exp-surface-alt);
+    transition: all 0.15s ease;
+}
+
+.jwpm-expenses-page .jwpm-page-btn:hover {
+    border-color: var(--jwpm-exp-primary);
+    color: var(--jwpm-exp-primary-strong);
+}
+
+.jwpm-expenses-page .jwpm-page-btn.active {
+    background: var(--jwpm-exp-primary);
+    border-color: var(--jwpm-exp-primary-strong);
+    color: #ffffff;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.25);
+}
+
+/* Sidepanel */
+.jwpm-expenses-page .jwpm-layout-side {
+    position: relative;
+    background: var(--jwpm-exp-surface);
+    border-radius: var(--jwpm-exp-radius-xl);
+    box-shadow: var(--jwpm-exp-shadow-soft);
+    padding: 10px 12px 12px;
+    border: 1px solid rgba(15, 23, 42, 0.03);
+    display: flex;
+    flex-direction: column;
+    max-height: 600px;
+}
+
+/* Mobile: fullscreen drawer */
+@media (max-width: 960px) {
+    .jwpm-expenses-page .jwpm-layout-body {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .jwpm-expenses-page .jwpm-layout-side {
+        position: fixed;
+        inset: 0;
+        max-height: none;
+        z-index: 9999;
+        transform: translateY(100%);
+        opacity: 0;
+        transition: transform 0.2s ease, opacity 0.2s ease;
+        border-radius: 0;
+    }
+
+    .jwpm-expenses-page .jwpm-layout-side.open {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Desktop */
+@media (min-width: 961px) {
+    .jwpm-expenses-page .jwpm-layout-side {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    .jwpm-expenses-page .jwpm-layout-side.open {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Sidepanel Header */
+.jwpm-expenses-page .jwpm-sidepanel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.jwpm-expenses-page .jwpm-sidepanel-header h2 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--jwpm-exp-text);
+    margin: 0;
+}
+
+.jwpm-expenses-page .jwpm-close {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--jwpm-exp-text-muted);
+}
+
+.jwpm-expenses-page .jwpm-close:hover {
+    color: var(--jwpm-exp-text);
+}
+
+/* Form Layout */
+.jwpm-expenses-page .jwpm-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1 1 auto;
+}
+
+.jwpm-expenses-page .jwpm-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 10px;
+}
+
+.jwpm-expenses-page .jwpm-form-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--jwpm-exp-text-muted);
+}
+
+.jwpm-expenses-page .jwpm-field-full {
+    grid-column: 1 / -1;
+}
+
+/* Form Actions */
+.jwpm-expenses-page .jwpm-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-top: 6px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--jwpm-exp-border);
+}
+
+.jwpm-expenses-page .jwpm-form-actions .button {
+    border-radius: 999px;
+    padding-inline: 14px;
+    padding-block: 5px;
+    font-size: 11px;
+}
+
+/* Textarea */
+.jwpm-expenses-page .jwpm-textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+/* RTL Support */
+[dir="rtl"] .jwpm-expenses-page .jwpm-toolbar {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .jwpm-expenses-page .jwpm-toolbar-right {
+    justify-content: flex-start;
+}
+
+[dir="rtl"] .jwpm-expenses-page td [data-role="edit-expense"],
+[dir="rtl"] .jwpm-expenses-page td [data-role="delete-expense"] {
+    margin-right: 0;
+    margin-left: 4px;
+}
+
+[dir="rtl"] .jwpm-expenses-page .jwpm-column-number {
+    text-align: left;
+}
+
+/* Print Styles */
+@media print {
+    .jwpm-expenses-page .jwpm-toolbar,
+    .jwpm-expenses-page .jwpm-layout-side,
+    .jwpm-expenses-page .jwpm-pagination,
+    .jwpm-expenses-page .button {
+        display: none !important;
+    }
+
+    .jwpm-expenses-page .jwpm-layout-main {
+        box-shadow: none;
+        border-radius: 0;
+        border: none;
+        padding: 0;
+    }
+
+    .jwpm-expenses-page .jwpm-table {
+        border-radius: 0;
+        font-size: 11px;
+    }
+
+    .jwpm-expenses-page .jwpm-balance-summary {
+        margin-bottom: 6px;
+    }
+}
+
+/* 🔴 یہاں پر [Accounts Expenses CSS] ختم ہو رہا ہے */
+
+/* ✅ Syntax verified block end */
 
