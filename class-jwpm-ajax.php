@@ -3510,3 +3510,482 @@ add_action( 'wp_ajax_jwpm_export_repairs', 'jwpm_ajax_export_repairs' );
 
 // 🔴 یہاں پر [JWPM Repair AJAX] ختم ہو رہا ہے
 // ✅ Syntax verified block end
+<?php
+// ... یہاں آپ کا موجودہ class-jwpm-ajax.php کوڈ ہے ...
+
+// 🟢 یہاں سے [Accounts Module AJAX: Cashbook] شروع ہو رہا ہے
+
+/** Part 21 — Accounts Module AJAX: Cashbook */
+
+if ( ! function_exists( 'jwpm_ajax_require_cashbook_cap' ) ) {
+    /**
+     * Common capability + nonce check for cashbook actions
+     */
+    function jwpm_ajax_require_cashbook_cap() {
+        check_ajax_referer( 'jwpm_cashbook_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'jwpm_view_accounts' ) ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'آپ کو Accounts تک رسائی کی اجازت نہیں ہے۔', 'jwpm' ),
+                    'devHint' => 'Capability jwpm_view_accounts required.',
+                ),
+                403
+            );
+        }
+
+        if ( ! function_exists( 'jwpm_accounts_ensure_tables' ) ) {
+            // Safe check: اگر helper لوڈ نہیں ہوا
+            wp_send_json_error(
+                array(
+                    'message' => __( 'Accounts DB helpers لوڈ نہیں ہو سکے۔', 'jwpm' ),
+                    'devHint' => 'jwpm_accounts_ensure_tables() not found.',
+                ),
+                500
+            );
+        }
+
+        // ہر کال سے پہلے tables ensure
+        jwpm_accounts_ensure_tables();
+    }
+}
+
+/**
+ * Cashbook Fetch
+ */
+if ( ! function_exists( 'jwpm_cashbook_fetch' ) ) {
+    function jwpm_cashbook_fetch() {
+        jwpm_ajax_require_cashbook_cap();
+
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'jwpm_cashbook';
+
+        $page     = isset( $_POST['page'] ) ? max( 1, absint( $_POST['page'] ) ) : 1;
+        $per_page = isset( $_POST['per_page'] ) ? max( 1, absint( $_POST['per_page'] ) ) : 25;
+
+        $from_date = isset( $_POST['from_date'] ) ? sanitize_text_field( wp_unslash( $_POST['from_date'] ) ) : '';
+        $to_date   = isset( $_POST['to_date'] ) ? sanitize_text_field( wp_unslash( $_POST['to_date'] ) ) : '';
+        $type      = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
+        $category  = isset( $_POST['category'] ) ? sanitize_text_field( wp_unslash( $_POST['category'] ) ) : '';
+
+        $where   = array();
+        $params  = array();
+
+        if ( $from_date ) {
+            $where[]  = 'entry_date >= %s';
+            $params[] = $from_date;
+        }
+        if ( $to_date ) {
+            $where[]  = 'entry_date <= %s';
+            $params[] = $to_date;
+        }
+        if ( $type && in_array( $type, array( 'in', 'out' ), true ) ) {
+            $where[]  = 'type = %s';
+            $params[] = $type;
+        }
+        if ( $category ) {
+            $where[]  = 'category LIKE %s';
+            $params[] = '%' . $wpdb->esc_like( $category ) . '%';
+        }
+
+        $where_sql = '';
+        if ( ! empty( $where ) ) {
+            $where_sql = 'WHERE ' . implode( ' AND ', $where );
+        }
+
+        $offset = ( $page - 1 ) * $per_page;
+
+        // Total count
+        $count_sql = "SELECT COUNT(*) FROM {$table} {$where_sql}";
+        $total     = (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) );
+
+        // Data
+        $data_sql = "SELECT * FROM {$table} {$where_sql} ORDER BY entry_date DESC, id DESC LIMIT %d OFFSET %d";
+        $data_params = array_merge( $params, array( $per_page, $offset ) );
+        $rows        = $wpdb->get_results( $wpdb->prepare( $data_sql, $data_params ), ARRAY_A );
+
+        // Balance summary
+        $balance_sql = "SELECT 
+            SUM(CASE WHEN type = 'in' THEN amount ELSE 0 END) AS total_in,
+            SUM(CASE WHEN type = 'out' THEN amount ELSE 0 END) AS total_out
+            FROM {$table} {$where_sql}";
+        $balance_row = $wpdb->get_row( $wpdb->prepare( $balance_sql, $params ), ARRAY_A );
+
+        $total_in  = isset( $balance_row['total_in'] ) ? (float) $balance_row['total_in'] : 0;
+        $total_out = isset( $balance_row['total_out'] ) ? (float) $balance_row['total_out'] : 0;
+        $closing   = $total_in - $total_out;
+
+        wp_send_json_success(
+            array(
+                'items'   => $rows,
+                'total'   => $total,
+                'page'    => $page,
+                'perPage' => $per_page,
+                'summary' => array(
+                    'total_in'    => $total_in,
+                    'total_out'   => $total_out,
+                    'opening'     => 0, // Future: اگر آپ اوپننگ الگ رکھیں
+                    'closing'     => $closing,
+                ),
+            )
+        );
+    }
+}
+add_action( 'wp_ajax_jwpm_cashbook_fetch', 'jwpm_cashbook_fetch' );
+
+/**
+ * Cashbook Save (Add / Update)
+ */
+if ( ! function_exists( 'jwpm_cashbook_save' ) ) {
+    function jwpm_cashbook_save() {
+        jwpm_ajax_require_cashbook_cap();
+
+        if ( ! current_user_can( 'jwpm_add_accounts' ) && ! current_user_can( 'jwpm_edit_accounts' ) ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'آپ کو Cashbook انٹری محفوظ کرنے کی اجازت نہیں۔', 'jwpm' ),
+                    'devHint' => 'Capability jwpm_add_accounts یا jwpm_edit_accounts درکار ہے۔',
+                ),
+                403
+            );
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'jwpm_cashbook';
+
+        $id         = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
+        $entry_date = isset( $_POST['entry_date'] ) ? sanitize_text_field( wp_unslash( $_POST['entry_date'] ) ) : '';
+        $type       = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
+        $amount     = isset( $_POST['amount'] ) ? floatval( $_POST['amount'] ) : 0;
+        $category   = isset( $_POST['category'] ) ? sanitize_text_field( wp_unslash( $_POST['category'] ) ) : '';
+        $reference  = isset( $_POST['reference'] ) ? sanitize_text_field( wp_unslash( $_POST['reference'] ) ) : '';
+        $remarks    = isset( $_POST['remarks'] ) ? wp_kses_post( wp_unslash( $_POST['remarks'] ) ) : '';
+
+        if ( ! $entry_date || ! in_array( $type, array( 'in', 'out' ), true ) || $amount <= 0 || ! $category ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'براہِ کرم تمام ضروری فیلڈز درست طریقے سے بھر دیں۔', 'jwpm' ),
+                    'devHint' => 'Required: entry_date, type(in/out), amount>0, category.',
+                ),
+                400
+            );
+        }
+
+        $data = array(
+            'entry_date' => $entry_date,
+            'type'       => $type,
+            'amount'     => $amount,
+            'category'   => $category,
+            'reference'  => $reference,
+            'remarks'    => $remarks,
+            'updated_at' => current_time( 'mysql' ),
+        );
+
+        $formats = array( '%s', '%s', '%f', '%s', '%s', '%s', '%s' );
+
+        if ( $id > 0 ) {
+            $result = $wpdb->update(
+                $table,
+                $data,
+                array( 'id' => $id ),
+                $formats,
+                array( '%d' )
+            );
+        } else {
+            $data['created_by'] = get_current_user_id();
+            $data['created_at'] = current_time( 'mysql' );
+            $formats[]          = '%d';
+            $formats[]          = '%s';
+
+            $result = $wpdb->insert(
+                $table,
+                $data,
+                $formats
+            );
+            $id = $wpdb->insert_id;
+        }
+
+        if ( false === $result ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'ریکارڈ محفوظ نہیں ہو سکا، دوبارہ کوشش کریں۔', 'jwpm' ),
+                    'devHint' => $wpdb->last_error,
+                ),
+                500
+            );
+        }
+
+        wp_send_json_success(
+            array(
+                'message' => __( 'Cashbook انٹری کامیابی سے محفوظ ہو گئی۔', 'jwpm' ),
+                'id'      => $id,
+            )
+        );
+    }
+}
+add_action( 'wp_ajax_jwpm_cashbook_save', 'jwpm_cashbook_save' );
+
+/**
+ * Cashbook Delete
+ */
+if ( ! function_exists( 'jwpm_cashbook_delete' ) ) {
+    function jwpm_cashbook_delete() {
+        jwpm_ajax_require_cashbook_cap();
+
+        if ( ! current_user_can( 'jwpm_delete_accounts' ) ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'آپ کو حذف کرنے کی اجازت نہیں۔', 'jwpm' ),
+                    'devHint' => 'Capability jwpm_delete_accounts required.',
+                ),
+                403
+            );
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'jwpm_cashbook';
+
+        $id = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
+
+        if ( $id <= 0 ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'غلط ریکارڈ منتخب کیا گیا ہے۔', 'jwpm' ),
+                    'devHint' => 'Invalid id in jwpm_cashbook_delete.',
+                ),
+                400
+            );
+        }
+
+        $deleted = $wpdb->delete(
+            $table,
+            array( 'id' => $id ),
+            array( '%d' )
+        );
+
+        if ( false === $deleted ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'ریکارڈ حذف نہیں ہو سکا۔', 'jwpm' ),
+                    'devHint' => $wpdb->last_error,
+                ),
+                500
+            );
+        }
+
+        wp_send_json_success(
+            array(
+                'message' => __( 'ریکارڈ کامیابی سے حذف ہو گیا۔', 'jwpm' ),
+            )
+        );
+    }
+}
+add_action( 'wp_ajax_jwpm_cashbook_delete', 'jwpm_cashbook_delete' );
+
+/**
+ * Cashbook Export (Excel style — data array)
+ * اصلی Excel فائل JS یا الگ لائبریری سے بنائی جائے گی۔
+ */
+if ( ! function_exists( 'jwpm_cashbook_export' ) ) {
+    function jwpm_cashbook_export() {
+        jwpm_ajax_require_cashbook_cap();
+
+        if ( ! current_user_can( 'jwpm_export_accounts' ) ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'آپ کو ایکسپورٹ کرنے کی اجازت نہیں۔', 'jwpm' ),
+                    'devHint' => 'Capability jwpm_export_accounts required.',
+                ),
+                403
+            );
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'jwpm_cashbook';
+
+        // سادگی کیلئے فلٹرز دوبارہ استعمال نہیں کر رہے، لیکن آپ چاہیں تو اوپر والے fetch logic reuse کر سکتے ہیں
+        $rows = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY entry_date DESC, id DESC", ARRAY_A );
+
+        wp_send_json_success(
+            array(
+                'headers' => array( 'Date', 'Type', 'Category', 'Reference', 'Remarks', 'Amount' ),
+                'rows'    => array_map(
+                    static function ( $row ) {
+                        return array(
+                            $row['entry_date'],
+                            $row['type'],
+                            $row['category'],
+                            $row['reference'],
+                            $row['remarks'],
+                            $row['amount'],
+                        );
+                    },
+                    $rows
+                ),
+            )
+        );
+    }
+}
+add_action( 'wp_ajax_jwpm_cashbook_export', 'jwpm_cashbook_export' );
+
+/**
+ * Cashbook Import (basic CSV-like array)
+ */
+if ( ! function_exists( 'jwpm_cashbook_import' ) ) {
+    function jwpm_cashbook_import() {
+        jwpm_ajax_require_cashbook_cap();
+
+        if ( ! current_user_can( 'jwpm_import_accounts' ) ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'آپ کو امپورٹ کی اجازت نہیں۔', 'jwpm' ),
+                    'devHint' => 'Capability jwpm_import_accounts required.',
+                ),
+                403
+            );
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'jwpm_cashbook';
+
+        $rows = isset( $_POST['rows'] ) && is_array( $_POST['rows'] ) ? (array) $_POST['rows'] : array();
+
+        if ( empty( $rows ) ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'کوئی ڈیٹا موصول نہیں ہوا۔', 'jwpm' ),
+                    'devHint' => 'rows array is empty in jwpm_cashbook_import.',
+                ),
+                400
+            );
+        }
+
+        $inserted = 0;
+
+        foreach ( $rows as $row ) {
+            $entry_date = isset( $row['entry_date'] ) ? sanitize_text_field( $row['entry_date'] ) : '';
+            $type       = isset( $row['type'] ) ? sanitize_text_field( $row['type'] ) : '';
+            $amount     = isset( $row['amount'] ) ? floatval( $row['amount'] ) : 0;
+            $category   = isset( $row['category'] ) ? sanitize_text_field( $row['category'] ) : '';
+            $reference  = isset( $row['reference'] ) ? sanitize_text_field( $row['reference'] ) : '';
+            $remarks    = isset( $row['remarks'] ) ? wp_kses_post( $row['remarks'] ) : '';
+
+            if ( ! $entry_date || ! in_array( $type, array( 'in', 'out' ), true ) || $amount <= 0 || ! $category ) {
+                continue;
+            }
+
+            $wpdb->insert(
+                $table,
+                array(
+                    'entry_date' => $entry_date,
+                    'type'       => $type,
+                    'amount'     => $amount,
+                    'category'   => $category,
+                    'reference'  => $reference,
+                    'remarks'    => $remarks,
+                    'created_by' => get_current_user_id(),
+                    'created_at' => current_time( 'mysql' ),
+                ),
+                array( '%s', '%s', '%f', '%s', '%s', '%s', '%d', '%s' )
+            );
+
+            if ( ! $wpdb->last_error ) {
+                $inserted++;
+            }
+        }
+
+        wp_send_json_success(
+            array(
+                'message'  => sprintf(
+                    /* translators: %d: imported rows count */
+                    __( '%d ریکارڈ امپورٹ ہو گئے۔', 'jwpm' ),
+                    $inserted
+                ),
+                'inserted' => $inserted,
+            )
+        );
+    }
+}
+add_action( 'wp_ajax_jwpm_cashbook_import', 'jwpm_cashbook_import' );
+
+/**
+ * Cashbook Demo Data
+ */
+if ( ! function_exists( 'jwpm_cashbook_demo' ) ) {
+    function jwpm_cashbook_demo() {
+        jwpm_ajax_require_cashbook_cap();
+
+        if ( ! current_user_can( 'jwpm_add_accounts' ) ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'آپ کو Demo Data بنانے کی اجازت نہیں۔', 'jwpm' ),
+                    'devHint' => 'Capability jwpm_add_accounts required.',
+                ),
+                403
+            );
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'jwpm_cashbook';
+
+        $today = current_time( 'Y-m-d' );
+
+        $demo_rows = array(
+            array(
+                'entry_date' => $today,
+                'type'       => 'in',
+                'amount'     => 500000,
+                'category'   => 'Opening Balance',
+                'reference'  => 'OB-001',
+                'remarks'    => 'System opening balance',
+            ),
+            array(
+                'entry_date' => $today,
+                'type'       => 'in',
+                'amount'     => 25000,
+                'category'   => 'Sales Cash',
+                'reference'  => 'POS',
+                'remarks'    => 'POS cash sales',
+            ),
+            array(
+                'entry_date' => $today,
+                'type'       => 'out',
+                'amount'     => 10000,
+                'category'   => 'Shop Expense',
+                'reference'  => 'EXP-001',
+                'remarks'    => 'Electricity bill',
+            ),
+        );
+
+        $inserted = 0;
+
+        foreach ( $demo_rows as $row ) {
+            $row['created_by'] = get_current_user_id();
+            $row['created_at'] = current_time( 'mysql' );
+
+            $wpdb->insert(
+                $table,
+                $row,
+                array( '%s', '%s', '%f', '%s', '%s', '%s', '%d', '%s' )
+            );
+
+            if ( ! $wpdb->last_error ) {
+                $inserted++;
+            }
+        }
+
+        wp_send_json_success(
+            array(
+                'message'  => sprintf( __( '%d Demo ریکارڈ شامل ہو گئے۔', 'jwpm' ), $inserted ),
+                'inserted' => $inserted,
+            )
+        );
+    }
+}
+add_action( 'wp_ajax_jwpm_cashbook_demo', 'jwpm_cashbook_demo' );
+
+// 🔴 یہاں پر [Accounts Module AJAX: Cashbook] ختم ہو رہا ہے
+
+// ✅ Syntax verified block end
+
