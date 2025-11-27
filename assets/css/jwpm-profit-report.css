@@ -1,1 +1,298 @@
+/**
+ * JWPM — Profit Report CSS (Layout D — Orange Business Analytics)
+ * یہ فائل Profit Report کی Orange Premium UI, Graphs, Table اور Filters styling رکھتی ہے۔
+ */
+
+/* 🟢 یہاں سے [Profit Report CSS] شروع ہو رہا ہے */
+
+/** Part 1 — CSS: Profit Report Page */
+
+
+/* -------------------------------------- */
+/* Base Namespace + Tokens                 */
+/* -------------------------------------- */
+.jwpm-profit-report-page {
+    --pr-bg: #fff7ed;
+    --pr-surface: #ffffff;
+    --pr-surface-alt: #fff0e0;
+
+    --pr-orange: #f97316;
+    --pr-orange-soft: rgba(249,115,22,0.12);
+    --pr-orange-hard: #ea580c;
+
+    --pr-text: #431407;
+    --pr-text-muted: #9a3412;
+
+    --pr-border: #fed7aa;
+    --pr-radius: 14px;
+    --pr-shadow: 0 10px 25px rgba(185, 94, 6, 0.08);
+}
+
+/* Dark Mode */
+body.jwpm-dark-mode .jwpm-profit-report-page {
+    --pr-bg: #451a03;
+    --pr-surface: #7c2d12;
+    --pr-surface-alt: #5c220c;
+
+    --pr-orange: #fb923c;
+    --pr-orange-hard: #fdba74;
+    --pr-orange-soft: rgba(251,146,60,0.25);
+
+    --pr-text: #fff7ed;
+    --pr-text-muted: #ffedd5;
+
+    --pr-border: #9a3412;
+    --pr-shadow: 0 12px 28px rgba(0,0,0,0.55);
+}
+
+
+/* -------------------------------------- */
+/* Page Wrapper                            */
+/* -------------------------------------- */
+.jwpm-profit-report-page {
+    background: var(--pr-bg);
+    padding: 20px 0 30px;
+}
+
+.jwpm-profit-report-page .jwpm-page-title {
+    margin-bottom: 14px;
+    font-size: 22px;
+    color: var(--pr-text);
+    font-weight: 600;
+}
+
+
+/* -------------------------------------- */
+/* ORANGE HEADER STRIP                     */
+/* -------------------------------------- */
+.jwpm-profit-report-page .jwpm-report-orange-strip {
+    background: linear-gradient(125deg, var(--pr-orange) 0%, #fb923c 100%);
+    padding: 18px 22px;
+    border-radius: var(--pr-radius);
+    color: #fff;
+    margin-bottom: 18px;
+    box-shadow: var(--pr-shadow);
+}
+
+.jwpm-profit-report-page .jwpm-report-orange-strip h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.jwpm-profit-report-page .jwpm-report-orange-strip p {
+    margin: 4px 0 0;
+    font-size: 13px;
+    opacity: 0.9;
+}
+
+
+/* -------------------------------------- */
+/* Summary Cards                           */
+/* -------------------------------------- */
+.jwpm-profit-report-page .jwpm-report-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.jwpm-profit-report-page .jwpm-summary-card {
+    background: var(--pr-surface);
+    padding: 12px 14px;
+    border-radius: var(--pr-radius);
+    border: 1px solid var(--pr-border);
+    box-shadow: var(--pr-shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.jwpm-profit-report-page .jwpm-summary-label {
+    font-size: 11px;
+    color: var(--pr-text-muted);
+}
+
+.jwpm-profit-report-page .jwpm-summary-value {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--pr-orange-hard);
+}
+
+
+/* -------------------------------------- */
+/* Filters Toolbar                         */
+/* -------------------------------------- */
+.jwpm-profit-report-page .jwpm-toolbar {
+    background: var(--pr-surface);
+    padding: 14px 16px;
+    border-radius: var(--pr-radius);
+    border: 1px solid var(--pr-border);
+    box-shadow: var(--pr-shadow);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 18px;
+}
+
+.jwpm-profit-report-page .jwpm-field-group {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.jwpm-profit-report-page .jwpm-input {
+    background: var(--pr-surface-alt);
+    padding: 6px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--pr-border);
+    font-size: 12px;
+    color: var(--pr-text);
+}
+
+.jwpm-profit-report-page .jwpm-input:focus {
+    border-color: var(--pr-orange);
+    box-shadow: 0 0 0 1px var(--pr-orange);
+}
+
+
+/* -------------------------------------- */
+/* Graph Section (Line + Bar)             */
+/* -------------------------------------- */
+.jwpm-profit-report-page .jwpm-graphs-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.jwpm-profit-report-page .jwpm-graph-card {
+    background: var(--pr-surface);
+    padding: 14px;
+    border-radius: var(--pr-radius);
+    border: 1px solid var(--pr-border);
+    box-shadow: var(--pr-shadow);
+}
+
+.jwpm-profit-report-page .jwpm-graph-card h3 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    color: var(--pr-text);
+}
+
+
+/* -------------------------------------- */
+/* Table                                   */
+/* -------------------------------------- */
+.jwpm-profit-report-page .jwpm-layout-main {
+    background: var(--pr-surface);
+    padding: 12px;
+    border-radius: var(--pr-radius);
+    box-shadow: var(--pr-shadow);
+    border: 1px solid var(--pr-border);
+}
+
+.jwpm-profit-report-page .jwpm-table thead th {
+    background: var(--pr-surface-alt);
+    font-size: 11px;
+    color: var(--pr-text-muted);
+    padding: 7px;
+}
+
+.jwpm-profit-report-page .jwpm-table tbody td {
+    font-size: 12px;
+    color: var(--pr-text);
+    padding: 8px;
+}
+
+.jwpm-profit-report-page .jwpm-column-number {
+    text-align: right;
+}
+
+.jwpm-profit-report-page .jwpm-empty-row td {
+    color: var(--pr-text-muted);
+    text-align: center;
+}
+
+
+/* -------------------------------------- */
+/* Pagination                              */
+/* -------------------------------------- */
+.jwpm-profit-report-page .jwpm-pagination {
+    margin-top: 10px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.jwpm-profit-report-page .jwpm-page-btn {
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--pr-border);
+    font-size: 11px;
+    background: var(--pr-surface-alt);
+    color: var(--pr-text-muted);
+    transition: 0.2s;
+    cursor: pointer;
+}
+
+.jwpm-profit-report-page .jwpm-page-btn:hover {
+    border-color: var(--pr-orange-hard);
+    color: var(--pr-orange-hard);
+}
+
+.jwpm-profit-report-page .jwpm-page-btn.active {
+    background: var(--pr-orange);
+    border-color: var(--pr-orange-hard);
+    color: #fff;
+}
+
+
+/* -------------------------------------- */
+/* Responsive                              */
+/* -------------------------------------- */
+@media (max-width: 900px) {
+    .jwpm-profit-report-page .jwpm-report-summary {
+        grid-template-columns: repeat(2, minmax(0,1fr));
+    }
+
+    .jwpm-profit-report-page .jwpm-graphs-grid {
+        grid-template-columns: minmax(0,1fr);
+    }
+}
+
+
+/* -------------------------------------- */
+/* RTL Support                             */
+/* -------------------------------------- */
+[dir="rtl"] .jwpm-profit-report-page .jwpm-column-number {
+    text-align: left;
+}
+
+
+/* -------------------------------------- */
+/* Print Mode                              */
+/* -------------------------------------- */
+@media print {
+
+    .jwpm-profit-report-page .jwpm-toolbar,
+    .jwpm-profit-report-page .jwpm-pagination,
+    .jwpm-profit-report-page .jwpm-graphs-grid,
+    .jwpm-profit-report-page .jwpm-report-orange-strip,
+    .jwpm-profit-report-page canvas,
+    .jwpm-profit-report-page .button {
+        display: none !important;
+    }
+
+    .jwpm-profit-report-page .jwpm-layout-main {
+        border: none;
+        box-shadow: none;
+        padding: 0;
+    }
+}
+
+
+/* 🔴 یہاں پر [Profit Report CSS] ختم ہو رہا ہے */
+/* ✅ Syntax verified block end */
 
