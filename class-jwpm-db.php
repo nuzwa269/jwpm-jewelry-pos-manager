@@ -1068,3 +1068,105 @@ function jwpm_repair_get_table_schemas() {
 
 // 🔴 یہاں پر [JWPM Repair DB Schema] ختم ہو رہا ہے
 // ✅ Syntax verified block end
+<?php
+// ... یہاں آپ کا موجودہ class-jwpm-db.php کوڈ ہے ...
+
+// 🟢 یہاں سے [Accounts Module DB Helpers] شروع ہو رہا ہے
+
+/** Part 20 — Accounts Module DB Helpers */
+/**
+ * Accounts Module کے لئے SQL statements واپس کرنے والا helper
+ * Cashbook, Expenses, Ledger تینوں tables یہاں define ہیں۔
+ */
+if ( ! function_exists( 'jwpm_accounts_get_tables_sql' ) ) {
+    function jwpm_accounts_get_tables_sql() {
+        global $wpdb;
+
+        $charset_collate = $wpdb->get_charset_collate();
+        $cashbook_table   = $wpdb->prefix . 'jwpm_cashbook';
+        $expenses_table   = $wpdb->prefix . 'jwpm_expenses';
+        $ledger_table     = $wpdb->prefix . 'jwpm_ledger';
+
+        $sql = array();
+
+        // Cashbook Table
+        $sql[] = "CREATE TABLE {$cashbook_table} (
+            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            entry_date DATE NOT NULL,
+            type VARCHAR(10) NOT NULL, -- in / out
+            amount DECIMAL(18,4) NOT NULL DEFAULT 0,
+            category VARCHAR(191) NOT NULL,
+            reference VARCHAR(191) DEFAULT '',
+            remarks TEXT NULL,
+            created_by BIGINT(20) UNSIGNED NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NULL,
+            PRIMARY KEY  (id),
+            KEY entry_date (entry_date),
+            KEY type (type),
+            KEY category (category)
+        ) {$charset_collate};";
+
+        // Expenses Table
+        $sql[] = "CREATE TABLE {$expenses_table} (
+            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            expense_date DATE NOT NULL,
+            category VARCHAR(191) NOT NULL,
+            amount DECIMAL(18,4) NOT NULL DEFAULT 0,
+            vendor VARCHAR(191) DEFAULT '',
+            notes TEXT NULL,
+            receipt_url VARCHAR(255) DEFAULT '',
+            created_by BIGINT(20) UNSIGNED NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NULL,
+            PRIMARY KEY  (id),
+            KEY expense_date (expense_date),
+            KEY category (category)
+        ) {$charset_collate};";
+
+        // Ledger Table
+        $sql[] = "CREATE TABLE {$ledger_table} (
+            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            entry_type VARCHAR(50) NOT NULL, -- sale, purchase, installment, custom, repair, manual
+            ref_id BIGINT(20) UNSIGNED NULL,
+            customer_id BIGINT(20) UNSIGNED NULL,
+            supplier_id BIGINT(20) UNSIGNED NULL,
+            debit DECIMAL(18,4) NOT NULL DEFAULT 0,
+            credit DECIMAL(18,4) NOT NULL DEFAULT 0,
+            description TEXT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NULL,
+            PRIMARY KEY  (id),
+            KEY entry_type (entry_type),
+            KEY customer_id (customer_id),
+            KEY supplier_id (supplier_id)
+        ) {$charset_collate};";
+
+        return $sql;
+    }
+}
+
+/**
+ * Accounts tables ensure (lazy creation via dbDelta)
+ * Activation میں موو بھی کیا جا سکتا ہے، لیکن ابھی کیلئے
+ * یہ فنکشن ہر AJAX کال سے پہلے safe ہے۔
+ */
+if ( ! function_exists( 'jwpm_accounts_ensure_tables' ) ) {
+    function jwpm_accounts_ensure_tables() {
+        global $wpdb;
+
+        if ( ! function_exists( 'dbDelta' ) ) {
+            require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+        }
+
+        $sql_statements = jwpm_accounts_get_tables_sql();
+
+        foreach ( $sql_statements as $statement ) {
+            dbDelta( $statement );
+        }
+    }
+}
+
+// 🔴 یہاں پر [Accounts Module DB Helpers] ختم ہو رہا ہے
+
+// ✅ Syntax verified block end
