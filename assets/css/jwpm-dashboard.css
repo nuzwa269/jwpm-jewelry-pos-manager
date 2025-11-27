@@ -1,1 +1,280 @@
+/**
+ * JWPM — Dashboard Page CSS (Final Home)
+ * یہ فائل Dashboard کی Premium Blue + Gold UI رکھتی ہے۔
+ */
+
+/* 🟢 یہاں سے [Dashboard Page CSS] شروع ہو رہا ہے */
+
+/** Part 1 — CSS: Dashboard Page */
+
+
+/* -------------------------------------------- */
+/* Base Namespace + Tokens                      */
+/* -------------------------------------------- */
+.jwpm-dashboard-page {
+    --dash-bg: #eef2ff;
+    --dash-surface: #ffffff;
+    --dash-surface-alt: #f1f5ff;
+
+    --dash-blue: #2563eb;
+    --dash-blue-soft: rgba(37, 99, 235, 0.18);
+
+    --dash-gold: #fbbf24;
+    --dash-gold-soft: rgba(251, 191, 36, 0.15);
+
+    --dash-text: #1e3a8a;
+    --dash-muted: #6b7280;
+
+    --dash-border: #d1d5db;
+    --dash-radius: 16px;
+    --dash-shadow: 0 10px 25px rgba(80, 100, 180, 0.12);
+}
+
+/* Dark Mode */
+body.jwpm-dark-mode .jwpm-dashboard-page {
+    --dash-bg: #111827;
+    --dash-surface: #1f2937;
+    --dash-surface-alt: #111827;
+
+    --dash-blue: #3b82f6;
+    --dash-blue-soft: rgba(59,130,246,0.35);
+
+    --dash-gold: #facc15;
+    --dash-gold-soft: rgba(250,204,21,0.25);
+
+    --dash-text: #f3f4f6;
+    --dash-muted: #9ca3af;
+
+    --dash-border: #374151;
+    --dash-shadow: 0 12px 30px rgba(0,0,0,0.55);
+}
+
+
+/* -------------------------------------------- */
+/* Page Wrapper                                 */
+/* -------------------------------------------- */
+.jwpm-dashboard-page {
+    background: var(--dash-bg);
+    padding: 20px 0 30px;
+}
+
+.jwpm-dashboard-page .jwpm-page-title {
+    color: var(--dash-text);
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 20px;
+}
+
+
+/* -------------------------------------------- */
+/* BLUE + GOLD HEADER STRIP                     */
+/* -------------------------------------------- */
+.jwpm-dashboard-page .jwpm-dashboard-header-strip {
+    background: linear-gradient(115deg, var(--dash-blue) 0%, #3b82f6 50%, var(--dash-gold) 100%);
+    padding: 18px 22px;
+    border-radius: var(--dash-radius);
+    color: #fff;
+    margin-bottom: 22px;
+    box-shadow: var(--dash-shadow);
+}
+
+.jwpm-dashboard-page .jwpm-dashboard-header-strip h2 {
+    margin: 0 0 6px;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.jwpm-dashboard-page .jwpm-dashboard-header-strip p {
+    margin: 0;
+    font-size: 13px;
+    opacity: 0.9;
+}
+
+
+/* -------------------------------------------- */
+/* TODAY STATS CARDS                            */
+/* -------------------------------------------- */
+.jwpm-dashboard-page .jwpm-today-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.jwpm-dashboard-page .jwpm-stat-card {
+    background: var(--dash-surface);
+    padding: 16px;
+    border-radius: var(--dash-radius);
+    border: 1px solid var(--dash-border);
+    box-shadow: var(--dash-shadow);
+}
+
+.jwpm-dashboard-page .jwpm-stat-card label {
+    font-size: 12px;
+    color: var(--dash-muted);
+}
+
+.jwpm-dashboard-page .jwpm-stat-card strong {
+    display: block;
+    font-size: 20px;
+    margin-top: 4px;
+    color: var(--dash-blue);
+}
+
+
+/* -------------------------------------------- */
+/* CHARTS SECTION                               */
+/* -------------------------------------------- */
+.jwpm-dashboard-page .jwpm-charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 18px;
+    margin-bottom: 20px;
+}
+
+.jwpm-dashboard-page .jwpm-chart-card {
+    background: var(--dash-surface);
+    padding: 16px;
+    border-radius: var(--dash-radius);
+    border: 1px solid var(--dash-border);
+    box-shadow: var(--dash-shadow);
+}
+
+.jwpm-dashboard-page .jwpm-chart-card h3 {
+    margin: 0 0 10px;
+    font-size: 15px;
+    color: var(--dash-text);
+}
+
+
+/* -------------------------------------------- */
+/* LOW STOCK ALERTS                             */
+/* -------------------------------------------- */
+.jwpm-dashboard-page .jwpm-dashboard-section {
+    background: var(--dash-surface);
+    padding: 16px;
+    border-radius: var(--dash-radius);
+    border: 1px solid var(--dash-border);
+    box-shadow: var(--dash-shadow);
+    margin-bottom: 20px;
+}
+
+.jwpm-dashboard-page .jwpm-dashboard-section h3 {
+    margin: 0 0 12px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--dash-blue);
+}
+
+
+.jwpm-dashboard-page .jwpm-table thead th {
+    background: var(--dash-surface-alt);
+    font-size: 12px;
+    padding: 7px;
+    color: var(--dash-muted);
+}
+
+.jwpm-dashboard-page .jwpm-table tbody td {
+    padding: 8px;
+    font-size: 13px;
+    color: var(--dash-text);
+}
+
+
+/* -------------------------------------------- */
+/* GOLD RATE WIDGET                             */
+/* -------------------------------------------- */
+.jwpm-dashboard-page .jwpm-gold-widget {
+    background: var(--dash-surface-alt);
+    padding: 14px;
+    border-radius: var(--dash-radius);
+    border: 1px solid var(--dash-border);
+}
+
+.jwpm-dashboard-page .jwpm-gold-widget .jwpm-gold-rate-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 14px;
+}
+
+
+/* -------------------------------------------- */
+/* QUICK LINKS GRID                             */
+/* -------------------------------------------- */
+.jwpm-dashboard-page .jwpm-quick-links-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0,1fr));
+    gap: 14px;
+}
+
+.jwpm-dashboard-page .jwpm-quick-card {
+    display: block;
+    padding: 16px;
+    text-align: center;
+    background: var(--dash-blue-soft);
+    border-radius: var(--dash-radius);
+    border: 1px solid var(--dash-border);
+    color: var(--dash-blue);
+    font-weight: 600;
+    transition: 0.25s;
+}
+
+.jwpm-dashboard-page .jwpm-quick-card:hover {
+    background: var(--dash-blue);
+    color: #fff;
+}
+
+
+/* -------------------------------------------- */
+/* Responsive                                   */
+/* -------------------------------------------- */
+@media (max-width: 900px) {
+    .jwpm-dashboard-page .jwpm-today-stats-grid {
+        grid-template-columns: repeat(2, minmax(0,1fr));
+    }
+
+    .jwpm-dashboard-page .jwpm-charts-grid {
+        grid-template-columns: minmax(0,1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .jwpm-dashboard-page .jwpm-quick-links-grid {
+        grid-template-columns: repeat(2, minmax(0,1fr));
+    }
+}
+
+
+/* -------------------------------------------- */
+/* RTL Support                                   */
+/* -------------------------------------------- */
+[dir="rtl"] .jwpm-dashboard-page .jwpm-gold-rate-row {
+    flex-direction: row-reverse;
+}
+
+
+/* -------------------------------------------- */
+/* Print Mode                                   */
+/* -------------------------------------------- */
+@media print {
+    .jwpm-dashboard-page .jwpm-charts-grid,
+    .jwpm-dashboard-page .jwpm-quick-links-grid,
+    .jwpm-dashboard-page canvas {
+        display: none !important;
+    }
+
+    .jwpm-dashboard-page {
+        padding: 0;
+    }
+
+    .jwpm-dashboard-page .jwpm-dashboard-header-strip {
+        border: none;
+        box-shadow: none;
+    }
+}
+
+
+/* 🔴 یہاں پر [Dashboard Page CSS] ختم ہو رہا ہے */
+/* ✅ Syntax verified block end */
 
