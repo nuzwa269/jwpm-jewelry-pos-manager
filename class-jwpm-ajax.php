@@ -4453,4 +4453,276 @@ add_action( 'wp_ajax_jwpm_expenses_demo', 'jwpm_expenses_demo' );
 // 🔴 یہاں پر [Accounts Module AJAX: Expenses] ختم ہو رہا ہے
 
 // ✅ Syntax verified block end
+<?php
+// ... یہاں آپ کا موجودہ class-jwpm-ajax.php کوڈ ہے ...
+
+// 🟢 یہاں سے [Accounts Module AJAX: Ledger] شروع ہو رہا ہے
+
+/** Part 25 — Accounts Module AJAX: Ledger */
+
+if ( ! function_exists( 'jwpm_ajax_require_ledger_cap' ) ) {
+    /**
+     * Common capability + nonce check for ledger actions
+     */
+    function jwpm_ajax_require_ledger_cap() {
+        check_ajax_referer( 'jwpm_ledger_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'jwpm_view_accounts' ) ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'آپ کو Accounts Ledger دیکھنے کی اجازت نہیں۔', 'jwpm' ),
+                    'devHint' => 'Capability jwpm_view_accounts required.',
+                ),
+                403
+            );
+        }
+
+        if ( ! function_exists( 'jwpm_accounts_ensure_tables' ) ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'Accounts DB helpers لوڈ نہیں ہو سکے۔', 'jwpm' ),
+                    'devHint' => 'jwpm_accounts_ensure_tables() not found.',
+                ),
+                500
+            );
+        }
+
+        jwpm_accounts_ensure_tables();
+    }
+}
+
+/**
+ * Ledger Fetch
+ */
+if ( ! function_exists( 'jwpm_ledger_fetch' ) ) {
+    function jwpm_ledger_fetch() {
+        jwpm_ajax_require_ledger_cap();
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'jwpm_ledger';
+
+        $page     = isset( $_POST['page'] ) ? max( 1, absint( $_POST['page'] ) ) : 1;
+        $per_page = isset( $_POST['per_page'] ) ? max( 1, absint( $_POST['per_page'] ) ) : 50;
+
+        $from_date    = isset( $_POST['from_date'] ) ? sanitize_text_field( wp_unslash( $_POST['from_date'] ) ) : '';
+        $to_date      = isset( $_POST['to_date'] ) ? sanitize_text_field( wp_unslash( $_POST['to_date'] ) ) : '';
+        $entry_type   = isset( $_POST['entry_type'] ) ? sanitize_text_field( wp_unslash( $_POST['entry_type'] ) ) : '';
+        $customer_id  = isset( $_POST['customer_id'] ) ? absint( $_POST['customer_id'] ) : 0;
+        $supplier_id  = isset( $_POST['supplier_id'] ) ? absint( $_POST['supplier_id'] ) : 0;
+
+        $where  = array();
+        $params = array();
+
+        if ( $from_date ) {
+            $where[]  = 'DATE(created_at) >= %s';
+            $params[] = $from_date;
+        }
+        if ( $to_date ) {
+            $where[]  = 'DATE(created_at) <= %s';
+            $params[] = $to_date;
+        }
+        if ( $entry_type ) {
+            $where[]  = 'entry_type = %s';
+            $params[] = $entry_type;
+        }
+        if ( $customer_id > 0 ) {
+            $where[]  = 'customer_id = %d';
+            $params[] = $customer_id;
+        }
+        if ( $supplier_id > 0 ) {
+            $where[]  = 'supplier_id = %d';
+            $params[] = $supplier_id;
+        }
+
+        $where_sql = '';
+        if ( ! empty( $where ) ) {
+            $where_sql = 'WHERE ' . implode( ' AND ', $where );
+        }
+
+        $offset = ( $page - 1 ) * $per_page;
+
+        // Total count
+        $count_sql = "SELECT COUNT(*) FROM {$table} {$where_sql}";
+        $total     = (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) );
+
+        // Data
+        $data_sql    = "SELECT * FROM {$table} {$where_sql} ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d";
+        $data_params = array_merge( $params, array( $per_page, $offset ) );
+        $rows        = $wpdb->get_results( $wpdb->prepare( $data_sql, $data_params ), ARRAY_A );
+
+        // Summary
+        $sum_sql = "SELECT 
+            SUM(debit) AS total_debit,
+            SUM(credit) AS total_credit
+            FROM {$table} {$where_sql}";
+        $sum_row = $wpdb->get_row( $wpdb->prepare( $sum_sql, $params ), ARRAY_A );
+
+        $total_debit  = isset( $sum_row['total_debit'] ) ? (float) $sum_row['total_debit'] : 0;
+        $total_credit = isset( $sum_row['total_credit'] ) ? (float) $sum_row['total_credit'] : 0;
+        $balance      = $total_debit - $total_credit;
+
+        wp_send_json_success(
+            array(
+                'items'   => $rows,
+                'total'   => $total,
+                'page'    => $page,
+                'perPage' => $per_page,
+                'summary' => array(
+                    'total_debit'  => $total_debit,
+                    'total_credit' => $total_credit,
+                    'balance'      => $balance,
+                ),
+            )
+        );
+    }
+}
+add_action( 'wp_ajax_jwpm_ledger_fetch', 'jwpm_ledger_fetch' );
+
+/**
+ * Ledger Export (Excel-style data)
+ */
+if ( ! function_exists( 'jwpm_ledger_export' ) ) {
+    function jwpm_ledger_export() {
+        jwpm_ajax_require_ledger_cap();
+
+        if ( ! current_user_can( 'jwpm_export_accounts' ) ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'آپ کو Ledger Export کرنے کی اجازت نہیں۔', 'jwpm' ),
+                    'devHint' => 'Capability jwpm_export_accounts required.',
+                ),
+                403
+            );
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'jwpm_ledger';
+
+        // سادگی کیلئے یہاں مکمل ledger بغیر فلٹر کے export ہو رہا ہے
+        $rows = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY created_at DESC, id DESC", ARRAY_A );
+
+        wp_send_json_success(
+            array(
+                'headers' => array(
+                    'Date',
+                    'Entry Type',
+                    'Ref ID',
+                    'Customer ID',
+                    'Supplier ID',
+                    'Description',
+                    'Debit',
+                    'Credit',
+                ),
+                'rows'    => array_map(
+                    static function ( $row ) {
+                        return array(
+                            $row['created_at'],
+                            $row['entry_type'],
+                            $row['ref_id'],
+                            $row['customer_id'],
+                            $row['supplier_id'],
+                            $row['description'],
+                            $row['debit'],
+                            $row['credit'],
+                        );
+                    },
+                    $rows
+                ),
+            )
+        );
+    }
+}
+add_action( 'wp_ajax_jwpm_ledger_export', 'jwpm_ledger_export' );
+
+/**
+ * Ledger Demo Data
+ */
+if ( ! function_exists( 'jwpm_ledger_demo' ) ) {
+    function jwpm_ledger_demo() {
+        jwpm_ajax_require_ledger_cap();
+
+        if ( ! current_user_can( 'jwpm_add_accounts' ) ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'آپ کو Demo Ledger بنانے کی اجازت نہیں۔', 'jwpm' ),
+                    'devHint' => 'Capability jwpm_add_accounts required.',
+                ),
+                403
+            );
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'jwpm_ledger';
+
+        $now = current_time( 'mysql' );
+
+        $demo_rows = array(
+            array(
+                'entry_type'  => 'sale',
+                'ref_id'      => 101,
+                'customer_id' => 1,
+                'supplier_id' => 0,
+                'debit'       => 150000,
+                'credit'      => 0,
+                'description' => 'POS Sale Invoice #101',
+            ),
+            array(
+                'entry_type'  => 'purchase',
+                'ref_id'      => 55,
+                'customer_id' => 0,
+                'supplier_id' => 2,
+                'debit'       => 0,
+                'credit'      => 90000,
+                'description' => 'Gold Purchase Bill #55',
+            ),
+            array(
+                'entry_type'  => 'installment',
+                'ref_id'      => 12,
+                'customer_id' => 3,
+                'supplier_id' => 0,
+                'debit'       => 20000,
+                'credit'      => 0,
+                'description' => 'Installment received for order #12',
+            ),
+            array(
+                'entry_type'  => 'manual',
+                'ref_id'      => 0,
+                'customer_id' => 0,
+                'supplier_id' => 0,
+                'debit'       => 0,
+                'credit'      => 5000,
+                'description' => 'General shop expense adjustment',
+            ),
+        );
+
+        $inserted = 0;
+
+        foreach ( $demo_rows as $row ) {
+            $row['created_at'] = $now;
+            $row['updated_at'] = $now;
+
+            $wpdb->insert(
+                $table,
+                $row,
+                array( '%s', '%d', '%d', '%d', '%f', '%f', '%s', '%s', '%s' )
+            );
+
+            if ( ! $wpdb->last_error ) {
+                $inserted++;
+            }
+        }
+
+        wp_send_json_success(
+            array(
+                'message'  => sprintf( __( '%d Demo Ledger ریکارڈ شامل ہو گئے۔', 'jwpm' ), $inserted ),
+                'inserted' => $inserted,
+            )
+        );
+    }
+}
+add_action( 'wp_ajax_jwpm_ledger_demo', 'jwpm_ledger_demo' );
+
+// 🔴 یہاں پر [Accounts Module AJAX: Ledger] ختم ہو رہا ہے
+
+// ✅ Syntax verified block end
 
