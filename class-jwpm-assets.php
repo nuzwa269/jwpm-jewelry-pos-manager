@@ -707,3 +707,71 @@ add_action( 'admin_enqueue_scripts', 'jwpm_enqueue_accounts_cashbook_assets' );
 // 🔴 یہاں پر [Assets: Accounts Cashbook Page] ختم ہو رہا ہے
 
 // ✅ Syntax verified block end
+<?php
+// ... یہاں آپ کا موجودہ class-jwpm-assets.php کوڈ ہے ...
+
+// 🟢 یہاں سے [Assets: Accounts Expenses Page] شروع ہو رہا ہے
+
+/** Part 24 — Assets: Accounts Expenses Page */
+
+if ( ! function_exists( 'jwpm_enqueue_expenses_assets' ) ) {
+    /**
+     * Expenses page assets
+     */
+    function jwpm_enqueue_expenses_assets( $hook ) {
+        $page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
+
+        if ( 'jwpm-expenses' !== $page ) {
+            return;
+        }
+
+        $plugin_url = plugin_dir_url( __FILE__ );
+
+        wp_enqueue_script(
+            'jwpm-expenses-js',
+            $plugin_url . 'assets/js/jwpm-expenses.js',
+            array( 'jquery', 'jwpm-common-js' ),
+            '1.0.0',
+            true
+        );
+
+        wp_enqueue_style(
+            'jwpm-expenses-css',
+            $plugin_url . 'assets/css/jwpm-expenses.css',
+            array( 'jwpm-common-css' ),
+            '1.0.0'
+        );
+
+        $nonce = wp_create_nonce( 'jwpm_expenses_nonce' );
+
+        wp_localize_script(
+            'jwpm-expenses-js',
+            'jwpmExpenses',
+            array(
+                'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+                'nonce'   => $nonce,
+                'actions' => array(
+                    'fetch'  => 'jwpm_expenses_fetch',
+                    'save'   => 'jwpm_expenses_save',
+                    'delete' => 'jwpm_expenses_delete',
+                    'import' => 'jwpm_expenses_import',
+                    'export' => 'jwpm_expenses_export',
+                    'demo'   => 'jwpm_expenses_demo',
+                ),
+                'rootId' => 'jwpm-expenses-root',
+                'i18n'   => array(
+                    'loading'       => __( 'لوڈ ہو رہا ہے...', 'jwpm' ),
+                    'saving'        => __( 'محفوظ کیا جا رہا ہے...', 'jwpm' ),
+                    'deleting'      => __( 'حذف کیا جا رہا ہے...', 'jwpm' ),
+                    'confirmDelete' => __( 'کیا آپ واقعی یہ Expense حذف کرنا چاہتے ہیں؟', 'jwpm' ),
+                    'errorGeneric'  => __( 'کچھ غلط ہو گیا، دوبارہ کوشش کریں۔', 'jwpm' ),
+                ),
+            )
+        );
+    }
+}
+add_action( 'admin_enqueue_scripts', 'jwpm_enqueue_expenses_assets' );
+
+// 🔴 یہاں پر [Assets: Accounts Expenses Page] ختم ہو رہا ہے
+
+// ✅ Syntax verified block end
