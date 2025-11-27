@@ -775,3 +775,66 @@ add_action( 'admin_enqueue_scripts', 'jwpm_enqueue_expenses_assets' );
 // 🔴 یہاں پر [Assets: Accounts Expenses Page] ختم ہو رہا ہے
 
 // ✅ Syntax verified block end
+<?php
+// ... یہاں آپ کا موجودہ class-jwpm-assets.php کوڈ ہے ...
+
+// 🟢 یہاں سے [Assets: Accounts Ledger Page] شروع ہو رہا ہے
+
+/** Part 26 — Assets: Accounts Ledger Page */
+
+if ( ! function_exists( 'jwpm_enqueue_ledger_assets' ) ) {
+    /**
+     * Ledger page assets
+     */
+    function jwpm_enqueue_ledger_assets( $hook ) {
+        $page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
+
+        if ( 'jwpm-ledger' !== $page ) {
+            return;
+        }
+
+        $plugin_url = plugin_dir_url( __FILE__ );
+
+        wp_enqueue_script(
+            'jwpm-ledger-js',
+            $plugin_url . 'assets/js/jwpm-ledger.js',
+            array( 'jquery', 'jwpm-common-js' ),
+            '1.0.0',
+            true
+        );
+
+        wp_enqueue_style(
+            'jwpm-ledger-css',
+            $plugin_url . 'assets/css/jwpm-ledger.css',
+            array( 'jwpm-common-css' ),
+            '1.0.0'
+        );
+
+        $nonce = wp_create_nonce( 'jwpm_ledger_nonce' );
+
+        wp_localize_script(
+            'jwpm-ledger-js',
+            'jwpmLedger',
+            array(
+                'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+                'nonce'   => $nonce,
+                'actions' => array(
+                    'fetch'  => 'jwpm_ledger_fetch',
+                    'export' => 'jwpm_ledger_export',
+                    'demo'   => 'jwpm_ledger_demo',
+                ),
+                'rootId' => 'jwpm-ledger-root',
+                'i18n'   => array(
+                    'loading'      => __( 'لوڈ ہو رہا ہے...', 'jwpm' ),
+                    'errorGeneric' => __( 'کچھ غلط ہو گیا، دوبارہ کوشش کریں۔', 'jwpm' ),
+                    'demoConfirm'  => __( 'کیا آپ Demo Ledger data شامل کرنا چاہتے ہیں؟', 'jwpm' ),
+                ),
+            )
+        );
+    }
+}
+add_action( 'admin_enqueue_scripts', 'jwpm_enqueue_ledger_assets' );
+
+// 🔴 یہاں پر [Assets: Accounts Ledger Page] ختم ہو رہا ہے
+
+// ✅ Syntax verified block end
