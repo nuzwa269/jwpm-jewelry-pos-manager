@@ -1,1 +1,309 @@
+/**
+ * JWPM — Expense Report CSS (Layout C — Purple Royal UI)
+ * یہ فائل Expense Report کی Purple Premium UI, Graphs, Table اور Filters styling رکھتی ہے۔
+ */
+
+/* 🟢 یہاں سے [Expense Report CSS] شروع ہو رہا ہے */
+
+/** Part 1 — CSS: Expense Report Page */
+
+
+/* ------------------------------ */
+/* Base Namespace + Tokens        */
+/* ------------------------------ */
+.jwpm-expense-report-page {
+    --er-bg: #f4f3ff;
+    --er-surface: #ffffff;
+    --er-surface-alt: #f6f5ff;
+
+    --er-purple: #6d28d9;
+    --er-purple-soft: rgba(109,40,217,0.12);
+    --er-purple-hard: #5b21b6;
+
+    --er-text: #1e1b4b;
+    --er-text-muted: #6b6b98;
+
+    --er-border: #e5e0ff;
+    --er-radius: 14px;
+    --er-shadow: 0 10px 25px rgba(55, 48, 163, 0.08);
+}
+
+/* Dark Mode */
+body.jwpm-dark-mode .jwpm-expense-report-page {
+    --er-bg: #1e1b4b;
+    --er-surface: #2e1065;
+    --er-surface-alt: #1e1b4b;
+
+    --er-purple: #a78bfa;
+    --er-purple-soft: rgba(167,139,250,0.18);
+    --er-purple-hard: #8b5cf6;
+
+    --er-text: #f5f3ff;
+    --er-text-muted: #c4b5fd;
+
+    --er-border: #4c1d95;
+    --er-shadow: 0 12px 28px rgba(0,0,0,0.55);
+}
+
+
+/* ------------------------------ */
+/* Page Wrapper                   */
+/* ------------------------------ */
+.jwpm-expense-report-page {
+    background: var(--er-bg);
+    padding: 20px 0 30px;
+}
+
+.jwpm-expense-report-page .jwpm-page-title {
+    margin-bottom: 14px;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--er-text);
+}
+
+
+/* ------------------------------ */
+/* Purple Header Strip            */
+/* ------------------------------ */
+.jwpm-expense-report-page .jwpm-report-purple-strip {
+    background: linear-gradient(135deg, var(--er-purple) 0%, #8b5cf6 100%);
+    padding: 18px 22px;
+    border-radius: var(--er-radius);
+    color: #fff;
+    margin-bottom: 18px;
+    box-shadow: var(--er-shadow);
+}
+
+.jwpm-expense-report-page .jwpm-report-purple-strip h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.jwpm-expense-report-page .jwpm-report-purple-strip p {
+    margin: 4px 0 0;
+    font-size: 13px;
+    opacity: 0.9;
+}
+
+
+/* ------------------------------ */
+/* Summary Cards                  */
+/* ------------------------------ */
+.jwpm-expense-report-page .jwpm-report-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.jwpm-expense-report-page .jwpm-summary-card {
+    background: var(--er-surface);
+    padding: 12px 14px;
+    border-radius: var(--er-radius);
+    border: 1px solid var(--er-border);
+    box-shadow: var(--er-shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.jwpm-expense-report-page .jwpm-summary-label {
+    font-size: 11px;
+    color: var(--er-text-muted);
+}
+
+.jwpm-expense-report-page .jwpm-summary-value {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--er-purple-hard);
+}
+
+
+/* ------------------------------ */
+/* Filters Toolbar                */
+/* ------------------------------ */
+.jwpm-expense-report-page .jwpm-toolbar {
+    background: var(--er-surface);
+    padding: 14px 16px;
+    border-radius: var(--er-radius);
+    border: 1px solid var(--er-border);
+    box-shadow: var(--er-shadow);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 18px;
+}
+
+.jwpm-expense-report-page .jwpm-field-group {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.jwpm-expense-report-page .jwpm-field-group label {
+    display: flex;
+    flex-direction: column;
+    font-size: 11px;
+    color: var(--er-text-muted);
+}
+
+.jwpm-expense-report-page .jwpm-input {
+    background: var(--er-surface-alt);
+    padding: 6px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--er-border);
+    font-size: 12px;
+    color: var(--er-text);
+}
+
+.jwpm-expense-report-page .jwpm-input:focus {
+    border-color: var(--er-purple);
+    box-shadow: 0 0 0 1px var(--er-purple);
+}
+
+.jwpm-expense-report-page .jwpm-toolbar-right .button {
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 11px;
+}
+
+
+/* ------------------------------ */
+/* Graphs Section                */
+/* ------------------------------ */
+.jwpm-expense-report-page .jwpm-graphs-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.jwpm-expense-report-page .jwpm-graph-card {
+    background: var(--er-surface);
+    padding: 14px;
+    border-radius: var(--er-radius);
+    border: 1px solid var(--er-border);
+    box-shadow: var(--er-shadow);
+}
+
+.jwpm-expense-report-page .jwpm-graph-card h3 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    color: var(--er-text);
+}
+
+
+/* ------------------------------ */
+/* Table                          */
+/* ------------------------------ */
+.jwpm-expense-report-page .jwpm-layout-main {
+    background: var(--er-surface);
+    padding: 12px;
+    border-radius: var(--er-radius);
+    border: 1px solid var(--er-border);
+    box-shadow: var(--er-shadow);
+}
+
+.jwpm-expense-report-page .jwpm-table thead th {
+    background: var(--er-surface-alt);
+    font-size: 11px;
+    color: var(--er-text-muted);
+    padding: 7px;
+}
+
+.jwpm-expense-report-page .jwpm-table tbody td {
+    font-size: 12px;
+    padding: 8px;
+    color: var(--er-text);
+}
+
+.jwpm-expense-report-page .jwpm-column-number {
+    text-align: right;
+}
+
+.jwpm-expense-report-page .jwpm-empty-row td {
+    color: var(--er-text-muted);
+    text-align: center;
+}
+
+
+/* ------------------------------ */
+/* Pagination                     */
+/* ------------------------------ */
+.jwpm-expense-report-page .jwpm-pagination {
+    margin-top: 10px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.jwpm-expense-report-page .jwpm-page-btn {
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--er-border);
+    background: var(--er-surface-alt);
+    font-size: 11px;
+    color: var(--er-text-muted);
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.jwpm-expense-report-page .jwpm-page-btn:hover {
+    border-color: var(--er-purple-hard);
+    color: var(--er-purple-hard);
+}
+
+.jwpm-expense-report-page .jwpm-page-btn.active {
+    background: var(--er-purple);
+    color: #fff;
+    border-color: var(--er-purple-hard);
+}
+
+
+/* ------------------------------ */
+/* Responsive                     */
+/* ------------------------------ */
+@media (max-width: 900px) {
+    .jwpm-expense-report-page .jwpm-report-summary {
+        grid-template-columns: repeat(2, minmax(0,1fr));
+    }
+
+    .jwpm-expense-report-page .jwpm-graphs-grid {
+        grid-template-columns: minmax(0,1fr);
+    }
+}
+
+
+/* ------------------------------ */
+/* RTL Support                    */
+/* ------------------------------ */
+[dir="rtl"] .jwpm-expense-report-page .jwpm-column-number {
+    text-align: left;
+}
+
+
+/* ------------------------------ */
+/* Print Styles                   */
+/* ------------------------------ */
+@media print {
+    .jwpm-expense-report-page .jwpm-toolbar,
+    .jwpm-expense-report-page .jwpm-graphs-grid,
+    .jwpm-expense-report-page .jwpm-pagination,
+    .jwpm-expense-report-page .jwpm-report-purple-strip,
+    .jwpm-expense-report-page .button,
+    .jwpm-expense-report-page canvas {
+        display: none !important;
+    }
+
+    .jwpm-expense-report-page .jwpm-layout-main {
+        box-shadow: none;
+        border: none;
+        padding: 0;
+    }
+}
+
+
+/* 🔴 یہاں پر [Expense Report CSS] ختم ہو رہا ہے */
+/* ✅ Syntax verified block end */
 
