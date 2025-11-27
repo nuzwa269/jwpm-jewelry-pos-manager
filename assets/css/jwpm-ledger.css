@@ -1,1 +1,369 @@
+/**
+ * JWPM — Accounts Ledger CSS
+ * یہ فائل صرف Ledger & Summary پیج کی layout, spacing, colors اور responsive behaviour کیلئے ہے۔
+ * Root Wrapper Class: .jwpm-ledger-page
+ */
+
+/* 🟢 یہاں سے [Accounts Ledger CSS] شروع ہو رہا ہے */
+
+/** Part 1 — CSS: Accounts Ledger Page */
+
+/* Namespace Base + Tokens */
+.jwpm-ledger-page {
+    --jwpm-ledger-bg: #f3f4f6;
+    --jwpm-ledger-surface: #ffffff;
+    --jwpm-ledger-surface-alt: #f9fafb;
+    --jwpm-ledger-border: #e5e7eb;
+    --jwpm-ledger-border-strong: #d1d5db;
+    --jwpm-ledger-primary: #2563eb;
+    --jwpm-ledger-primary-soft: rgba(37, 99, 235, 0.08);
+    --jwpm-ledger-primary-strong: #1d4ed8;
+    --jwpm-ledger-text: #111827;
+    --jwpm-ledger-text-muted: #6b7280;
+    --jwpm-ledger-radius-lg: 14px;
+    --jwpm-ledger-radius-xl: 18px;
+    --jwpm-ledger-shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+/* Dark Mode Support (body.jwpm-dark-mode) */
+body.jwpm-dark-mode .jwpm-ledger-page {
+    --jwpm-ledger-bg: #020617;
+    --jwpm-ledger-surface: #020617;
+    --jwpm-ledger-surface-alt: #020617;
+    --jwpm-ledger-border: #1f2937;
+    --jwpm-ledger-border-strong: #374151;
+    --jwpm-ledger-primary: #60a5fa;
+    --jwpm-ledger-primary-soft: rgba(96, 165, 250, 0.15);
+    --jwpm-ledger-primary-strong: #3b82f6;
+    --jwpm-ledger-text: #f9fafb;
+    --jwpm-ledger-text-muted: #9ca3af;
+    --jwpm-ledger-shadow-soft: 0 18px 40px rgba(15, 23, 42, 0.85);
+}
+
+/* Page Wrapper */
+.jwpm-ledger-page {
+    background: var(--jwpm-ledger-bg);
+    padding-top: 16px;
+    padding-bottom: 24px;
+}
+
+.jwpm-ledger-page .jwpm-page-title {
+    margin-bottom: 12px;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--jwpm-ledger-text);
+}
+
+/* Layout */
+.jwpm-ledger-page .jwpm-layout {
+    background: transparent;
+}
+
+.jwpm-ledger-page .jwpm-layout--split {
+    display: grid;
+    grid-template-columns: minmax(0, 2.4fr) minmax(260px, 1.1fr);
+    gap: 18px;
+}
+
+/* Toolbar */
+.jwpm-ledger-page .jwpm-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    border-radius: var(--jwpm-ledger-radius-xl);
+    background: var(--jwpm-ledger-surface);
+    box-shadow: var(--jwpm-ledger-shadow-soft);
+    border: 1px solid rgba(15, 23, 42, 0.02);
+}
+
+.jwpm-ledger-page .jwpm-toolbar-left {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.jwpm-ledger-page .jwpm-toolbar-right {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+/* Filter Fields Group */
+.jwpm-ledger-page .jwpm-field-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+.jwpm-ledger-page .jwpm-field-group label {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 11px;
+    color: var(--jwpm-ledger-text-muted);
+    min-width: 140px;
+}
+
+.jwpm-ledger-page .jwpm-input,
+.jwpm-ledger-page .jwpm-select,
+.jwpm-ledger-page .jwpm-textarea {
+    width: 100%;
+    padding: 6px 9px;
+    border-radius: 10px;
+    border: 1px solid var(--jwpm-ledger-border);
+    background-color: var(--jwpm-ledger-surface-alt);
+    color: var(--jwpm-ledger-text);
+    font-size: 12px;
+    line-height: 1.4;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.jwpm-ledger-page .jwpm-input:focus,
+.jwpm-ledger-page .jwpm-select:focus,
+.jwpm-ledger-page .jwpm-textarea:focus {
+    outline: none;
+    border-color: var(--jwpm-ledger-primary);
+    box-shadow: 0 0 0 1px var(--jwpm-ledger-primary);
+    background-color: #ffffff;
+}
+
+/* Toolbar Buttons */
+.jwpm-ledger-page .jwpm-toolbar-right .button {
+    border-radius: 999px;
+    padding-inline: 12px;
+    padding-block: 4px;
+    font-size: 11px;
+    border-width: 1px;
+}
+
+.jwpm-ledger-page .jwpm-toolbar-right .button-primary {
+    background: var(--jwpm-ledger-primary);
+    border-color: var(--jwpm-ledger-primary-strong);
+}
+
+/* Layout Body */
+.jwpm-ledger-page .jwpm-layout-body {
+    display: grid;
+    grid-template-columns: minmax(0, 2.4fr) minmax(260px, 1.1fr);
+    gap: 18px;
+}
+
+/* Main Panel */
+.jwpm-ledger-page .jwpm-layout-main {
+    background: var(--jwpm-ledger-surface);
+    border-radius: var(--jwpm-ledger-radius-xl);
+    box-shadow: var(--jwpm-ledger-shadow-soft);
+    padding: 10px 12px 12px;
+    border: 1px solid rgba(15, 23, 42, 0.03);
+}
+
+/* Summary Cards */
+.jwpm-ledger-page .jwpm-balance-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.jwpm-ledger-page .jwpm-balance-card {
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: var(--jwpm-ledger-surface-alt);
+    border: 1px solid var(--jwpm-ledger-border);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.jwpm-ledger-page .jwpm-balance-card--highlight {
+    background: var(--jwpm-ledger-primary-soft);
+    border-color: var(--jwpm-ledger-primary);
+}
+
+.jwpm-ledger-page .jwpm-balance-label {
+    font-size: 11px;
+    color: var(--jwpm-ledger-text-muted);
+}
+
+.jwpm-ledger-page .jwpm-balance-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--jwpm-ledger-text);
+}
+
+/* Table Styles */
+.jwpm-ledger-page .jwpm-table {
+    margin-top: 4px;
+    border-radius: 10px;
+    overflow: hidden;
+    border-color: var(--jwpm-ledger-border);
+}
+
+.jwpm-ledger-page .jwpm-table thead th {
+    background: var(--jwpm-ledger-surface-alt);
+    color: var(--jwpm-ledger-text-muted);
+    font-size: 11px;
+    padding-block: 6px;
+    border-bottom: 1px solid var(--jwpm-ledger-border);
+}
+
+.jwpm-ledger-page .jwpm-table tbody td {
+    font-size: 12px;
+    padding-block: 7px;
+    vertical-align: middle;
+    color: var(--jwpm-ledger-text);
+}
+
+.jwpm-ledger-page .jwpm-table tbody tr:nth-child(even) {
+    background: rgba(15, 23, 42, 0.01);
+}
+
+.jwpm-ledger-page .jwpm-table tbody tr:hover {
+    background: rgba(37, 99, 235, 0.06);
+}
+
+.jwpm-ledger-page .jwpm-column-number {
+    text-align: right;
+    font-feature-settings: "lnum" 1, "tnum" 1;
+}
+
+.jwpm-ledger-page .jwpm-empty-row td {
+    text-align: center;
+    font-size: 12px;
+    color: var(--jwpm-ledger-text-muted);
+}
+
+/* Pagination */
+.jwpm-ledger-page .jwpm-pagination {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.jwpm-ledger-page .jwpm-page-btn {
+    min-width: 24px;
+    text-align: center;
+    padding: 4px 7px;
+    font-size: 11px;
+    border-radius: 999px;
+    cursor: pointer;
+    border: 1px solid var(--jwpm-ledger-border);
+    color: var(--jwpm-ledger-text-muted);
+    background: var(--jwpm-ledger-surface-alt);
+    transition: all 0.15s ease;
+}
+
+.jwpm-ledger-page .jwpm-page-btn:hover {
+    border-color: var(--jwpm-ledger-primary);
+    color: var(--jwpm-ledger-primary-strong);
+}
+
+.jwpm-ledger-page .jwpm-page-btn.active {
+    background: var(--jwpm-ledger-primary);
+    border-color: var(--jwpm-ledger-primary-strong);
+    color: #ffffff;
+}
+
+/* Sidepanel (Notes) */
+.jwpm-ledger-page .jwpm-layout-side {
+    background: var(--jwpm-ledger-surface);
+    border-radius: var(--jwpm-ledger-radius-xl);
+    box-shadow: var(--jwpm-ledger-shadow-soft);
+    padding: 10px 12px 12px;
+    border: 1px solid rgba(15, 23, 42, 0.03);
+    display: flex;
+    flex-direction: column;
+    max-height: 600px;
+}
+
+.jwpm-ledger-page .jwpm-sidepanel-header {
+    margin-bottom: 8px;
+}
+
+.jwpm-ledger-page .jwpm-sidepanel-header h2 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--jwpm-ledger-text);
+    margin: 0;
+}
+
+.jwpm-ledger-page .jwpm-ledger-notes {
+    font-size: 12px;
+    color: var(--jwpm-ledger-text-muted);
+    line-height: 1.5;
+}
+
+.jwpm-ledger-page .jwpm-ledger-notes ul {
+    margin-top: 6px;
+    padding-left: 18px;
+}
+
+.jwpm-ledger-page .jwpm-ledger-notes li {
+    margin-bottom: 4px;
+}
+
+/* Mobile Layout */
+@media (max-width: 960px) {
+    .jwpm-ledger-page .jwpm-layout--split,
+    .jwpm-ledger-page .jwpm-layout-body {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .jwpm-ledger-page .jwpm-balance-summary {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .jwpm-ledger-page .jwpm-layout-side {
+        max-height: none;
+    }
+}
+
+/* RTL Support */
+[dir="rtl"] .jwpm-ledger-page .jwpm-toolbar {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .jwpm-ledger-page .jwpm-toolbar-right {
+    justify-content: flex-start;
+}
+
+[dir="rtl"] .jwpm-ledger-page .jwpm-column-number {
+    text-align: left;
+}
+
+/* Print Styles */
+@media print {
+    .jwpm-ledger-page .jwpm-toolbar,
+    .jwpm-ledger-page .jwpm-layout-side,
+    .jwpm-ledger-page .jwpm-pagination,
+    .jwpm-ledger-page .button {
+        display: none !important;
+    }
+
+    .jwpm-ledger-page .jwpm-layout-main {
+        box-shadow: none;
+        border-radius: 0;
+        border: none;
+        padding: 0;
+    }
+
+    .jwpm-ledger-page .jwpm-table {
+        border-radius: 0;
+        font-size: 11px;
+    }
+
+    .jwpm-ledger-page .jwpm-balance-summary {
+        margin-bottom: 6px;
+    }
+}
+
+/* 🔴 یہاں پر [Accounts Ledger CSS] ختم ہو رہا ہے */
+
+/* ✅ Syntax verified block end */
 
