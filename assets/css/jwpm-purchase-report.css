@@ -1,1 +1,304 @@
+/**
+ * JWPM — Purchase Report CSS (Layout B — Green Smooth Analytics)
+ * یہ فائل Purchase Report کا Soft Green Premium UI، Graphs, Table اور Filters styling رکھتی ہے۔
+ */
+
+/* 🟢 یہاں سے [Purchase Report CSS] شروع ہو رہا ہے */
+
+/** Part 1 — CSS: Purchase Report Page */
+
+/* ------------------------------ */
+/* Base Namespace + Tokens        */
+/* ------------------------------ */
+.jwpm-purchase-report-page {
+    --pr-bg: #f1f5f9;
+    --pr-surface: #ffffff;
+    --pr-surface-alt: #f8fafc;
+
+    --pr-green: #16a34a;
+    --pr-green-soft: rgba(22,163,74,0.10);
+    --pr-green-hard: #15803d;
+
+    --pr-text: #0f172a;
+    --pr-text-muted: #64748b;
+
+    --pr-border: #e2e8f0;
+    --pr-radius: 14px;
+    --pr-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
+}
+
+/* Dark Mode */
+body.jwpm-dark-mode .jwpm-purchase-report-page {
+    --pr-bg: #0f172a;
+    --pr-surface: #1e293b;
+    --pr-surface-alt: #0f172a;
+
+    --pr-green: #4ade80;
+    --pr-green-soft: rgba(74,222,128,0.15);
+    --pr-green-hard: #22c55e;
+
+    --pr-text: #f8fafc;
+    --pr-text-muted: #94a3b8;
+
+    --pr-border: #334155;
+    --pr-shadow: 0 12px 28px rgba(0,0,0,0.55);
+}
+
+/* ------------------------------ */
+/* Page Wrapper                   */
+/* ------------------------------ */
+.jwpm-purchase-report-page {
+    background: var(--pr-bg);
+    padding: 20px 0 30px;
+}
+
+.jwpm-purchase-report-page .jwpm-page-title {
+    margin-bottom: 14px;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--pr-text);
+}
+
+/* ------------------------------ */
+/* Green Header Strip             */
+/* ------------------------------ */
+.jwpm-purchase-report-page .jwpm-report-green-strip {
+    background: linear-gradient(125deg, var(--pr-green) 0%, #22c55e 100%);
+    padding: 18px 22px;
+    border-radius: var(--pr-radius);
+    color: #fff;
+    box-shadow: var(--pr-shadow);
+    margin-bottom: 18px;
+}
+
+.jwpm-purchase-report-page .jwpm-report-green-strip h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.jwpm-purchase-report-page .jwpm-report-green-strip p {
+    margin: 4px 0 0;
+    font-size: 13px;
+    opacity: 0.9;
+}
+
+/* ------------------------------ */
+/* Summary Cards                  */
+/* ------------------------------ */
+.jwpm-purchase-report-page .jwpm-report-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.jwpm-purchase-report-page .jwpm-summary-card {
+    background: var(--pr-surface);
+    padding: 12px 14px;
+    border-radius: var(--pr-radius);
+    border: 1px solid var(--pr-border);
+    box-shadow: var(--pr-shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.jwpm-purchase-report-page .jwpm-summary-label {
+    font-size: 11px;
+    color: var(--pr-text-muted);
+}
+
+.jwpm-purchase-report-page .jwpm-summary-value {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--pr-green-hard);
+}
+
+/* ------------------------------ */
+/* Filters Toolbar                */
+/* ------------------------------ */
+.jwpm-purchase-report-page .jwpm-toolbar {
+    background: var(--pr-surface);
+    padding: 14px 16px;
+    border-radius: var(--pr-radius);
+    border: 1px solid var(--pr-border);
+    box-shadow: var(--pr-shadow);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 18px;
+}
+
+.jwpm-purchase-report-page .jwpm-field-group {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.jwpm-purchase-report-page .jwpm-field-group label {
+    display: flex;
+    flex-direction: column;
+    font-size: 11px;
+    color: var(--pr-text-muted);
+}
+
+.jwpm-purchase-report-page .jwpm-input,
+.jwpm-purchase-report-page .jwpm-select {
+    padding: 6px 8px;
+    border: 1px solid var(--pr-border);
+    border-radius: 10px;
+    background: var(--pr-surface-alt);
+    font-size: 12px;
+    color: var(--pr-text);
+}
+
+.jwpm-purchase-report-page .jwpm-input:focus,
+.jwpm-purchase-report-page .jwpm-select:focus {
+    border-color: var(--pr-green-hard);
+    box-shadow: 0 0 0 1px var(--pr-green-hard);
+    outline: none;
+}
+
+/* Toolbar Buttons */
+.jwpm-purchase-report-page .jwpm-toolbar-right .button {
+    border-radius: 999px;
+    font-size: 11px;
+    padding: 5px 12px;
+}
+
+/* ------------------------------ */
+/* Graphs Section                 */
+/* ------------------------------ */
+.jwpm-purchase-report-page .jwpm-graphs-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.jwpm-purchase-report-page .jwpm-graph-card {
+    background: var(--pr-surface);
+    padding: 14px;
+    border-radius: var(--pr-radius);
+    border: 1px solid var(--pr-border);
+    box-shadow: var(--pr-shadow);
+}
+
+.jwpm-purchase-report-page .jwpm-graph-card h3 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    color: var(--pr-text);
+}
+
+/* ------------------------------ */
+/* Table                          */
+/* ------------------------------ */
+.jwpm-purchase-report-page .jwpm-layout-main {
+    background: var(--pr-surface);
+    padding: 12px;
+    border-radius: var(--pr-radius);
+    box-shadow: var(--pr-shadow);
+    border: 1px solid var(--pr-border);
+}
+
+.jwpm-purchase-report-page .jwpm-table thead th {
+    background: var(--pr-surface-alt);
+    font-size: 11px;
+    color: var(--pr-text-muted);
+    padding: 7px;
+}
+
+.jwpm-purchase-report-page .jwpm-table tbody td {
+    font-size: 12px;
+    padding: 8px;
+    color: var(--pr-text);
+}
+
+.jwpm-purchase-report-page .jwpm-column-number {
+    text-align: right;
+}
+
+/* Empty row */
+.jwpm-purchase-report-page .jwpm-empty-row td {
+    text-align: center;
+    color: var(--pr-text-muted);
+}
+
+/* ------------------------------ */
+/* Pagination                     */
+/* ------------------------------ */
+.jwpm-purchase-report-page .jwpm-pagination {
+    margin-top: 10px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.jwpm-purchase-report-page .jwpm-page-btn {
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--pr-border);
+    font-size: 11px;
+    background: var(--pr-surface-alt);
+    color: var(--pr-text-muted);
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.jwpm-purchase-report-page .jwpm-page-btn:hover {
+    border-color: var(--pr-green-hard);
+    color: var(--pr-green-hard);
+}
+
+.jwpm-purchase-report-page .jwpm-page-btn.active {
+    background: var(--pr-green);
+    color: #fff;
+    border-color: var(--pr-green-hard);
+}
+
+/* ------------------------------ */
+/* Responsive                     */
+/* ------------------------------ */
+@media (max-width: 900px) {
+    .jwpm-purchase-report-page .jwpm-report-summary {
+        grid-template-columns: repeat(2, minmax(0,1fr));
+    }
+
+    .jwpm-purchase-report-page .jwpm-graphs-grid {
+        grid-template-columns: minmax(0,1fr);
+    }
+}
+
+/* ------------------------------ */
+/* RTL Support                    */
+/* ------------------------------ */
+[dir="rtl"] .jwpm-purchase-report-page .jwpm-column-number {
+    text-align: left;
+}
+
+/* ------------------------------ */
+/* Print Styles                   */
+/* ------------------------------ */
+@media print {
+    .jwpm-purchase-report-page .jwpm-toolbar,
+    .jwpm-purchase-report-page .jwpm-pagination,
+    .jwpm-purchase-report-page .jwpm-graphs-grid,
+    .jwpm-purchase-report-page .jwpm-report-green-strip,
+    .jwpm-purchase-report-page .button,
+    .jwpm-purchase-report-page canvas {
+        display: none !important;
+    }
+
+    .jwpm-purchase-report-page .jwpm-layout-main {
+        padding: 0;
+        border: none;
+        box-shadow: none;
+    }
+}
+
+/* 🔴 یہاں پر [Purchase Report CSS] ختم ہو رہا ہے */
+
+/* ✅ Syntax verified block end */
 
