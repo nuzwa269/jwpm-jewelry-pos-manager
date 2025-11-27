@@ -636,3 +636,74 @@ function jwpm_enqueue_repair_assets() {
 
 // 🔴 یہاں پر [JWPM Repair Assets] ختم ہو رہا ہے
 // ✅ Syntax verified block end
+<?php
+// ... یہاں آپ کا موجودہ class-jwpm-assets.php کوڈ ہے ...
+
+// 🟢 یہاں سے [Assets: Accounts Cashbook Page] شروع ہو رہا ہے
+
+/** Part 22 — Assets: Accounts Cashbook Page */
+
+if ( ! function_exists( 'jwpm_enqueue_accounts_cashbook_assets' ) ) {
+    /**
+     * Cashbook page assets
+     */
+    function jwpm_enqueue_accounts_cashbook_assets( $hook ) {
+        // صرف ہمارے accounts cashbook پیج پر لوڈ کریں
+        $page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
+
+        if ( 'jwpm-accounts-cashbook' !== $page ) {
+            return;
+        }
+
+        $plugin_url = plugin_dir_url( __FILE__ );
+
+        // Common JS/CSS پہلے ہی کہیں اور enqueue ہو رہے ہوں گے
+        // یہاں صرف page-specific assets
+        wp_enqueue_script(
+            'jwpm-accounts-cashbook-js',
+            $plugin_url . 'assets/js/jwpm-accounts-cashbook.js',
+            array( 'jquery', 'jwpm-common-js' ),
+            '1.0.0',
+            true
+        );
+
+        wp_enqueue_style(
+            'jwpm-accounts-cashbook-css',
+            $plugin_url . 'assets/css/jwpm-accounts-cashbook.css',
+            array( 'jwpm-common-css' ),
+            '1.0.0'
+        );
+
+        $nonce = wp_create_nonce( 'jwpm_cashbook_nonce' );
+
+        wp_localize_script(
+            'jwpm-accounts-cashbook-js',
+            'jwpmAccountsCashbook',
+            array(
+                'ajaxUrl'   => admin_url( 'admin-ajax.php' ),
+                'nonce'     => $nonce,
+                'actions'   => array(
+                    'fetch'  => 'jwpm_cashbook_fetch',
+                    'save'   => 'jwpm_cashbook_save',
+                    'delete' => 'jwpm_cashbook_delete',
+                    'import' => 'jwpm_cashbook_import',
+                    'export' => 'jwpm_cashbook_export',
+                    'demo'   => 'jwpm_cashbook_demo',
+                ),
+                'rootId'   => 'jwpm-accounts-cashbook-root',
+                'i18n'     => array(
+                    'loading'      => __( 'لوڈ ہو رہا ہے...', 'jwpm' ),
+                    'saving'       => __( 'محفوظ کیا جا رہا ہے...', 'jwpm' ),
+                    'deleting'     => __( 'حذف کیا جا رہا ہے...', 'jwpm' ),
+                    'confirmDelete'=> __( 'کیا آپ واقعی یہ ریکارڈ حذف کرنا چاہتے ہیں؟', 'jwpm' ),
+                    'errorGeneric' => __( 'کچھ غلط ہو گیا، دوبارہ کوشش کریں۔', 'jwpm' ),
+                ),
+            )
+        );
+    }
+}
+add_action( 'admin_enqueue_scripts', 'jwpm_enqueue_accounts_cashbook_assets' );
+
+// 🔴 یہاں پر [Assets: Accounts Cashbook Page] ختم ہو رہا ہے
+
+// ✅ Syntax verified block end
