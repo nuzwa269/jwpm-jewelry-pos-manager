@@ -25,27 +25,27 @@ class JWPM_DB {
 
 		return array(
 			// Core Tables (Used by JWPM_Assets)
-			'branches'       => $prefix . 'branches',
-			'items'          => $prefix . 'items',
-			'stock_ledger'   => $prefix . 'stock_ledger',
+			'branches'       => $prefix . 'branches',
+			'items'          => $prefix . 'items',
+			'stock_ledger'   => $prefix . 'stock_ledger',
 			
 			// Module Tables (Merged from your provided schemas)
-			'customers'      => $prefix . 'customers', // Part 32
-			'sales'          => $prefix . 'sales',
-			'sale_items'     => $prefix . 'sale_items',
-			'installments'   => $prefix . 'installments', // Part 42 (Contracts)
+			'customers'      => $prefix . 'customers', // Part 32
+			'sales'          => $prefix . 'sales',
+			'sale_items'     => $prefix . 'sale_items',
+			'installments'   => $prefix . 'installments', // Part 42 (Contracts)
 			'inst_schedule'  => $prefix . 'installment_schedule', // Part 42
 			'inst_payments'  => $prefix . 'installment_payments', // Part 42
-			'purchases'      => $prefix . 'purchases',
+			'purchases'      => $prefix . 'purchases',
 			'purchase_items' => $prefix . 'purchase_items',
-			'repairs' 	     => $prefix . 'repairs', // Part 8 (Repair Jobs)
-			'repair_logs'    => $prefix . 'repair_logs', // Part 8
-			'custom_orders'  => $prefix . 'custom_orders',
-			'accounts'       => $prefix . 'accounts_ledger', // Part 20 (General Ledger)
-			'cashbook'       => $prefix . 'cashbook', // Part 20
-			'expenses'       => $prefix . 'expenses', // Part 20
-			'activity_log'   => $prefix . 'activity_log',
-			'settings'       => $prefix . 'settings',
+			'repairs' 	     => $prefix . 'repairs', // Part 8 (Repair Jobs)
+			'repair_logs'    => $prefix . 'repair_logs', // Part 8
+			'custom_orders'  => $prefix . 'custom_orders',
+			'accounts'       => $prefix . 'accounts_ledger', // Part 20 (General Ledger)
+			'cashbook'       => $prefix . 'cashbook', // Part 20
+			'expenses'       => $prefix . 'expenses', // Part 20
+			'activity_log'   => $prefix . 'activity_log',
+			'settings'       => $prefix . 'settings',
 		);
 	}
 
@@ -58,7 +58,7 @@ class JWPM_DB {
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
 		$charset_collate = $wpdb->get_charset_collate();
-		$tables          = self::get_table_names();
+		$tables          = self::get_table_names();
 
 		$sql = array();
 
@@ -72,7 +72,7 @@ class JWPM_DB {
 			is_default TINYINT(1) NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY code (code)
 		) $charset_collate;";
 
@@ -97,7 +97,7 @@ class JWPM_DB {
 			is_demo TINYINT(1) NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY sku (sku),
 			KEY tag_serial (tag_serial),
 			KEY branch_id (branch_id),
@@ -116,7 +116,7 @@ class JWPM_DB {
 			ref_id BIGINT UNSIGNED NULL,
 			created_by BIGINT UNSIGNED NULL,
 			created_at DATETIME NOT NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY item_id (item_id),
 			KEY branch_id (branch_id),
 			KEY action_type (action_type)
@@ -140,7 +140,7 @@ class JWPM_DB {
 			is_demo TINYINT(1) NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			UNIQUE KEY customer_code (customer_code),
 			KEY phone (phone),
 			KEY email (email)
@@ -160,7 +160,7 @@ class JWPM_DB {
 			payment_meta LONGTEXT NULL,
 			created_by BIGINT UNSIGNED NULL,
 			created_at DATETIME NOT NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			UNIQUE KEY invoice_no (invoice_no),
 			KEY branch_id (branch_id),
 			KEY customer_id (customer_id),
@@ -177,7 +177,7 @@ class JWPM_DB {
 			making_amount DECIMAL(18,2) NOT NULL DEFAULT 0,
 			discount_amount DECIMAL(18,2) NOT NULL DEFAULT 0,
 			line_total DECIMAL(18,2) NOT NULL DEFAULT 0,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY sale_id (sale_id),
 			KEY item_id (item_id)
 		) $charset_collate;";
@@ -201,7 +201,7 @@ class JWPM_DB {
 			is_demo TINYINT(1) NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			UNIQUE KEY contract_code (contract_code),
 			KEY customer_id (customer_id),
 			KEY status (status)
@@ -218,7 +218,7 @@ class JWPM_DB {
 			status VARCHAR(20) NOT NULL DEFAULT 'pending',
 			paid_date DATE NULL,
 			is_demo TINYINT(1) NOT NULL DEFAULT 0,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY contract_id (contract_id),
 			KEY due_date (due_date),
 			KEY status (status)
@@ -235,7 +235,7 @@ class JWPM_DB {
 			reference_no VARCHAR(100) DEFAULT NULL,
 			is_demo TINYINT(1) NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY contract_id (contract_id),
 			KEY schedule_id (schedule_id),
 			KEY payment_date (payment_date)
@@ -250,7 +250,7 @@ class JWPM_DB {
 			total_amount DECIMAL(18,2) NOT NULL DEFAULT 0,
 			created_by BIGINT UNSIGNED NULL,
 			created_at DATETIME NOT NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY branch_id (branch_id),
 			KEY supplier_id (supplier_id)
 		) $charset_collate;";
@@ -264,7 +264,7 @@ class JWPM_DB {
 			weight DECIMAL(18,6) NULL,
 			rate DECIMAL(18,6) NULL,
 			amount DECIMAL(18,2) NOT NULL DEFAULT 0,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY purchase_id (purchase_id)
 		) $charset_collate;";
 
@@ -283,7 +283,7 @@ class JWPM_DB {
 			promised_date DATE NULL,
 			delivered_at DATETIME NULL,
 			is_demo TINYINT(1) DEFAULT 0,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY job_code (job_code),
 			KEY customer_id (customer_id),
 			KEY branch_id (branch_id),
@@ -317,7 +317,7 @@ class JWPM_DB {
 			due_date DATE NULL,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY customer_id (customer_id),
 			KEY branch_id (branch_id),
 			KEY status (status)
@@ -334,7 +334,7 @@ class JWPM_DB {
 			remarks TEXT NULL,
 			created_by BIGINT UNSIGNED NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY entry_date (entry_date),
 			KEY type (type),
 			KEY category (category)
@@ -350,7 +350,7 @@ class JWPM_DB {
 			notes TEXT NULL,
 			created_by BIGINT UNSIGNED NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY expense_date (expense_date),
 			KEY category (category)
 		) {$charset_collate};";
@@ -369,7 +369,7 @@ class JWPM_DB {
 			ref_id BIGINT UNSIGNED NULL,
 			created_by BIGINT UNSIGNED NULL,
 			created_at DATETIME NOT NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY entry_date (entry_date),
 			KEY branch_id (branch_id),
 			KEY account_type (account_type)
@@ -385,7 +385,7 @@ class JWPM_DB {
 			entity_id BIGINT UNSIGNED NULL,
 			meta LONGTEXT NULL,
 			created_at DATETIME NOT NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY user_id (user_id),
 			KEY entity_type (entity_type),
 			KEY entity_id (entity_id)
@@ -397,7 +397,7 @@ class JWPM_DB {
 			option_name VARCHAR(191) NOT NULL,
 			option_value LONGTEXT NULL,
 			autoload VARCHAR(20) NOT NULL DEFAULT 'yes',
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			UNIQUE KEY option_name (option_name)
 		) $charset_collate;";
 
@@ -445,5 +445,3 @@ class JWPM_DB {
 		// یہ فنکشن فی الحال صرف جگہ خالی رکھنے کے لیے ہے تاکہ کلاس مکمل رہے۔
 	}
 }
-
-// ✅ Syntax verified block end
