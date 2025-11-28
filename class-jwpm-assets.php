@@ -2,8 +2,8 @@
 /**
  * JWPM_Assets
  *
- * یہ کلاس (admin) سائیڈ پر تمام (JS) اور (CSS) اسٹس کو رجسٹر اور لوڈ کرتی ہے۔
- * اسی میں ہم گلوبل (jwpmCommon) اور پیج اسپیسفک ڈیٹا (nonces وغیرہ) بھی (localize) کریں گے۔
+ * یہ کلاس (admin) سائیڈ پر تمام (JS) اور (CSS) اسٹس کو رجسٹر اور لوڈ کرتی ہے
+ * تاکہ کسی بھی پیج پر ڈوپلیکیٹ enqueueنگ نہ ہو اور Assets لوڈنگ میں غلطی نہ آئے۔
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -13,11 +13,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 class JWPM_Assets {
 
 	/**
-	 * (admin_enqueue_scripts) ہُک سے کال ہونے والا فنکشن
+	 * کنسٹرکٹر۔ یہاں admin_enqueue_scripts ہک کو رجسٹر کیا جاتا ہے۔
+	 */
+	public function __construct() {
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
+	}
+
+	/**
+	 * (admin_enqueue_scripts) ہُک سے کال ہونے والا مرکزی فنکشن۔
+	 * یہ کامن Assets لوڈ کرتا ہے اور پھر پیج کی بنیاد پر مخصوص Assets لوڈ کرتا ہے۔
 	 *
 	 * @param string $hook موجودہ ایڈمن پیج ہُک۔
 	 */
-	public static function enqueue_admin_assets( $hook ) {
+	public function enqueue_admin_assets( $hook ) {
 
 		// صرف ہمارے (JWPM) کے مینو پیجز پر لوڈ ہو:
 		if ( strpos( $hook, 'jwpm-' ) === false ) {
@@ -25,20 +33,18 @@ class JWPM_Assets {
 		}
 
 		$version = defined( 'JWPM_VERSION' ) ? JWPM_VERSION : time();
-
+		
 		// 🟢 یہاں سے [Common Assets] شروع ہو رہا ہے
 		// (CSS)
-		wp_register_style(
+		wp_enqueue_style(
 			'jwpm-common-css',
 			JWPM_PLUGIN_URL . 'jwpm-common.css',
 			array(),
 			$version
 		);
 
-		wp_enqueue_style( 'jwpm-common-css' );
-
 		// (JS)
-		wp_register_script(
+		wp_enqueue_script(
 			'jwpm-common-js',
 			JWPM_PLUGIN_URL . 'jwpm-common.js',
 			array( 'jquery' ),
@@ -46,19 +52,17 @@ class JWPM_Assets {
 			true
 		);
 
-		wp_enqueue_script( 'jwpm-common-js' );
-
 		// گلوبل (localize) آبجیکٹ
 		$global_data = array(
-			'ajax_url'      => admin_url( 'admin-ajax.php' ),
-			'nonce_common'  => wp_create_nonce( 'jwpm_common_nonce' ),
-			'plugin_url'    => JWPM_PLUGIN_URL,
-			'current_user'  => get_current_user_id(),
-			'current_time'  => current_time( 'mysql' ),
-			'i18n'          => array(
+			'ajax_url'      => admin_url( 'admin-ajax.php' ),
+			'nonce_common'  => wp_create_nonce( 'jwpm_common_nonce' ),
+			'plugin_url'    => JWPM_PLUGIN_URL,
+			'current_user'  => get_current_user_id(),
+			'current_time'  => current_time( 'mysql' ),
+			'i18n'          => array(
 				'error_generic' => __( 'Unexpected error occurred. Please try again.', 'jwpm-jewelry-pos-manager' ),
-				'saving'        => __( 'Saving...', 'jwpm-jewelry-pos-manager' ),
-				'loading'       => __( 'Loading...', 'jwpm-jewelry-pos-manager' ),
+				'saving'        => __( 'Saving...', 'jwpm-jewelry-pos-manager' ),
+				'loading'       => __( 'Loading...', 'jwpm-jewelry-pos-manager' ),
 			),
 		);
 
@@ -70,771 +74,458 @@ class JWPM_Assets {
 		// 🔴 یہاں پر [Common Assets] ختم ہو رہا ہے
 
 		// اب دیکھتے ہیں کون سا پیج کھلا ہوا ہے تاکہ متعلقہ (JS/CSS) لوڈ کریں۔
-		$screen = get_current_screen();
-		if ( ! $screen ) {
-			return;
-		}
-
 		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
-		// 🟢 یہاں سے [Inventory Page Assets] شروع ہو رہا ہے
-		if ( 'jwpm-inventory' === $page ) {
+		// =========================================================================
+		// 🟢 یہاں سے [Page Specific Assets] شروع ہو رہا ہے
+		// =========================================================================
 
-			// پیج اسپیسفک (CSS)
-			wp_register_style(
-				'jwpm-inventory-css',
-				JWPM_PLUGIN_URL . 'assets/css/jwpm-inventory.css',
-				array( 'jwpm-common-css' ),
-				$version
-			);
-			wp_enqueue_style( 'jwpm-inventory-css' );
+		switch ( $page ) {
+			case 'jwpm-inventory':
+				$this->enqueue_inventory_assets( $version, $page );
+				break;
 
-			// پیج اسپیسفک (JS)
-			wp_register_script(
-				'jwpm-inventory-js',
-				JWPM_PLUGIN_URL . 'assets/js/jwpm-inventory.js',
-				array( 'jwpm-common-js', 'jquery' ),
-				$version,
-				true
-			);
-			wp_enqueue_script( 'jwpm-inventory-js' );
+			case 'jwpm-pos':
+				$this->enqueue_pos_assets( $version, $page );
+				break;
+			
+			case 'jwpm-customers':
+				$this->enqueue_customers_assets( $version );
+				break;
 
-			// انوینٹری کے لیے خاص (nonce + settings)
-			$inventory_data = array(
-				'nonce'          => wp_create_nonce( 'jwpm_inventory_nonce' ),
-				'page'           => $page,
-				'list_action'    => 'jwpm_inventory_list_items',
-				'save_action'    => 'jwpm_inventory_save_item',
-				'delete_action'  => 'jwpm_inventory_delete_item',
-				'import_action'  => 'jwpm_inventory_import_items',
-				'export_action'  => 'jwpm_inventory_export_items',
-				'demo_action'    => 'jwpm_inventory_demo_items',
-				'per_page'       => 50,
-				'default_branch' => self::get_default_branch_id(),
-			);
+			case 'jwpm-installments':
+				$this->enqueue_installments_assets( $version );
+				break;
+				
+			case 'jwpm-repair-jobs': // repair jobs کا slug 'jwpm-repair-jobs' ہونا چاہیے۔
+			case 'jwpm-repair': // اگر پرانا slug ہے
+				$this->enqueue_repair_assets( $version );
+				break;
 
-			wp_localize_script(
-				'jwpm-inventory-js',
-				'jwpmInventoryData',
-				$inventory_data
-			);
+			case 'jwpm-accounts-cashbook':
+				$this->enqueue_accounts_cashbook_assets( $version );
+				break;
+			
+			case 'jwpm-accounts-expenses':
+			case 'jwpm-expenses':
+				$this->enqueue_expenses_assets( $version );
+				break;
+
+			case 'jwpm-accounts-ledger':
+			case 'jwpm-ledger':
+				$this->enqueue_ledger_assets( $version );
+				break;
+
+			// ... دیگر پیجز یہاں شامل ہوں گے (custom-orders, reports, settings)
 		}
-		// 🔴 یہاں پر [Inventory Page Assets] ختم ہو رہا ہے
 	}
+	// =========================================================================
+	// 🔴 یہاں پر [Page Specific Assets] ختم ہو رہا ہے
+	// =========================================================================
+
 
 	/**
 	 * ڈیفالٹ برانچ حاصل کرنے کے لیے ہیلپر
 	 *
 	 * @return int
 	 */
-	protected static function get_default_branch_id() {
-		global $wpdb;
+	protected function get_default_branch_id() {
+		if ( ! class_exists( 'JWPM_DB' ) ) {
+			return 0;
+		}
 
+		global $wpdb;
 		$tables = JWPM_DB::get_table_names();
 
+		// Check for branch table existence before querying
+		if ( ! isset( $tables['branches'] ) ) {
+			return 0;
+		}
+		
+		// پہلے ڈیفالٹ برانچ تلاش کریں
 		$branch_id = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-			"SELECT id FROM {$tables['branches']} WHERE is_default = 1 ORDER BY id ASC LIMIT 1"
+			$wpdb->prepare( "SELECT id FROM {$tables['branches']} WHERE is_default = 1 ORDER BY id ASC LIMIT 1", array() )
 		);
 
 		if ( $branch_id > 0 ) {
 			return $branch_id;
 		}
 
-		// اگر کوئی ڈیفالٹ برانچ نہیں، پہلے والی برانچ لے لیں
+		// اگر ڈیفالٹ نہیں ملی تو پہلی برانچ لے لیں
 		$branch_id = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			"SELECT id FROM {$tables['branches']} ORDER BY id ASC LIMIT 1"
 		);
 
 		return $branch_id > 0 ? $branch_id : 0;
 	}
-}
 
-// ✅ Syntax verified block end
-<?php
-/** Part 2 — POS page assets and localized data
- *
- * یہ بلاک (POS / Sales) پیج کے لیے الگ (JS) اور (CSS) لوڈ کرتا ہے
- * اور (jwpmPosData) کے نام سے ضروری (AJAX) ایکشنز اور (nonce) کو (localize) کرتا ہے۔
- */
-
-/**
- * POS اسٹس لوڈر
- *
- * @param string $hook موجودہ ایڈمن پیج ہُک۔
- */
-function jwpm_enqueue_pos_assets( $hook ) {
-
-	// صرف ہمارے (JWPM) کے پیجز پر چلائیں
-	if ( strpos( $hook, 'jwpm-' ) === false ) {
-		return;
-	}
-
-	$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-
-	if ( 'jwpm-pos' !== $page ) {
-		return;
-	}
-
-	$version = defined( 'JWPM_VERSION' ) ? JWPM_VERSION : time();
-
-	// 🟢 یہاں سے [POS Assets] شروع ہو رہا ہے
-
-	// POS اسٹائل
-	wp_register_style(
-		'jwpm-pos-css',
-		JWPM_PLUGIN_URL . 'assets/css/jwpm-pos.css',
-		array( 'jwpm-common-css' ),
-		$version
-	);
-	wp_enqueue_style( 'jwpm-pos-css' );
-
-	// POS اسکرپٹ
-	wp_register_script(
-		'jwpm-pos-js',
-		JWPM_PLUGIN_URL . 'assets/js/jwpm-pos.js',
-		array( 'jwpm-common-js', 'jquery' ),
-		$version,
-		true
-	);
-	wp_enqueue_script( 'jwpm-pos-js' );
-
-	// ڈیفالٹ برانچ
-	if ( class_exists( 'JWPM_DB' ) ) {
-		$tables = JWPM_DB::get_table_names();
-		global $wpdb;
-
-		$default_branch = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-			"SELECT id FROM {$tables['branches']} WHERE is_default = 1 ORDER BY id ASC LIMIT 1"
-		);
-
-		if ( $default_branch <= 0 ) {
-			$default_branch = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-				"SELECT id FROM {$tables['branches']} ORDER BY id ASC LIMIT 1"
-			);
-		}
-	} else {
-		$default_branch = 0;
-	}
-
-	// POS کے لیے خاص (AJAX + Nonce + Settings)
-	$pos_data = array(
-		'nonce'                   => wp_create_nonce( 'jwpm_pos_nonce' ),
-		'page'                    => $page,
-		'default_branch'          => $default_branch,
-		'currency_symbol'         => get_woocommerce_currency_symbol() ?: 'Rs',
-		'search_items_action'     => 'jwpm_pos_search_items',
-		'gold_rate_action'        => 'jwpm_pos_get_gold_rate',
-		'search_customer_action'  => 'jwpm_pos_search_customer',
-		'complete_sale_action'    => 'jwpm_pos_complete_sale',
-	);
-
-	wp_localize_script(
-		'jwpm-pos-js',
-		'jwpmPosData',
-		$pos_data
-	);
-
-	// 🔴 یہاں پر [POS Assets] ختم ہو رہا ہے
-}
-add_action( 'admin_enqueue_scripts', 'jwpm_enqueue_pos_assets' );
-
-// ✅ Syntax verified block end
-/** Part 31 — Customers Assets Enqueue */
-// 🟢 یہاں سے [Customers Assets Enqueue] شروع ہو رہا ہے
-
-if ( ! function_exists( 'jwpm_enqueue_customers_assets' ) ) {
+	// =========================================================================
+	// 🟢 [Page-Specific Asset Methods]
+	// =========================================================================
 
 	/**
-	 * Customers Page کیلئے (JS) اور (CSS) enqueue + localized data
+	 * Inventory Page Assets and Localize
 	 */
-	function jwpm_enqueue_customers_assets( $hook_suffix ) {
-
-		if ( ! is_admin() ) {
-			return;
-		}
-
-		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-		if ( empty( $screen ) || false === strpos( $screen->id, 'jwpm-customers' ) ) {
-			return;
-		}
-
-		$base_url = plugin_dir_url( __FILE__ );
-
-		// Customers CSS
+	protected function enqueue_inventory_assets( $version, $page ) {
 		wp_enqueue_style(
-			'jwpm-customers-css',
-			$base_url . 'assets/css/jwpm-customers.css',
+			'jwpm-inventory-css',
+			JWPM_PLUGIN_URL . 'assets/css/jwpm-inventory.css',
 			array( 'jwpm-common-css' ),
-			defined( 'JWPM_VERSION' ) ? JWPM_VERSION : time()
+			$version
 		);
 
-		// Customers JS
 		wp_enqueue_script(
-			'jwpm-customers-js',
-			$base_url . 'assets/js/jwpm-customers.js',
-			array( 'jquery', 'jwpm-common-js' ),
-			defined( 'JWPM_VERSION' ) ? JWPM_VERSION : time(),
+			'jwpm-inventory-js',
+			JWPM_PLUGIN_URL . 'assets/js/jwpm-inventory.js',
+			array( 'jwpm-common-js', 'jquery' ),
+			$version,
 			true
 		);
 
-		$main_nonce   = wp_create_nonce( 'jwpm_customers_main_nonce' );
-		$import_nonce = wp_create_nonce( 'jwpm_customers_import_nonce' );
-		$export_nonce = wp_create_nonce( 'jwpm_customers_export_nonce' );
-		$demo_nonce   = wp_create_nonce( 'jwpm_customers_demo_nonce' );
+		$inventory_data = array(
+			'nonce'          => wp_create_nonce( 'jwpm_inventory_nonce' ),
+			'page'           => $page,
+			'list_action'    => 'jwpm_inventory_list_items',
+			'save_action'    => 'jwpm_inventory_save_item',
+			'delete_action'  => 'jwpm_inventory_delete_item',
+			'import_action'  => 'jwpm_inventory_import_items',
+			'export_action'  => 'jwpm_inventory_export_items',
+			'demo_action'    => 'jwpm_inventory_demo_items',
+			'per_page'       => 50,
+			'default_branch' => $this->get_default_branch_id(),
+		);
+
+		wp_localize_script( 'jwpm-inventory-js', 'jwpmInventoryData', $inventory_data );
+	}
+
+	/**
+	 * POS Page Assets and Localize
+	 */
+	protected function enqueue_pos_assets( $version, $page ) {
+		wp_enqueue_style(
+			'jwpm-pos-css',
+			JWPM_PLUGIN_URL . 'assets/css/jwpm-pos.css',
+			array( 'jwpm-common-css' ),
+			$version
+		);
+		
+		wp_enqueue_script(
+			'jwpm-pos-js',
+			JWPM_PLUGIN_URL . 'assets/js/jwpm-pos.js',
+			array( 'jwpm-common-js', 'jquery' ),
+			$version,
+			true
+		);
+
+		$default_branch = $this->get_default_branch_id();
+		$currency_symbol = function_exists( 'get_woocommerce_currency_symbol' ) ? get_woocommerce_currency_symbol() : 'Rs';
+
+		$pos_data = array(
+			'nonce'                  => wp_create_nonce( 'jwpm_pos_nonce' ),
+			'page'                   => $page,
+			'default_branch'         => $default_branch,
+			'currency_symbol'        => $currency_symbol,
+			'search_items_action'    => 'jwpm_pos_search_items',
+			'gold_rate_action'       => 'jwpm_pos_get_gold_rate',
+			'search_customer_action' => 'jwpm_pos_search_customer',
+			'complete_sale_action'   => 'jwpm_pos_complete_sale',
+		);
+
+		wp_localize_script( 'jwpm-pos-js', 'jwpmPosData', $pos_data );
+	}
+	
+	/**
+	 * Customers Page Assets and Localize
+	 */
+	protected function enqueue_customers_assets( $version ) {
+		wp_enqueue_style(
+			'jwpm-customers-css',
+			JWPM_PLUGIN_URL . 'assets/css/jwpm-customers.css',
+			array( 'jwpm-common-css' ),
+			$version
+		);
+
+		wp_enqueue_script(
+			'jwpm-customers-js',
+			JWPM_PLUGIN_URL . 'assets/js/jwpm-customers.js',
+			array( 'jquery', 'jwpm-common-js' ),
+			$version,
+			true
+		);
 
 		$localized = array(
-			'ajaxUrl'           => admin_url( 'admin-ajax.php' ),
-			'mainNonce'         => $main_nonce,
-			'importNonce'       => $import_nonce,
-			'exportNonce'       => $export_nonce,
-			'demoNonce'         => $demo_nonce,
-			'strings'           => array(
-				'loading'           => __( 'کسٹمرز لوڈ ہو رہے ہیں…', 'jwpm' ),
-				'saving'            => __( 'ڈیٹا محفوظ ہو رہا ہے…', 'jwpm' ),
-				'saveSuccess'       => __( 'کسٹمر کامیابی سے محفوظ ہو گیا۔', 'jwpm' ),
-				'saveError'         => __( 'محفوظ کرتے وقت مسئلہ آیا، دوبارہ کوشش کریں۔', 'jwpm' ),
-				'deleteConfirm'     => __( 'کیا آپ واقعی اس کسٹمر کو Inactive کرنا چاہتے ہیں؟', 'jwpm' ),
-				'deleteSuccess'     => __( 'کسٹمر کو Inactive کر دیا گیا۔', 'jwpm' ),
-				'demoCreateSuccess' => __( 'Demo کسٹمرز بنا دیے گئے۔', 'jwpm' ),
-				'demoClearSuccess'  => __( 'Demo کسٹمرز حذف ہو گئے۔', 'jwpm' ),
-				'importSuccess'     => __( 'Import مکمل ہو گیا۔', 'jwpm' ),
-				'importError'       => __( 'Import کے دوران مسئلہ آیا۔', 'jwpm' ),
-				'noRecords'         => __( 'کوئی ریکارڈ نہیں ملا۔', 'jwpm' ),
+			'mainNonce'         => wp_create_nonce( 'jwpm_customers_main_nonce' ),
+			'importNonce'       => wp_create_nonce( 'jwpm_customers_import_nonce' ),
+			'exportNonce'       => wp_create_nonce( 'jwpm_customers_export_nonce' ),
+			'demoNonce'         => wp_create_nonce( 'jwpm_customers_demo_nonce' ),
+			'actions'           => array(
+				'fetch'     => 'jwpm_customers_fetch',
+				'save'      => 'jwpm_customers_save',
+				'delete'    => 'jwpm_customers_delete',
+				'import'    => 'jwpm_customers_import',
+				'export'    => 'jwpm_customers_export',
+				'demo'      => 'jwpm_customers_demo',
 			),
-			'pagination'        => array(
+			'strings'           => array(
+				'loading'           => __( 'کسٹمرز لوڈ ہو رہے ہیں…', 'jwpm' ),
+				'saving'            => __( 'ڈیٹا محفوظ ہو رہا ہے…', 'jwpm' ),
+				'saveSuccess'       => __( 'کسٹمر کامیابی سے محفوظ ہو گیا۔', 'jwpm' ),
+				'saveError'         => __( 'محفوظ کرتے وقت مسئلہ آیا، دوبارہ کوشش کریں۔', 'jwpm' ),
+				'deleteConfirm'     => __( 'کیا آپ واقعی اس کسٹمر کو Inactive کرنا چاہتے ہیں؟', 'jwpm' ),
+				'deleteSuccess'     => __( 'کسٹمر کو Inactive کر دیا گیا۔', 'jwpm' ),
+				'demoCreateSuccess' => __( 'Demo کسٹمرز بنا دیے گئے۔', 'jwpm' ),
+				'demoClearSuccess'  => __( 'Demo کسٹمرز حذف ہو گئے۔', 'jwpm' ),
+				'importSuccess'     => __( 'Import مکمل ہو گیا۔', 'jwpm' ),
+				'importError'       => __( 'Import کے دوران مسئلہ آیا۔', 'jwpm' ),
+				'noRecords'         => __( 'کوئی ریکارڈ نہیں ملا۔', 'jwpm' ),
+			),
+			'pagination'        => array(
 				'defaultPerPage' => 20,
 				'perPageOptions' => array( 20, 50, 100 ),
 			),
-			'capabilities'      => array(
-				'canManageCustomers' => current_user_can( 'manage_options' ),
+			'capabilities'      => array(
+				'canManageCustomers' => current_user_can( 'manage_jwpm_customers' ),
 			),
 		);
 
 		wp_localize_script( 'jwpm-customers-js', 'jwpmCustomersData', $localized );
 	}
-}
-
-add_action( 'admin_enqueue_scripts', 'jwpm_enqueue_customers_assets' );
-
-// 🔴 یہاں پر [Customers Assets Enqueue] ختم ہو رہا ہے
-// ✅ Syntax verified block end
-/** Part 41 — Installments Assets Enqueue */
-// 🟢 یہاں سے [Installments Assets Enqueue] شروع ہو رہا ہے
-
-if ( ! function_exists( 'jwpm_enqueue_installments_assets' ) ) {
 
 	/**
-	 * Installments Page کیلئے (JS) + (CSS) enqueue اور localized data
+	 * Installments Page Assets and Localize
 	 */
-	function jwpm_enqueue_installments_assets( $hook_suffix ) { // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable
-		if ( ! is_admin() ) {
-			return;
-		}
-
-		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-		if ( empty( $screen ) || false === strpos( $screen->id, 'jwpm-installments' ) ) {
-			return;
-		}
-
-		$base_url = plugin_dir_url( __FILE__ );
-
+	protected function enqueue_installments_assets( $version ) {
 		wp_enqueue_style(
 			'jwpm-installments-css',
-			$base_url . 'assets/css/jwpm-installments.css',
+			JWPM_PLUGIN_URL . 'assets/css/jwpm-installments.css',
 			array( 'jwpm-common-css' ),
-			defined( 'JWPM_VERSION' ) ? JWPM_VERSION : time()
+			$version
 		);
 
 		wp_enqueue_script(
 			'jwpm-installments-js',
-			$base_url . 'assets/js/jwpm-installments.js',
+			JWPM_PLUGIN_URL . 'assets/js/jwpm-installments.js',
 			array( 'jquery', 'jwpm-common-js' ),
-			defined( 'JWPM_VERSION' ) ? JWPM_VERSION : time(),
+			$version,
 			true
 		);
 
-		$main_nonce   = wp_create_nonce( 'jwpm_installments_main_nonce' );
-		$import_nonce = wp_create_nonce( 'jwpm_installments_import_nonce' );
-		$export_nonce = wp_create_nonce( 'jwpm_installments_export_nonce' );
-		$demo_nonce   = wp_create_nonce( 'jwpm_installments_demo_nonce' );
-
 		$localized = array(
-			'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
-			'mainNonce'   => $main_nonce,
-			'importNonce' => $import_nonce,
-			'exportNonce' => $export_nonce,
-			'demoNonce'   => $demo_nonce,
-			'strings'     => array(
-				'loading'           => __( 'Installments لوڈ ہو رہے ہیں…', 'jwpm' ),
-				'saving'            => __( 'ڈیٹا محفوظ ہو رہا ہے…', 'jwpm' ),
-				'saveSuccess'       => __( 'Installment Plan کامیابی سے محفوظ ہو گیا۔', 'jwpm' ),
-				'saveError'         => __( 'محفوظ کرتے وقت مسئلہ آیا، دوبارہ کوشش کریں۔', 'jwpm' ),
-				'deleteConfirm'     => __( 'کیا آپ واقعی اس Installment Contract کو Cancel کرنا چاہتے ہیں؟', 'jwpm' ),
-				'deleteSuccess'     => __( 'Installment Contract کو Cancel کر دیا گیا۔', 'jwpm' ),
-				'demoCreateSuccess' => __( 'Demo Installment Plans بنا دیے گئے۔', 'jwpm' ),
-				'demoClearSuccess'  => __( 'Demo Installment Data حذف ہو گیا۔', 'jwpm' ),
-				'importSuccess'     => __( 'Import مکمل ہو گیا۔', 'jwpm' ),
-				'importError'       => __( 'Import کے دوران مسئلہ آیا۔', 'jwpm' ),
-				'noRecords'         => __( 'کوئی Installment Contract نہیں ملا۔', 'jwpm' ),
-				'paymentSave'       => __( 'Payment محفوظ ہو گئی۔', 'jwpm' ),
-				'paymentError'      => __( 'Payment محفوظ نہیں ہو سکی۔', 'jwpm' ),
+			'mainNonce'   => wp_create_nonce( 'jwpm_installments_main_nonce' ),
+			'importNonce' => wp_create_nonce( 'jwpm_installments_import_nonce' ),
+			'exportNonce' => wp_create_nonce( 'jwpm_installments_export_nonce' ),
+			'demoNonce'   => wp_create_nonce( 'jwpm_installments_demo_nonce' ),
+			'actions'     => array(
+				'fetch'     => 'jwpm_installments_fetch',
+				'save'      => 'jwpm_installments_save',
+				'delete'    => 'jwpm_installments_delete',
+				'import'    => 'jwpm_installments_import',
+				'export'    => 'jwpm_installments_export',
+				'demo'      => 'jwpm_installments_demo',
+				'pay'       => 'jwpm_installments_record_payment',
 			),
-			'pagination'  => array(
-				'defaultPerPage' => 20,
-				'perPageOptions' => array( 20, 50, 100 ),
-			),
-		);
-
-		wp_localize_script( 'jwpm-installments-js', 'jwpmInstallmentsData', $localized );
-	}
-}
-
-add_action( 'admin_enqueue_scripts', 'jwpm_enqueue_installments_assets' );
-
-// 🔴 یہاں پر [Installments Assets Enqueue] ختم ہو رہا ہے
-// ✅ Syntax verified block end
-/** Part 41 — Installments Assets Enqueue */
-// 🟢 یہاں سے [Installments Assets Enqueue] شروع ہو رہا ہے
-
-if ( ! function_exists( 'jwpm_enqueue_installments_assets' ) ) {
-
-	/**
-	 * Installments Page کیلئے (JS) اور (CSS) enqueue + localized data
-	 */
-	function jwpm_enqueue_installments_assets( $hook_suffix ) { // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable
-		if ( ! is_admin() ) {
-			return;
-		}
-
-		if ( ! function_exists( 'get_current_screen' ) ) {
-			return;
-		}
-
-		$screen = get_current_screen();
-		if ( empty( $screen ) || false === strpos( $screen->id, 'jwpm-installments' ) ) {
-			return;
-		}
-
-		$base_url = plugin_dir_url( __FILE__ );
-
-		wp_enqueue_style(
-			'jwpm-installments-css',
-			$base_url . 'assets/css/jwpm-installments.css',
-			array( 'jwpm-common-css' ),
-			defined( 'JWPM_VERSION' ) ? JWPM_VERSION : time()
-		);
-
-		wp_enqueue_script(
-			'jwpm-installments-js',
-			$base_url . 'assets/js/jwpm-installments.js',
-			array( 'jquery', 'jwpm-common-js' ),
-			defined( 'JWPM_VERSION' ) ? JWPM_VERSION : time(),
-			true
-		);
-
-		$main_nonce   = wp_create_nonce( 'jwpm_installments_main_nonce' );
-		$import_nonce = wp_create_nonce( 'jwpm_installments_import_nonce' );
-		$export_nonce = wp_create_nonce( 'jwpm_installments_export_nonce' );
-		$demo_nonce   = wp_create_nonce( 'jwpm_installments_demo_nonce' );
-
-		global $wpdb;
-
-		$localized = array(
-			'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
-			'mainNonce'   => $main_nonce,
-			'importNonce' => $import_nonce,
-			'exportNonce' => $export_nonce,
-			'demoNonce'   => $demo_nonce,
-			'strings'     => array(
-				'loading'           => __( 'Installments لوڈ ہو رہے ہیں…', 'jwpm' ),
-				'saving'            => __( 'ڈیٹا محفوظ ہو رہا ہے…', 'jwpm' ),
-				'saveSuccess'       => __( 'Installment Plan محفوظ ہو گیا۔', 'jwpm' ),
-				'saveError'         => __( 'محفوظ کرتے وقت مسئلہ آیا، دوبارہ کوشش کریں۔', 'jwpm' ),
-				'deleteConfirm'     => __( 'کیا آپ واقعی اس قسطی معاہدے کو Cancel کرنا چاہتے ہیں؟', 'jwpm' ),
-				'deleteSuccess'     => __( 'Contract کی Status اپڈیٹ ہو گئی۔', 'jwpm' ),
-				'paymentSave'       => __( 'Payment محفوظ ہو گئی۔', 'jwpm' ),
-				'paymentError'      => __( 'Payment محفوظ نہیں ہو سکی۔', 'jwpm' ),
+			'strings'     => array(
+				'loading'           => __( 'Installments لوڈ ہو رہے ہیں…', 'jwpm' ),
+				'saving'            => __( 'ڈیٹا محفوظ ہو رہا ہے…', 'jwpm' ),
+				'saveSuccess'       => __( 'Installment Plan محفوظ ہو گیا۔', 'jwpm' ),
+				'saveError'         => __( 'محفوظ کرتے وقت مسئلہ آیا، دوبارہ کوشش کریں۔', 'jwpm' ),
+				'deleteConfirm'     => __( 'کیا آپ واقعی اس قسطی معاہدے کو Cancel کرنا چاہتے ہیں؟', 'jwpm' ),
+				'deleteSuccess'     => __( 'Contract کی Status اپڈیٹ ہو گئی۔', 'jwpm' ),
+				'paymentSave'       => __( 'Payment محفوظ ہو گئی۔', 'jwpm' ),
+				'paymentError'      => __( 'Payment محفوظ نہیں ہو سکی۔', 'jwpm' ),
 				'demoCreateSuccess' => __( 'Demo Installments بنا دیے گئے۔', 'jwpm' ),
-				'demoClearSuccess'  => __( 'Demo Installments حذف ہو گئے۔', 'jwpm' ),
-				'importSuccess'     => __( 'Import مکمل ہو گیا۔', 'jwpm' ),
-				'importError'       => __( 'Import کے دوران مسئلہ آیا۔', 'jwpm' ),
-				'noRecords'         => __( 'کوئی ریکارڈ نہیں ملا۔', 'jwpm' ),
+				'demoClearSuccess'  => __( 'Demo Installments حذف ہو گئے۔', 'jwpm' ),
+				'importSuccess'     => __( 'Import مکمل ہو گیا۔', 'jwpm' ),
+				'importError'       => __( 'Import کے دوران مسئلہ آیا۔', 'jwpm' ),
+				'noRecords'         => __( 'کوئی ریکارڈ نہیں ملا۔', 'jwpm' ),
 			),
-			'pagination'  => array(
+			'pagination'  => array(
 				'defaultPerPage' => 20,
 				'perPageOptions' => array( 20, 50, 100 ),
 			),
 		);
 
-		// اگر چاہیں تو future میں یہاں customers کیلئے dropdown data بھی دے سکتے ہیں۔
-
 		wp_localize_script( 'jwpm-installments-js', 'jwpmInstallmentsData', $localized );
 	}
-}
-
-add_action( 'admin_enqueue_scripts', 'jwpm_enqueue_installments_assets' );
-
-// 🔴 یہاں پر [Installments Assets Enqueue] ختم ہو رہا ہے
-// ✅ Syntax verified block end
-/** Part 41 — Installments Assets Enqueue */
-// 🟢 یہاں سے [Installments Assets Enqueue] شروع ہو رہا ہے
-
-if ( ! function_exists( 'jwpm_enqueue_installments_assets' ) ) {
-
+	
 	/**
-	 * Installments Page کیلئے (JS) اور (CSS) enqueue + localized data
+	 * Repair Jobs Page Assets and Localize
 	 */
-	function jwpm_enqueue_installments_assets( $hook_suffix ) { // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable
-		if ( ! is_admin() ) {
-			return;
-		}
-
-		if ( ! function_exists( 'get_current_screen' ) ) {
-			return;
-		}
-
-		$screen = get_current_screen();
-		if ( empty( $screen ) || false === strpos( $screen->id, 'jwpm-installments' ) ) {
-			return;
-		}
-
-		$base_url = plugin_dir_url( __FILE__ );
-
+	protected function enqueue_repair_assets( $version ) {
 		wp_enqueue_style(
-			'jwpm-installments-css',
-			$base_url . 'assets/css/jwpm-installments.css',
+			'jwpm-repair-css',
+			JWPM_PLUGIN_URL . 'assets/css/jwpm-repair.css',
 			array( 'jwpm-common-css' ),
-			defined( 'JWPM_VERSION' ) ? JWPM_VERSION : time()
+			$version
 		);
 
 		wp_enqueue_script(
-			'jwpm-installments-js',
-			$base_url . 'assets/js/jwpm-installments.js',
+			'jwpm-repair-js',
+			JWPM_PLUGIN_URL . 'assets/js/jwpm-repair.js',
 			array( 'jquery', 'jwpm-common-js' ),
-			defined( 'JWPM_VERSION' ) ? JWPM_VERSION : time(),
+			$version,
 			true
 		);
 
-		$main_nonce   = wp_create_nonce( 'jwpm_installments_main_nonce' );
-		$import_nonce = wp_create_nonce( 'jwpm_installments_import_nonce' );
-		$export_nonce = wp_create_nonce( 'jwpm_installments_export_nonce' );
-		$demo_nonce   = wp_create_nonce( 'jwpm_installments_demo_nonce' );
+		$strings = array(
+			'loading'        => __( 'Repair Jobs لوڈ ہو رہے ہیں…', 'jwpm' ),
+			'saving'         => __( 'مرمت کا ریکارڈ محفوظ ہو رہا ہے…', 'jwpm' ),
+			'saveSuccess'    => __( 'Repair job محفوظ ہو گیا۔', 'jwpm' ),
+			'saveError'      => __( 'محفوظ کرتے وقت مسئلہ آیا، دوبارہ کوشش کریں۔', 'jwpm' ),
+			'deleteConfirm'  => __( 'کیا آپ واقعی اس Repair job کو cancel کرنا چاہتے ہیں؟', 'jwpm' ),
+			'deleteSuccess'  => __( 'Repair job cancel / update ہو گیا۔', 'jwpm' ),
+			'importSuccess'  => __( 'Repair jobs import مکمل ہو گیا۔', 'jwpm' ),
+			'importError'    => __( 'Import کے دوران مسئلہ آیا۔', 'jwpm' ),
+			'demoCreateSuccess' => __( 'Demo Repairs بنا دیے گئے۔', 'jwpm' ),
+			'demoClearSuccess'  => __( 'Demo Repairs حذف ہو گئے۔', 'jwpm' ),
+			'noRecords'      => __( 'کوئی Repair job نہیں ملا۔', 'jwpm' ),
+		);
 
-		global $wpdb;
+		wp_localize_script(
+			'jwpm-repair-js',
+			'jwpmRepairData',
+			array(
+				'mainNonce'  => wp_create_nonce( 'jwpm_repair_main_nonce' ),
+				'importNonce'=> wp_create_nonce( 'jwpm_repair_import_nonce' ),
+				'exportNonce'=> wp_create_nonce( 'jwpm_repair_export_nonce' ),
+				'demoNonce'  => wp_create_nonce( 'jwpm_repair_demo_nonce' ),
+				'actions'    => array(
+					'fetch'     => 'jwpm_repair_fetch',
+					'save'      => 'jwpm_repair_save',
+					'delete'    => 'jwpm_repair_delete',
+					'import'    => 'jwpm_repair_import',
+					'export'    => 'jwpm_repair_export',
+					'demo'      => 'jwpm_repair_demo',
+				),
+				'strings'    => $strings,
+				'pagination' => array(
+					'defaultPerPage' => 20,
+					'perPageOptions' => array( 20, 50, 100 ),
+				),
+			)
+		);
+	}
+	
+	/**
+	 * Accounts Cashbook Page Assets and Localize
+	 */
+	protected function enqueue_accounts_cashbook_assets( $version ) {
+		wp_enqueue_script(
+			'jwpm-accounts-cashbook-js',
+			JWPM_PLUGIN_URL . 'assets/js/jwpm-accounts-cashbook.js',
+			array( 'jquery', 'jwpm-common-js' ),
+			$version,
+			true
+		);
+
+		wp_enqueue_style(
+			'jwpm-accounts-cashbook-css',
+			JWPM_PLUGIN_URL . 'assets/css/jwpm-accounts-cashbook.css',
+			array( 'jwpm-common-css' ),
+			$version
+		);
 
 		$localized = array(
-			'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
-			'mainNonce'   => $main_nonce,
-			'importNonce' => $import_nonce,
-			'exportNonce' => $export_nonce,
-			'demoNonce'   => $demo_nonce,
-			'strings'     => array(
-				'loading'           => __( 'Installments لوڈ ہو رہے ہیں…', 'jwpm' ),
-				'saving'            => __( 'ڈیٹا محفوظ ہو رہا ہے…', 'jwpm' ),
-				'saveSuccess'       => __( 'Installment Plan محفوظ ہو گیا۔', 'jwpm' ),
-				'saveError'         => __( 'محفوظ کرتے وقت مسئلہ آیا، دوبارہ کوشش کریں۔', 'jwpm' ),
-				'deleteConfirm'     => __( 'کیا آپ واقعی اس قسطی معاہدے کو Cancel کرنا چاہتے ہیں؟', 'jwpm' ),
-				'deleteSuccess'     => __( 'Contract کی Status اپڈیٹ ہو گئی۔', 'jwpm' ),
-				'paymentSave'       => __( 'Payment محفوظ ہو گئی۔', 'jwpm' ),
-				'paymentError'      => __( 'Payment محفوظ نہیں ہو سکی۔', 'jwpm' ),
-				'demoCreateSuccess' => __( 'Demo Installments بنا دیے گئے۔', 'jwpm' ),
-				'demoClearSuccess'  => __( 'Demo Installments حذف ہو گئے۔', 'jwpm' ),
-				'importSuccess'     => __( 'Import مکمل ہو گیا۔', 'jwpm' ),
-				'importError'       => __( 'Import کے دوران مسئلہ آیا۔', 'jwpm' ),
-				'noRecords'         => __( 'کوئی ریکارڈ نہیں ملا۔', 'jwpm' ),
+			'nonce'     => wp_create_nonce( 'jwpm_cashbook_nonce' ),
+			'actions'   => array(
+				'fetch'  => 'jwpm_cashbook_fetch',
+				'save'   => 'jwpm_cashbook_save',
+				'delete' => 'jwpm_cashbook_delete',
+				'import' => 'jwpm_cashbook_import',
+				'export' => 'jwpm_cashbook_export',
+				'demo'   => 'jwpm_cashbook_demo',
 			),
-			'pagination'  => array(
-				'defaultPerPage' => 20,
-				'perPageOptions' => array( 20, 50, 100 ),
+			'rootId'   => 'jwpm-accounts-cashbook-root',
+			'i18n'     => array(
+				'loading'      => __( 'لوڈ ہو رہا ہے...', 'jwpm' ),
+				'saving'       => __( 'محفوظ کیا جا رہا ہے...', 'jwpm' ),
+				'deleting'     => __( 'حذف کیا جا رہا ہے...', 'jwpm' ),
+				'confirmDelete'=> __( 'کیا آپ واقعی یہ ریکارڈ حذف کرنا چاہتے ہیں؟', 'jwpm' ),
+				'errorGeneric' => __( 'کچھ غلط ہو گیا، دوبارہ کوشش کریں۔', 'jwpm' ),
 			),
 		);
 
-		// اگر چاہیں تو future میں یہاں customers کیلئے dropdown data بھی دے سکتے ہیں۔
-
-		wp_localize_script( 'jwpm-installments-js', 'jwpmInstallmentsData', $localized );
+		wp_localize_script( 'jwpm-accounts-cashbook-js', 'jwpmAccountsCashbook', $localized );
 	}
-}
+	
+	/**
+	 * Accounts Expenses Page Assets and Localize
+	 */
+	protected function enqueue_expenses_assets( $version ) {
+		wp_enqueue_script(
+			'jwpm-expenses-js',
+			JWPM_PLUGIN_URL . 'assets/js/jwpm-expenses.js',
+			array( 'jquery', 'jwpm-common-js' ),
+			$version,
+			true
+		);
 
-add_action( 'admin_enqueue_scripts', 'jwpm_enqueue_installments_assets' );
+		wp_enqueue_style(
+			'jwpm-expenses-css',
+			JWPM_PLUGIN_URL . 'assets/css/jwpm-expenses.css',
+			array( 'jwpm-common-css' ),
+			$version
+		);
 
-// 🔴 یہاں پر [Installments Assets Enqueue] ختم ہو رہا ہے
-// ✅ Syntax verified block end
-<?php
-/** Part 7 — JWPM Repair Assets Loader
- * یہاں Repair Jobs پیج کے لیے (JS) / (CSS) enqueue + localize ہو رہا ہے۔
- */
-
-// 🟢 یہاں سے [JWPM Repair Assets] شروع ہو رہا ہے
-
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
-
-/**
- * یہ helper موجودہ admin_enqueue_hooks کے اندر call کیا جا سکتا ہے:
- * مثال:
- * if ( isset( $_GET['page'] ) && 'jwpm-repair' === $_GET['page'] ) { jwpm_enqueue_repair_assets(); }
- */
-function jwpm_enqueue_repair_assets() {
-	$screen_page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
-	if ( 'jwpm-repair' !== $screen_page ) {
-		return;
-	}
-
-	$plugin_url = plugin_dir_url( dirname( __FILE__ ) );
-
-	// CSS
-	wp_enqueue_style(
-		'jwpm-repair',
-		$plugin_url . 'assets/css/jwpm-repair.css',
-		array( 'jwpm-common' ),
-		defined( 'JWPM_VERSION' ) ? JWPM_VERSION : '1.0.0'
-	);
-
-	// JS
-	wp_enqueue_script(
-		'jwpm-repair',
-		$plugin_url . 'assets/js/jwpm-repair.js',
-		array( 'jquery', 'jwpm-common' ),
-		defined( 'JWPM_VERSION' ) ? JWPM_VERSION : '1.0.0',
-		true
-		jwpm_enqueue_repair_assets();
-
-	);
-
-	$strings = array(
-		'loading'        => __( 'Repair Jobs لوڈ ہو رہے ہیں…', 'jwpm' ),
-		'saving'         => __( 'مرمت کا ریکارڈ محفوظ ہو رہا ہے…', 'jwpm' ),
-		'saveSuccess'    => __( 'Repair job محفوظ ہو گیا۔', 'jwpm' ),
-		'saveError'      => __( 'محفوظ کرتے وقت مسئلہ آیا، دوبارہ کوشش کریں۔', 'jwpm' ),
-		'deleteConfirm'  => __( 'کیا آپ واقعی اس Repair job کو cancel کرنا چاہتے ہیں؟', 'jwpm' ),
-		'deleteSuccess'  => __( 'Repair job cancel / update ہو گیا۔', 'jwpm' ),
-		'importSuccess'  => __( 'Repair jobs import مکمل ہو گیا۔', 'jwpm' ),
-		'importError'    => __( 'Import کے دوران مسئلہ آیا۔', 'jwpm' ),
-		'demoCreateSuccess' => __( 'Demo Repairs بنا دیے گئے۔', 'jwpm' ),
-		'demoClearSuccess'  => __( 'Demo Repairs حذف ہو گئے۔', 'jwpm' ),
-		'noRecords'      => __( 'کوئی Repair job نہیں ملا۔', 'jwpm' ),
-	);
-
-	wp_localize_script(
-		'jwpm-repair',
-		'jwpmRepairData',
-		array(
-			'ajaxUrl'    => admin_url( 'admin-ajax.php' ),
-			'mainNonce'  => wp_create_nonce( 'jwpm_repair_main_nonce' ),
-			'importNonce'=> wp_create_nonce( 'jwpm_repair_import_nonce' ),
-			'exportNonce'=> wp_create_nonce( 'jwpm_repair_export_nonce' ),
-			'demoNonce'  => wp_create_nonce( 'jwpm_repair_demo_nonce' ),
-			'strings'    => $strings,
-			'pagination' => array(
-				'defaultPerPage' => 20,
-				'perPageOptions' => array( 20, 50, 100 ),
+		$localized = array(
+			'nonce'   => wp_create_nonce( 'jwpm_expenses_nonce' ),
+			'actions' => array(
+				'fetch'  => 'jwpm_expenses_fetch',
+				'save'   => 'jwpm_expenses_save',
+				'delete' => 'jwpm_expenses_delete',
+				'import' => 'jwpm_expenses_import',
+				'export' => 'jwpm_expenses_export',
+				'demo'   => 'jwpm_expenses_demo',
 			),
-		)
-	);
+			'rootId' => 'jwpm-expenses-root',
+			'i18n'   => array(
+				'loading'       => __( 'لوڈ ہو رہا ہے...', 'jwpm' ),
+				'saving'        => __( 'محفوظ کیا جا رہا ہے...', 'jwpm' ),
+				'deleting'      => __( 'حذف کیا جا رہا ہے...', 'jwpm' ),
+				'confirmDelete' => __( 'کیا آپ واقعی یہ Expense حذف کرنا چاہتے ہیں؟', 'jwpm' ),
+				'errorGeneric'  => __( 'کچھ غلط ہو گیا، دوبارہ کوشش کریں۔', 'jwpm' ),
+			),
+		);
+
+		wp_localize_script( 'jwpm-expenses-js', 'jwpmExpenses', $localized );
+	}
+	
+	/**
+	 * Accounts Ledger Page Assets and Localize
+	 */
+	protected function enqueue_ledger_assets( $version ) {
+		wp_enqueue_script(
+			'jwpm-ledger-js',
+			JWPM_PLUGIN_URL . 'assets/js/jwpm-ledger.js',
+			array( 'jquery', 'jwpm-common-js' ),
+			$version,
+			true
+		);
+
+		wp_enqueue_style(
+			'jwpm-ledger-css',
+			JWPM_PLUGIN_URL . 'assets/css/jwpm-ledger.css',
+			array( 'jwpm-common-css' ),
+			$version
+		);
+
+		$localized = array(
+			'nonce'   => wp_create_nonce( 'jwpm_ledger_nonce' ),
+			'actions' => array(
+				'fetch'  => 'jwpm_ledger_fetch',
+				'export' => 'jwpm_ledger_export',
+				'demo'   => 'jwpm_ledger_demo',
+			),
+			'rootId' => 'jwpm-ledger-root',
+			'i18n'   => array(
+				'loading'      => __( 'لوڈ ہو رہا ہے...', 'jwpm' ),
+				'errorGeneric' => __( 'کچھ غلط ہو گیا، دوبارہ کوشش کریں۔', 'jwpm' ),
+				'demoConfirm'  => __( 'کیا آپ Demo Ledger data شامل کرنا چاہتے ہیں؟', 'jwpm' ),
+			),
+		);
+
+		wp_localize_script( 'jwpm-ledger-js', 'jwpmLedger', $localized );
+	}
 }
-
-// 🔴 یہاں پر [JWPM Repair Assets] ختم ہو رہا ہے
-// ✅ Syntax verified block end
-<?php
-// ... یہاں آپ کا موجودہ class-jwpm-assets.php کوڈ ہے ...
-
-// 🟢 یہاں سے [Assets: Accounts Cashbook Page] شروع ہو رہا ہے
-
-/** Part 22 — Assets: Accounts Cashbook Page */
-
-if ( ! function_exists( 'jwpm_enqueue_accounts_cashbook_assets' ) ) {
-    /**
-     * Cashbook page assets
-     */
-    function jwpm_enqueue_accounts_cashbook_assets( $hook ) {
-        // صرف ہمارے accounts cashbook پیج پر لوڈ کریں
-        $page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
-
-        if ( 'jwpm-accounts-cashbook' !== $page ) {
-            return;
-        }
-
-        $plugin_url = plugin_dir_url( __FILE__ );
-
-        // Common JS/CSS پہلے ہی کہیں اور enqueue ہو رہے ہوں گے
-        // یہاں صرف page-specific assets
-        wp_enqueue_script(
-            'jwpm-accounts-cashbook-js',
-            $plugin_url . 'assets/js/jwpm-accounts-cashbook.js',
-            array( 'jquery', 'jwpm-common-js' ),
-            '1.0.0',
-            true
-        );
-
-        wp_enqueue_style(
-            'jwpm-accounts-cashbook-css',
-            $plugin_url . 'assets/css/jwpm-accounts-cashbook.css',
-            array( 'jwpm-common-css' ),
-            '1.0.0'
-        );
-
-        $nonce = wp_create_nonce( 'jwpm_cashbook_nonce' );
-
-        wp_localize_script(
-            'jwpm-accounts-cashbook-js',
-            'jwpmAccountsCashbook',
-            array(
-                'ajaxUrl'   => admin_url( 'admin-ajax.php' ),
-                'nonce'     => $nonce,
-                'actions'   => array(
-                    'fetch'  => 'jwpm_cashbook_fetch',
-                    'save'   => 'jwpm_cashbook_save',
-                    'delete' => 'jwpm_cashbook_delete',
-                    'import' => 'jwpm_cashbook_import',
-                    'export' => 'jwpm_cashbook_export',
-                    'demo'   => 'jwpm_cashbook_demo',
-                ),
-                'rootId'   => 'jwpm-accounts-cashbook-root',
-                'i18n'     => array(
-                    'loading'      => __( 'لوڈ ہو رہا ہے...', 'jwpm' ),
-                    'saving'       => __( 'محفوظ کیا جا رہا ہے...', 'jwpm' ),
-                    'deleting'     => __( 'حذف کیا جا رہا ہے...', 'jwpm' ),
-                    'confirmDelete'=> __( 'کیا آپ واقعی یہ ریکارڈ حذف کرنا چاہتے ہیں؟', 'jwpm' ),
-                    'errorGeneric' => __( 'کچھ غلط ہو گیا، دوبارہ کوشش کریں۔', 'jwpm' ),
-                ),
-            )
-        );
-    }
-}
-add_action( 'admin_enqueue_scripts', 'jwpm_enqueue_accounts_cashbook_assets' );
-
-// 🔴 یہاں پر [Assets: Accounts Cashbook Page] ختم ہو رہا ہے
-
-// ✅ Syntax verified block end
-<?php
-// ... یہاں آپ کا موجودہ class-jwpm-assets.php کوڈ ہے ...
-
-// 🟢 یہاں سے [Assets: Accounts Expenses Page] شروع ہو رہا ہے
-
-/** Part 24 — Assets: Accounts Expenses Page */
-
-if ( ! function_exists( 'jwpm_enqueue_expenses_assets' ) ) {
-    /**
-     * Expenses page assets
-     */
-    function jwpm_enqueue_expenses_assets( $hook ) {
-        $page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
-
-        if ( 'jwpm-expenses' !== $page ) {
-            return;
-        }
-
-        $plugin_url = plugin_dir_url( __FILE__ );
-
-        wp_enqueue_script(
-            'jwpm-expenses-js',
-            $plugin_url . 'assets/js/jwpm-expenses.js',
-            array( 'jquery', 'jwpm-common-js' ),
-            '1.0.0',
-            true
-        );
-
-        wp_enqueue_style(
-            'jwpm-expenses-css',
-            $plugin_url . 'assets/css/jwpm-expenses.css',
-            array( 'jwpm-common-css' ),
-            '1.0.0'
-        );
-
-        $nonce = wp_create_nonce( 'jwpm_expenses_nonce' );
-
-        wp_localize_script(
-            'jwpm-expenses-js',
-            'jwpmExpenses',
-            array(
-                'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-                'nonce'   => $nonce,
-                'actions' => array(
-                    'fetch'  => 'jwpm_expenses_fetch',
-                    'save'   => 'jwpm_expenses_save',
-                    'delete' => 'jwpm_expenses_delete',
-                    'import' => 'jwpm_expenses_import',
-                    'export' => 'jwpm_expenses_export',
-                    'demo'   => 'jwpm_expenses_demo',
-                ),
-                'rootId' => 'jwpm-expenses-root',
-                'i18n'   => array(
-                    'loading'       => __( 'لوڈ ہو رہا ہے...', 'jwpm' ),
-                    'saving'        => __( 'محفوظ کیا جا رہا ہے...', 'jwpm' ),
-                    'deleting'      => __( 'حذف کیا جا رہا ہے...', 'jwpm' ),
-                    'confirmDelete' => __( 'کیا آپ واقعی یہ Expense حذف کرنا چاہتے ہیں؟', 'jwpm' ),
-                    'errorGeneric'  => __( 'کچھ غلط ہو گیا، دوبارہ کوشش کریں۔', 'jwpm' ),
-                ),
-            )
-        );
-    }
-}
-add_action( 'admin_enqueue_scripts', 'jwpm_enqueue_expenses_assets' );
-
-// 🔴 یہاں پر [Assets: Accounts Expenses Page] ختم ہو رہا ہے
-
-// ✅ Syntax verified block end
-<?php
-// ... یہاں آپ کا موجودہ class-jwpm-assets.php کوڈ ہے ...
-
-// 🟢 یہاں سے [Assets: Accounts Ledger Page] شروع ہو رہا ہے
-
-/** Part 26 — Assets: Accounts Ledger Page */
-
-if ( ! function_exists( 'jwpm_enqueue_ledger_assets' ) ) {
-    /**
-     * Ledger page assets
-     */
-    function jwpm_enqueue_ledger_assets( $hook ) {
-        $page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
-
-        if ( 'jwpm-ledger' !== $page ) {
-            return;
-        }
-
-        $plugin_url = plugin_dir_url( __FILE__ );
-
-        wp_enqueue_script(
-            'jwpm-ledger-js',
-            $plugin_url . 'assets/js/jwpm-ledger.js',
-            array( 'jquery', 'jwpm-common-js' ),
-            '1.0.0',
-            true
-        );
-
-        wp_enqueue_style(
-            'jwpm-ledger-css',
-            $plugin_url . 'assets/css/jwpm-ledger.css',
-            array( 'jwpm-common-css' ),
-            '1.0.0'
-        );
-
-        $nonce = wp_create_nonce( 'jwpm_ledger_nonce' );
-
-        wp_localize_script(
-            'jwpm-ledger-js',
-            'jwpmLedger',
-            array(
-                'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-                'nonce'   => $nonce,
-                'actions' => array(
-                    'fetch'  => 'jwpm_ledger_fetch',
-                    'export' => 'jwpm_ledger_export',
-                    'demo'   => 'jwpm_ledger_demo',
-                ),
-                'rootId' => 'jwpm-ledger-root',
-                'i18n'   => array(
-                    'loading'      => __( 'لوڈ ہو رہا ہے...', 'jwpm' ),
-                    'errorGeneric' => __( 'کچھ غلط ہو گیا، دوبارہ کوشش کریں۔', 'jwpm' ),
-                    'demoConfirm'  => __( 'کیا آپ Demo Ledger data شامل کرنا چاہتے ہیں؟', 'jwpm' ),
-                ),
-            )
-        );
-    }
-}
-add_action( 'admin_enqueue_scripts', 'jwpm_enqueue_ledger_assets' );
-
-// 🔴 یہاں پر [Assets: Accounts Ledger Page] ختم ہو رہا ہے
 
 // ✅ Syntax verified block end
