@@ -36,18 +36,18 @@ class JWPM_Assets {
 		$version = defined( 'JWPM_VERSION' ) ? JWPM_VERSION : time();
 		
 		// 🟢 یہاں سے [Common Assets] شروع ہو رہا ہے
-		// (CSS)
+		// (CSS) Common
 		wp_enqueue_style(
 			'jwpm-common-css',
-			JWPM_PLUGIN_URL . 'jwpm-common.css',
+			JWPM_PLUGIN_URL . 'assets/css/jwpm-common.css', // 👈 'assets/css/' کا اضافہ کریں
 			array(),
 			$version
 		);
 
-		// (JS)
+		// (JS) Common
 		wp_enqueue_script(
 			'jwpm-common-js',
-			JWPM_PLUGIN_URL . 'jwpm-common.js',
+			JWPM_PLUGIN_URL . 'assets/js/jwpm-common.js', // 👈 'assets/js/' کا اضافہ کریں
 			array( 'jquery' ),
 			$version,
 			true
