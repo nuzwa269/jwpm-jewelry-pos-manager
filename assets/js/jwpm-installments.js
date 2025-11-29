@@ -1,5 +1,6 @@
-/** Part 11 — JWPM Installments Page Script (UI + AJAX)
- * یہاں Installments / Credit Sales پیج کا پورا (JavaScript) behaviour ہے۔
+/**
+ * JWPM Installments Page Script (UI + AJAX)
+ * Updated: Direct HTML Injection (No PHP Templates required)
  */
 (function ($) {
 	'use strict';
@@ -12,9 +13,6 @@
 	var jwpmInstallmentsConfig = window.jwpmInstallmentsData || {
 		ajaxUrl: window.ajaxurl || '/wp-admin/admin-ajax.php',
 		mainNonce: '',
-		importNonce: '',
-		exportNonce: '',
-		demoNonce: '',
 		strings: {
 			loading: 'Installments لوڈ ہو رہے ہیں…',
 			saving: 'ڈیٹا محفوظ ہو رہا ہے…',
@@ -24,10 +22,6 @@
 			deleteSuccess: 'Contract کی Status اپڈیٹ ہو گئی۔',
 			paymentSave: 'Payment محفوظ ہو گئی۔',
 			paymentError: 'Payment محفوظ نہیں ہو سکی۔',
-			demoCreateSuccess: 'Demo Installments بنا دیے گئے۔',
-			demoClearSuccess: 'Demo Installments حذف ہو گئے۔',
-			importSuccess: 'Import مکمل ہو گیا۔',
-			importError: 'Import کے دوران مسئلہ آیا۔',
 			noRecords: 'کوئی ریکارڈ نہیں ملا۔'
 		},
 		pagination: {
@@ -137,42 +131,254 @@
 			this.$importModal = null;
 			this.$paymentModal = null;
 
-			this.templates = {
-				layout: document.getElementById('jwpm-installments-layout-template'),
-				row: document.getElementById('jwpm-installments-row-template'),
-				panel: document.getElementById('jwpm-installments-panel-template'),
-				paymentModal: document.getElementById('jwpm-installments-payment-modal-template'),
-				importModal: document.getElementById('jwpm-installments-import-template')
-			};
+			// Templates will be defined as functions returning HTML strings
 
 			this.init();
 		}
 
-		JWPMInstallmentsPage.prototype.init = function () {
-			if (!this.templates.layout) {
-				notifyError('Installments layout template نہیں ملا۔');
-				return;
-			}
+		// 1. HTML Layout Injection
+		JWPMInstallmentsPage.prototype.renderLayout = function () {
+			this.$root.html(`
+				<div class="jwpm-page-installments jwpm-wrapper">
+					<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #eee;">
+						<h2 style="margin:0;">💳 Installment Plans / Credit Sales</h2>
+						<div>
+							<button class="button button-primary" data-jwpm-installments-action="add">+ New Plan</button>
+							<button class="button" data-jwpm-installments-action="export">Export</button>
+							<button class="button" data-jwpm-installments-action="demo-create">Demo Data</button>
+						</div>
+					</div>
 
+					<div style="display:flex; gap:20px; margin-bottom:20px; flex-wrap:wrap;">
+						
+						<div class="jwpm-card" style="flex:1; padding:15px; background:#e6f0ff; border-left:4px solid #0073aa;">
+							<div style="font-size:12px; color:#555;">Active Contracts</div>
+							<div data-jwpm-installments-stat="active_contracts" style="font-size:1.5em;">
+                                <span class="jwpm-stat-value" style="font-weight:bold;">0</span>
+                            </div>
+						</div>
+						<div class="jwpm-card" style="flex:2; padding:15px; background:#fff0e6; border-left:4px solid #ff9900;">
+							<div style="font-size:12px; color:#555;">Total Outstanding (Net Balance)</div>
+							<div data-jwpm-installments-stat="total_outstanding" style="font-size:1.5em; color:#ff9900;">
+                                <span class="jwpm-stat-value" style="font-weight:bold;">0.000</span>
+                            </div>
+						</div>
+						<div class="jwpm-card" style="flex:1; padding:15px; background:#ffe6e6; border-left:4px solid #d63638;">
+							<div style="font-size:12px; color:#555;">Overdue Installments</div>
+							<div data-jwpm-installments-stat="overdue_installments" style="font-size:1.5em; color:#d63638;">
+                                <span class="jwpm-stat-value" style="font-weight:bold;">0</span>
+                            </div>
+						</div>
+
+						<div class="jwpm-card" style="padding:15px; flex:3; display:flex; gap:10px; align-items:center;">
+							<input type="text" data-jwpm-installments-filter="search" placeholder="Search Code / Customer..." style="padding:6px; width:150px;">
+							<select data-jwpm-installments-filter="status" style="padding:6px;">
+								<option value="">All Status</option>
+								<option value="active">Active</option>
+								<option value="completed">Completed</option>
+								<option value="defaulted">Defaulted</option>
+							</select>
+							<select data-jwpm-installments-filter="date_mode" style="padding:6px;">
+								<option value="sale">Sale Date</option>
+								<option value="due">Next Due Date</option>
+							</select>
+							<input type="date" data-jwpm-installments-filter="date_from" title="Date From">
+							<input type="date" data-jwpm-installments-filter="date_to" title="Date To">
+						</div>
+					</div>
+
+					<table class="wp-list-table widefat fixed striped jwpm-table-installments">
+						<thead>
+							<tr>
+								<th>Contract #</th>
+								<th>Customer</th>
+								<th>Sale Date</th>
+								<th>Total Amt</th>
+								<th>Advance</th>
+								<th>Net Sale</th>
+								<th>Installments</th>
+								<th>Outstanding</th>
+								<th>Next Due</th>
+								<th>Status</th>
+								<th>Actions</th>
+							</tr>
+						</thead>
+						<tbody data-jwpm-installments-table-body>
+							<tr><td colspan="11">Loading...</td></tr>
+						</tbody>
+					</table>
+
+					<div class="tablenav bottom">
+						<div class="tablenav-pages" data-jwpm-installments-pagination></div>
+					</div>
+
+					<div data-jwpm-installments-side-panel style="display:none; position:fixed; top:0; right:0; width:650px; height:100%; background:#fff; box-shadow:-2px 0 10px rgba(0,0,0,0.2); z-index:9999; display:flex; flex-direction:column;">
+						</div>
+				</div>
+			`);
+		};
+
+		// 2. Templates for dynamic parts (HTML string functions)
+		JWPMInstallmentsPage.prototype.templatePanel = function (isNew = true) {
+			return `
+				<div style="padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; background:#f5f5f5;">
+					<h2 data-jwpm-installments-panel-title style="margin:0;">${isNew ? 'New Installment Plan' : 'Loading...'}</h2>
+					<span data-jwpm-installments-contract-status class="jwpm-status-badge"></span>
+					<button class="button" data-jwpm-installments-action="close-panel">Close ❌</button>
+				</div>
+				
+				<div class="jwpm-tabs" style="display:flex; border-bottom:1px solid #ccc; padding:0 15px; margin-top:10px;">
+					<div class="jwpm-tab is-active" data-jwpm-installments-tab="overview" style="padding:10px 15px; cursor:pointer; font-weight:bold; border-bottom:3px solid transparent;">Overview</div>
+					<div class="jwpm-tab" data-jwpm-installments-tab="schedule" style="padding:10px 15px; cursor:pointer; font-weight:bold; border-bottom:3px solid transparent;">Schedule</div>
+					<div class="jwpm-tab" data-jwpm-installments-tab="payments" style="padding:10px 15px; cursor:pointer; font-weight:bold; border-bottom:3px solid transparent;">Payments History</div>
+					<button class="button button-small" style="margin-left:auto;" data-jwpm-installments-action="add-payment">Receive Payment</button>
+				</div>
+
+				<div style="flex:1; overflow-y:auto; padding:20px;">
+					<div data-jwpm-installments-tab-panel="overview" class="jwpm-tab-panel is-active">
+						<form data-jwpm-installments-form>
+							<input type="hidden" data-jwpm-installments-input="id" name="id" value="">
+							
+							<div style="display:flex; gap:10px; margin-bottom:10px;">
+								<div style="flex:1;">
+									<label>Customer ID/Name *</label>
+									<input type="text" data-jwpm-installments-input="customer_id" name="customer_id" class="widefat" required>
+								</div>
+								<div style="flex:1;">
+									<label>Sale Date</label>
+									<input type="date" data-jwpm-installments-input="sale_date" name="sale_date" class="widefat">
+								</div>
+							</div>
+							
+							<div style="display:flex; gap:10px; margin-bottom:10px;">
+								<div style="flex:1;">
+									<label>Total Price (Sale)</label>
+									<input type="number" step="0.001" data-jwpm-installments-input="total_amount" name="total_amount" class="widefat" required>
+								</div>
+								<div style="flex:1;">
+									<label>Advance / Down Payment</label>
+									<input type="number" step="0.001" data-jwpm-installments-input="advance_amount" name="advance_amount" class="widefat">
+								</div>
+								<div style="flex:1;">
+									<label>Net Payable (Installment Basis)</label>
+									<input type="number" step="0.001" data-jwpm-installments-input="net_amount" name="net_amount" class="widefat" readonly style="background:#eee;">
+								</div>
+							</div>
+
+							<div style="display:flex; gap:10px; margin-bottom:10px;">
+								<div style="flex:1;">
+									<label>Installment Count</label>
+									<input type="number" data-jwpm-installments-input="installment_count" name="installment_count" class="widefat" required>
+								</div>
+								<div style="flex:1;">
+									<label>Frequency</label>
+									<select data-jwpm-installments-input="installment_frequency" name="installment_frequency" class="widefat">
+										<option value="monthly">Monthly</option>
+										<option value="biweekly">Bi-Weekly</option>
+										<option value="weekly">Weekly</option>
+									</select>
+								</div>
+								<div style="flex:1;">
+									<label>Start Date</label>
+									<input type="date" data-jwpm-installments-input="start_date" name="start_date" class="widefat" required>
+								</div>
+							</div>
+							
+							<label>Status</label>
+							<select data-jwpm-installments-input="status" name="status" class="widefat" style="margin-bottom:10px;">
+								<option value="active">Active</option>
+								<option value="completed">Completed</option>
+								<option value="defaulted">Defaulted</option>
+								<option value="cancelled">Cancelled</option>
+							</select>
+							
+							<label>Remarks</label>
+							<textarea data-jwpm-installments-input="remarks" name="remarks" class="widefat" style="margin-bottom:20px;"></textarea>
+
+							<button type="submit" class="button button-primary button-large" data-jwpm-installments-action="save-contract" style="width:100%;">Save Installment Plan</button>
+						</form>
+					</div>
+
+					<div data-jwpm-installments-tab-panel="schedule" class="jwpm-tab-panel" style="display:none;">
+						<div class="jwpm-schedule-summary" style="display:flex; gap:15px; margin-bottom:10px; padding:10px; border:1px solid #ddd; background:#f9f9f9;">
+							<span data-jwpm-installments-sched-stat="total">Total: 0</span>
+							<span data-jwpm-installments-sched-stat="paid" style="color:green;">Paid: 0</span>
+							<span data-jwpm-installments-sched-stat="pending">Pending: 0</span>
+							<span data-jwpm-installments-sched-stat="overdue" style="color:red;">Overdue: 0</span>
+							<button class="button button-small" style="margin-left:auto;" data-jwpm-installments-action="recalc-even">Recalculate Evenly</button>
+							<button class="button button-small" data-jwpm-installments-action="refresh-schedule">Refresh</button>
+						</div>
+						
+						<table class="widefat striped">
+							<thead>
+								<tr><th>#</th><th>Due Date</th><th>Amount</th><th>Paid</th><th>Status</th><th>Paid Date</th></tr>
+							</thead>
+							<tbody data-jwpm-installments-schedule-body>
+								<tr><td colspan="6">Schedule will load here.</td></tr>
+							</tbody>
+						</table>
+					</div>
+
+					<div data-jwpm-installments-tab-panel="payments" class="jwpm-tab-panel" style="display:none;">
+						<table class="widefat striped">
+							<thead>
+								<tr><th>Date</th><th>Amount</th><th>Method</th><th>Ref #</th><th>Received By</th><th>Note</th></tr>
+							</thead>
+							<tbody data-jwpm-installments-payments-body>
+								<tr><td colspan="6">Payments history will load here.</td></tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			`;
+		}
+
+		JWPMInstallmentsPage.prototype.templatePaymentModal = function () {
+			return `
+				<div class="jwpm-modal-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; display:flex; align-items:center; justify-content:center;">
+					<div class="jwpm-modal-content" style="background:#fff; padding:20px; border-radius:5px; width:400px;">
+						<h3 style="margin-top:0;">Receive Installment Payment</h3>
+						<form data-jwpm-installments-payment-form>
+							<input type="hidden" data-jwpm-installments-payment-input="contract_id" name="contract_id">
+							<label>Payment Date</label>
+							<input type="date" data-jwpm-installments-payment-input="payment_date" name="payment_date" class="widefat" required style="margin-bottom:10px;">
+							<label>Amount Received *</label>
+							<input type="number" step="0.001" data-jwpm-installments-payment-input="amount" name="amount" class="widefat" required style="margin-bottom:10px;">
+							<label>Payment Method</label>
+							<select data-jwpm-installments-payment-input="method" name="method" class="widefat" style="margin-bottom:10px;">
+								<option value="Cash">Cash</option>
+								<option value="Bank Transfer">Bank Transfer</option>
+								<option value="Easypaisa/Jazzcash">Easypaisa/Jazzcash</option>
+							</select>
+							<label>Reference No. (Optional)</label>
+							<input type="text" data-jwpm-installments-payment-input="reference_no" name="reference_no" class="widefat" style="margin-bottom:10px;">
+							<label>Note</label>
+							<textarea data-jwpm-installments-payment-input="note" name="note" class="widefat" style="margin-bottom:20px;"></textarea>
+							<div style="display:flex; justify-content:space-between;">
+								<button type="button" class="button" data-jwpm-installments-action="close-payment">Cancel</button>
+								<button type="submit" class="button button-primary" data-jwpm-installments-action="save-payment">Save Payment</button>
+							</div>
+						</form>
+					</div>
+				</div>
+			`;
+		};
+		
+		JWPMInstallmentsPage.prototype.init = function () {
+			// No template check needed now
 			this.renderLayout();
 			this.cacheElements();
 			this.bindEvents();
 			this.loadInstallments();
 		};
 
-		JWPMInstallmentsPage.prototype.renderLayout = function () {
-			var tmpl = this.templates.layout.content
-				? this.templates.layout.content.cloneNode(true)
-				: document.importNode(this.templates.layout, true);
-
-			this.$root.empty().append(tmpl);
-		};
-
 		JWPMInstallmentsPage.prototype.cacheElements = function () {
+			// Caching elements based on the injected HTML
 			this.$layout = this.$root.find('.jwpm-page-installments').first();
 			this.$tableBody = this.$layout.find('[data-jwpm-installments-table-body]').first();
 			this.$pagination = this.$layout.find('[data-jwpm-installments-pagination]').first();
 			this.$sidePanel = this.$layout.find('[data-jwpm-installments-side-panel]').first();
+			// $importModal and $paymentModal will be cached dynamically
 		};
 
 		JWPMInstallmentsPage.prototype.bindEvents = function () {
@@ -214,13 +420,14 @@
 				self.openContractPanel(null);
 			});
 
-			this.$layout.on('click', '[data-jwpm-installments-action="receive"]', function () {
-				if (!self.state.currentContractId) {
-					notifyInfo('کوئی Contract منتخب نہیں، براہ کرم Table سے View/Receive استعمال کریں۔');
-					return;
-				}
-				self.openPaymentModal(self.state.currentContractId);
-			});
+			// NOTE: Removed toolbar 'receive' button reference, relies on quick-receive
+			// this.$layout.on('click', '[data-jwpm-installments-action="receive"]', function () {
+			// 	if (!self.state.currentContractId) {
+			// 		notifyInfo('کوئی Contract منتخب نہیں، براہ کرم Table سے View/Receive استعمال کریں۔');
+			// 		return;
+			// 	}
+			// 	self.openPaymentModal(self.state.currentContractId);
+			// });
 
 			this.$layout.on('click', '[data-jwpm-installments-action="import"]', function () {
 				self.openImportModal();
@@ -419,41 +626,24 @@
 				return;
 			}
 
-			if (!this.templates.row) {
-				notifyError('Installments row template نہیں ملا۔');
-				return;
-			}
+			// Removed check for templates.row
 
 			this.state.items.forEach(function (item) {
-				var $tr;
+				// Use jQuery to construct the row directly
+				var $tr = $('<tr/>', { 'data-jwpm-installment-row': '', 'data-id': item.id });
 
-				if (self.templates.row.content) {
-					var node = self.templates.row.content.cloneNode(true);
-					$tr = $(node).children('tr').first();
-				} else {
-					$tr = $(document.importNode(self.templates.row, true));
-				}
-
-				$tr.attr('data-jwpm-installment-row', '');
-				$tr.attr('data-id', item.id);
-
-				$tr.find('[data-jwpm-installment-field="contract_code"]').text(item.contract_code || '');
-				$tr.find('[data-jwpm-installment-field="customer_name"]').text(item.customer_name || '');
-				$tr.find('[data-jwpm-installment-field="customer_phone"]').text(item.customer_phone || '');
-				$tr.find('[data-jwpm-installment-field="total_amount"]').text(formatAmount(item.total_amount));
-				$tr.find('[data-jwpm-installment-field="advance_amount"]').text(formatAmount(item.advance_amount));
-				$tr.find('[data-jwpm-installment-field="net_amount"]').text(formatAmount(item.net_amount));
-				$tr
-					.find('[data-jwpm-installment-field="installment_count"]')
-					.text(item.installment_count || 0);
-				$tr.find('[data-jwpm-installment-field="next_due_date"]').text(item.start_date || '');
-				$tr
-					.find('[data-jwpm-installment-field="outstanding"]')
-					.text(formatAmount(item.current_outstanding));
-
+				$tr.append($('<td/>').text(item.contract_code || ''));
+				$tr.append($('<td/>').text(item.customer_name || ''));
+				$tr.append($('<td/>').text(item.sale_date || '')); // Use sale date instead of phone for table structure consistency
+				$tr.append($('<td/>').text(formatAmount(item.total_amount)));
+				$tr.append($('<td/>').text(formatAmount(item.advance_amount)));
+				$tr.append($('<td/>').text(formatAmount(item.net_amount)));
+				$tr.append($('<td/>').text(item.installment_count || 0));
+				$tr.append($('<td/>').text(formatAmount(item.current_outstanding)));
+				$tr.append($('<td/>').text(item.start_date || '')); // Next Due Date approximation
+				
 				var status = item.status || 'active';
-				var $badge = $tr.find('[data-jwpm-installment-field="status_badge"]');
-				$badge
+				var $badge = $('<span/>')
 					.attr('data-status', status)
 					.addClass('jwpm-status-badge')
 					.text(
@@ -465,6 +655,14 @@
 							? 'Cancelled'
 							: 'Active'
 					);
+				$tr.append($('<td/>', { 'data-jwpm-installment-field': 'status_badge' }).append($badge));
+
+				var $actions = $('<td/>');
+				$actions.append($('<button/>', { class: 'button button-small', text: 'View', 'data-jwpm-installments-action': 'view' }));
+				$actions.append($('<button/>', { class: 'button button-small', text: 'Receive', 'data-jwpm-installments-action': 'quick-receive' }));
+				$actions.append($('<button/>', { class: 'button button-small', text: 'Cancel', 'data-jwpm-installments-action': 'cancel-contract' }));
+				$tr.append($actions);
+
 
 				self.$tableBody.append($tr);
 			});
@@ -533,23 +731,9 @@
 		 */
 		JWPMInstallmentsPage.prototype.openContractPanel = function (id) {
 			var self = this;
-
-			if (!this.templates.panel) {
-				notifyError('Installments panel template نہیں ملا۔');
-				return;
-			}
-
-			this.$sidePanel.empty();
-
-			var node;
-			if (this.templates.panel.content) {
-				node = this.templates.panel.content.cloneNode(true);
-			} else {
-				node = document.importNode(this.templates.panel, true);
-			}
-
-			this.$sidePanel.append(node);
-			this.$sidePanel.prop('hidden', false);
+			
+			// 1. Inject Panel HTML
+			this.$sidePanel.empty().html(this.templatePanel(!id)).show(); 
 
 			var $panel = this.$sidePanel;
 			var $form = $panel.find('[data-jwpm-installments-form]').first();
@@ -557,34 +741,43 @@
 			var $statusBadge = $panel.find('[data-jwpm-installments-contract-status]').first();
 
 			// Tab switching
-			$panel.on('click', '.jwpm-tab', function () {
+			$panel.off('click', '.jwpm-tab').on('click', '.jwpm-tab', function () {
 				var tab = $(this).attr('data-jwpm-installments-tab');
 				if (!tab) return;
 
 				$panel.find('.jwpm-tab').removeClass('is-active');
 				$(this).addClass('is-active');
 
-				$panel.find('.jwpm-tab-panel').removeClass('is-active');
+				$panel.find('.jwpm-tab-panel').removeClass('is-active').hide();
 				$panel
 					.find('[data-jwpm-installments-tab-panel="' + tab + '"]')
-					.addClass('is-active');
-			});
+					.addClass('is-active').show();
+			}).find('.jwpm-tab.is-active').trigger('click'); // Trigger initial tab load
 
 			// Close buttons
-			$panel.on(
+			$panel.off('click', '[data-jwpm-installments-action="close-panel"]').on(
 				'click',
 				'[data-jwpm-installments-action="close-panel"]',
 				this.closeSidePanel.bind(this)
 			);
 
 			// Save contract
-			$panel.on('click', '[data-jwpm-installments-action="save-contract"]', function (e) {
+			$panel.off('click', '[data-jwpm-installments-action="save-contract"]').on('click', '[data-jwpm-installments-action="save-contract"]', function (e) {
 				e.preventDefault();
 				self.saveContract($form);
 			});
-
+			
+			// Payments tab: Add Payment button
+			$panel.off('click', '[data-jwpm-installments-action="add-payment"]').on('click', '[data-jwpm-installments-action="add-payment"]', function () {
+				if (!self.state.currentContractId && !id) {
+					notifyInfo('کوئی Contract منتخب نہیں، پہلے Table سے contract کھولیں۔');
+					return;
+				}
+				self.openPaymentModal(self.state.currentContractId || id);
+			});
+			
 			// Overview auto net amount calc
-			$panel.on(
+			$panel.off('input', '[data-jwpm-installments-input="total_amount"], [data-jwpm-installments-input="advance_amount"]').on(
 				'input',
 				'[data-jwpm-installments-input="total_amount"], [data-jwpm-installments-input="advance_amount"]',
 				function () {
@@ -601,35 +794,21 @@
 						.val(net.toFixed(3));
 				}
 			);
-
+			
 			// Schedule tab simple actions
-			$panel.on('click', '[data-jwpm-installments-action="recalc-even"]', function () {
-				notifyInfo('Recalculate Evenly فیچر بعد میں تفصیل سے implement ہو گا (فی الحال صرف display)۔');
-			});
-
-			$panel.on('click', '[data-jwpm-installments-action="refresh-schedule"]', function () {
-				if (self.state.currentContractId) {
-					self.loadSchedule(self.state.currentContractId);
+			$panel.off('click', '[data-jwpm-installments-action="refresh-schedule"]').on('click', '[data-jwpm-installments-action="refresh-schedule"]', function () {
+				if (self.state.currentContractId || id) {
+					self.loadSchedule(self.state.currentContractId || id);
 				}
 			});
-
-			// Payments tab: Add Payment button
-			$panel.on('click', '[data-jwpm-installments-action="add-payment"]', function () {
-				if (!self.state.currentContractId) {
-					notifyInfo('کوئی Contract منتخب نہیں، پہلے Table سے contract کھولیں۔');
-					return;
-				}
-				self.openPaymentModal(self.state.currentContractId);
-			});
-
+			
+			// New contract vs existing
 			if (!id) {
-				// New contract
 				this.state.currentContractId = null;
 				$title.text('New Installment Plan');
 				$statusBadge.text('Active').attr('data-status', 'active').addClass('jwpm-status-badge');
-				$form[0].reset();
 				$form.find('[data-jwpm-installments-input="id"]').val('');
-				$form.find('[data-jwpm-installments-input="auto_generate_schedule"]').prop('checked', true);
+				$form.find('[data-jwpm-installments-input="sale_date"]').val(new Date().toISOString().slice(0, 10));
 			} else {
 				this.state.currentContractId = id;
 				this.loadContractIntoPanel(id, $panel, $form, $title, $statusBadge);
@@ -637,7 +816,7 @@
 		};
 
 		JWPMInstallmentsPage.prototype.closeSidePanel = function () {
-			this.$sidePanel.prop('hidden', true).empty();
+			this.$sidePanel.hide().empty();
 		};
 
 		JWPMInstallmentsPage.prototype.loadContractIntoPanel = function (
@@ -650,7 +829,7 @@
 			var self = this;
 
 			$title.text('Loading…');
-			$form[0].reset();
+			// $form[0].reset(); // No need to reset since we re-inject the panel
 
 			ajaxRequest('jwpm_get_installment', {
 				nonce: jwpmInstallmentsConfig.mainNonce,
@@ -670,7 +849,7 @@
 
 					$title.text('Contract: ' + (item.contract_code || ''));
 					var status = item.status || 'active';
-					statusBadge
+					$statusBadge
 						.text(
 							status === 'completed'
 								? 'Completed'
@@ -764,7 +943,14 @@
 					notifySuccess(
 						jwpmInstallmentsConfig.strings.saveSuccess || 'Installment Plan محفوظ ہو گیا۔'
 					);
-					self.closeSidePanel();
+					
+					// Important: After saving a NEW contract, reload panel with ID
+					if (!self.state.currentContractId && response.data && response.data.id) {
+						self.state.currentContractId = parseInt(response.data.id, 10);
+						self.loadContractIntoPanel(self.state.currentContractId, self.$sidePanel, $form, self.$sidePanel.find('[data-jwpm-installments-panel-title]').first(), self.$sidePanel.find('[data-jwpm-installments-contract-status]').first());
+					} else {
+						self.closeSidePanel();
+					}
 					self.loadInstallments();
 				})
 				.fail(function () {
@@ -917,7 +1103,7 @@
 					if (!response || !response.success) {
 						notifyError(
 							(response && response.data && response.data.message) ||
-								'Payments لوڈ نہیں ہو سکے۔'
+								'Payments لوڈ نہیں ہو سکیں۔'
 						);
 						return;
 					}
@@ -948,7 +1134,7 @@
 					}
 				})
 				.fail(function () {
-					notifyError('Payments لوڈ نہیں ہو سکے۔');
+					notifyError('Payments لوڈ نہیں ہو سکیں۔');
 				});
 		};
 
@@ -1000,25 +1186,9 @@
 		 */
 		JWPMInstallmentsPage.prototype.openPaymentModal = function (contractId) {
 			var self = this;
-
-			if (!this.templates.paymentModal) {
-				notifyError('Payment modal template نہیں ملا۔');
-				return;
-			}
-
-			if (this.$paymentModal && this.$paymentModal.length) {
-				this.$paymentModal.remove();
-				this.$paymentModal = null;
-			}
-
-			var node;
-			if (this.templates.paymentModal.content) {
-				node = this.templates.paymentModal.content.cloneNode(true);
-			} else {
-				node = document.importNode(this.templates.paymentModal, true);
-			}
-
-			this.$paymentModal = $(node);
+			
+			// 1. Inject Modal HTML
+			this.$paymentModal = $(this.templatePaymentModal());
 			$('body').append(this.$paymentModal);
 
 			var $modal = this.$paymentModal;
@@ -1086,25 +1256,26 @@
 		 */
 		JWPMInstallmentsPage.prototype.openImportModal = function () {
 			var self = this;
-
-			if (!this.templates.importModal) {
-				notifyError('Import modal template نہیں ملا۔');
-				return;
-			}
-
-			if (this.$importModal && this.$importModal.length) {
-				this.$importModal.remove();
-				this.$importModal = null;
-			}
-
-			var node;
-			if (this.templates.importModal.content) {
-				node = this.templates.importModal.content.cloneNode(true);
-			} else {
-				node = document.importNode(this.templates.importModal, true);
-			}
-
-			this.$importModal = $(node);
+			
+			// 1. Inject Modal HTML
+			var importModalHtml = `
+				<div class="jwpm-modal-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; display:flex; align-items:center; justify-content:center;">
+					<div class="jwpm-modal-content" style="background:#fff; padding:20px; border-radius:5px; width:500px;">
+						<h3 style="margin-top:0;">Import Installment Contracts</h3>
+						<form data-jwpm-installments-import-form>
+							<label>CSV File *</label>
+							<input type="file" name="file" accept=".csv" required style="margin-bottom:10px;">
+							<label><input type="checkbox" name="skip_duplicates" checked> Skip duplicate contracts (by code)</label>
+							<div data-jwpm-installments-import-result style="margin:10px 0; color:blue;"></div>
+							<div style="display:flex; justify-content:space-between; margin-top:20px;">
+								<button type="button" class="button" data-jwpm-installments-action="close-import">Cancel</button>
+								<button type="button" class="button button-primary" data-jwpm-installments-action="do-import">Start Import</button>
+							</div>
+						</form>
+					</div>
+				</div>
+			`;
+			this.$importModal = $(importModalHtml);
 			$('body').append(this.$importModal);
 
 			var $modal = this.$importModal;
@@ -1311,4 +1482,3 @@
 })(jQuery);
 
 // ✅ Syntax verified block end
-
