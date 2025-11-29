@@ -1,5 +1,6 @@
 /**
  * JWPM — Stock Report JS (Layout E — Teal Blue Analytics)
+ * Updated: Direct HTML Injection (No PHP Templates required)
  * یہ فائل Stock Report کی تمام charts, filters, AJAX اور pagination handle کرتی ہے۔
  */
 
@@ -19,49 +20,144 @@
         return;
     }
 
-    const $tpl = $("#jwpm-stock-report-layout");
-    if ($tpl.length === 0) {
-        console.warn("JWPM Warning: Stock Report Template Missing");
-        return;
+    // Localized (with safety checks)
+    const reportData = window.jwpmStockReport || {
+        ajaxUrl: window.ajaxurl || '/wp-admin/admin-ajax.php',
+        nonce: '',
+        actions: {},
+        i18n: {
+            loading: 'Loading Stock Report...',
+            error: 'Error loading report data.',
+            demoConfirm: 'Do you want to generate demo stock report data?'
+        }
+    };
+    const ajaxUrl = reportData.ajaxUrl;
+    const nonce = reportData.nonce;
+    const actions = reportData.actions;
+    const i18n = reportData.i18n;
+
+    // ---------------------------------------------------------
+    // RENDER LAYOUT (Replaces Template Mount)
+    // ---------------------------------------------------------
+    function renderLayout() {
+        $root.html(`
+            <div class="jwpm-wrapper">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #eee;">
+                    <h2 style="margin:0;">📈 Stock & Inventory Report</h2>
+                    <div>
+                        <button class="button" data-role="stock-export">Export</button>
+                        <button class="button" data-role="stock-print">Print</button>
+                        <button class="button" data-role="stock-demo">Demo Data</button>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:20px; margin-bottom:20px; flex-wrap:wrap;">
+                    
+                    <div class="jwpm-card" style="padding:15px; flex:1; min-width:300px; display:flex; gap:10px; flex-wrap:wrap;">
+                        <input type="text" data-role="filter-category" placeholder="Filter by Category..." style="padding:6px;">
+                        
+                        <select data-role="filter-metal" style="padding:6px;">
+                            <option value="">All Metals</option>
+                            <option value="Gold">Gold</option>
+                            <option value="Silver">Silver</option>
+                        </select>
+                        
+                        <input type="text" data-role="filter-karat" placeholder="Filter by Karat..." style="padding:6px;">
+                        <input type="number" data-role="filter-min-qty" placeholder="Min Qty" style="padding:6px; width:80px;">
+                        
+                        <button class="button" onclick="jQuery('[data-role^=filter-]').val('').trigger('change');">Clear Filters</button>
+                    </div>
+
+                    <div style="flex:2; display:flex; flex-wrap:wrap; gap:10px;">
+                        <div class="jwpm-stat-card" style="flex:1; background:#e0f7fa; color:#00bcd4;" data-role="sum-total-items">
+                            <div style="font-size:12px;">Unique Items</div>
+                            <div class="jwpm-summary-value" style="font-size:1.5em; font-weight:bold;">0</div>
+                        </div>
+                        <div class="jwpm-stat-card" style="flex:1; background:#b2ebf2; color:#0097a7;" data-role="sum-total-qty">
+                            <div style="font-size:12px;">Total Qty in Stock</div>
+                            <div class="jwpm-summary-value" style="font-size:1.5em; font-weight:bold;">0</div>
+                        </div>
+                        <div class="jwpm-stat-card" style="flex:1; background:#80deea; color:#00838f;" data-role="sum-total-weight">
+                            <div style="font-size:12px;">Total Weight (g)</div>
+                            <div class="jwpm-summary-value" style="font-size:1.5em; font-weight:bold;">0.00</div>
+                        </div>
+                         <div class="jwpm-stat-card" style="flex:1; background:#4dd0e1; color:#006064;" data-role="sum-stock-value">
+                            <div style="font-size:12px;">Total Stock Value</div>
+                            <div class="jwpm-summary-value" style="font-size:1.5em; font-weight:bold;">0.00</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:20px; margin-bottom:20px;">
+                    
+                    <div class="jwpm-card" style="padding:15px; flex:1;">
+                        <h4 style="margin-top:0;">Stock Value by Category</h4>
+                        <canvas id="jwpm-stock-donut-chart" style="max-height:350px;"></canvas>
+                    </div>
+                    
+                    <div class="jwpm-card" style="padding:15px; flex:1;">
+                        <h4 style="margin-top:0;">Top 10 Stock Value Items</h4>
+                        <canvas id="jwpm-stock-bar-chart" style="max-height:350px;"></canvas>
+                    </div>
+                </div>
+
+                <div class="jwpm-card" style="padding:15px;">
+                    <h3 style="margin-top:0;">Detailed Stock List</h3>
+                    <table class="wp-list-table widefat fixed striped">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Metal</th>
+                                <th>Karat</th>
+                                <th style="text-align:right;">Qty</th>
+                                <th style="text-align:right;">Weight (g)</th>
+                                <th style="text-align:right;">Value</th>
+                            </tr>
+                        </thead>
+                        <tbody data-role="stock-tbody">
+                            <tr><td colspan="8">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="tablenav bottom">
+                    <div class="tablenav-pages" data-role="stock-pagination"></div>
+                </div>
+            </div>
+        `);
     }
 
-    // Template mount function
-    const mount = window.jwpmMountTemplate || function (tpl, $target) {
-        $target.html($(tpl).html());
-    };
-    mount($tpl, $root);
+    renderLayout(); // Inject the UI immediately
 
 
-    // Localized
-    const ajaxUrl = window.jwpmStockReport.ajaxUrl;
-    const nonce   = window.jwpmStockReport.nonce;
-    const actions = window.jwpmStockReport.actions;
-    const i18n    = window.jwpmStockReport.i18n;
-
-
+    // ---------------------------------------------------------
+    // Element Caching (Post-Render)
+    // ---------------------------------------------------------
+    
     // Elements
-    const $tbody      = $root.find('[data-role="stock-tbody"]');
+    const $tbody = $root.find('[data-role="stock-tbody"]');
     const $pagination = $root.find('[data-role="stock-pagination"]');
 
     // Summary Cards
-    const $sumTotalItems  = $root.find('[data-role="sum-total-items"] .jwpm-summary-value');
-    const $sumTotalQty    = $root.find('[data-role="sum-total-qty"] .jwpm-summary-value');
+    const $sumTotalItems  = $root.find('[data-role="sum-total-items"] .jwpm-summary-value');
+    const $sumTotalQty    = $root.find('[data-role="sum-total-qty"] .jwpm-summary-value');
     const $sumTotalWeight = $root.find('[data-role="sum-total-weight"] .jwpm-summary-value');
-    const $sumStockValue  = $root.find('[data-role="sum-stock-value"] .jwpm-summary-value');
+    const $sumStockValue  = $root.find('[data-role="sum-stock-value"] .jwpm-summary-value');
 
     // Filters
-    const $filterCat  = $root.find('[data-role="filter-category"]');
+    const $filterCat  = $root.find('[data-role="filter-category"]');
     const $filterMetal= $root.find('[data-role="filter-metal"]');
     const $filterKarat= $root.find('[data-role="filter-karat"]');
-    const $filterMin  = $root.find('[data-role="filter-min-qty"]');
+    const $filterMin  = $root.find('[data-role="filter-min-qty"]');
 
     // Charts
-    const barCanvas   = document.getElementById("jwpm-stock-bar-chart");
+    const barCanvas   = document.getElementById("jwpm-stock-bar-chart");
     const donutCanvas = document.getElementById("jwpm-stock-donut-chart");
 
-    let barChart  = null;
+    let barChart  = null;
     let donutChart = null;
-
 
     // Utils
     function wpAjax(action, data) {
@@ -76,7 +172,9 @@
     }
 
     function format(n) {
-        return parseFloat(n || 0).toLocaleString("en-US", {
+        // Ensure numbers are parsed safely before formatting
+        const num = parseFloat(n || 0);
+        return num.toLocaleString("en-US", {
             minimumFractionDigits: 2
         });
     }
@@ -84,15 +182,15 @@
     function getFilters() {
         return {
             category: $filterCat.val(),
-            metal   : $filterMetal.val(),
-            karat   : $filterKarat.val(),
+            metal   : $filterMetal.val(),
+            karat   : $filterKarat.val(),
             min_qty : $filterMin.val(),
         };
     }
 
 
     // =============================
-    // Fetch + Render
+    // Fetch + Render (Unchanged Logic)
     // =============================
     let currentPage = 1;
     let perPage = 30;
@@ -109,9 +207,9 @@
             page: currentPage,
             per_page : perPage,
             category : filters.category,
-            metal    : filters.metal,
-            karat    : filters.karat,
-            min_qty  : filters.min_qty
+            metal    : filters.metal,
+            karat    : filters.karat,
+            min_qty  : filters.min_qty
         })
         .done((res) => {
 
@@ -120,9 +218,9 @@
                 return;
             }
 
-            const rows    = res.data.items;
+            const rows    = res.data.items;
             const summary = res.data.summary;
-            const charts  = res.data.charts;
+            const charts  = res.data.charts;
 
             // Table Rows
             if (rows.length === 0) {
@@ -175,8 +273,8 @@
 
 
     function updateSummary(s) {
-        $sumTotalItems.text(format(s.total_items));
-        $sumTotalQty.text(format(s.total_qty));
+        $sumTotalItems.text(s.total_items || 0);
+        $sumTotalQty.text(s.total_qty || 0);
         $sumTotalWeight.text(format(s.total_weight));
         $sumStockValue.text(format(s.stock_value));
     }
@@ -193,10 +291,10 @@
         }
 
         let html = "";
-        for (let p = 1; p <= pages; p++) {
-            html += `<span class="jwpm-page-btn ${p === page ? "active" : ""}" data-page="${p}">${p}</span>`;
-        }
-
+        if (page > 1) html += `<button class="button jwpm-page-btn" data-page="${page - 1}">« Prev</button> `;
+        html += `<span style="padding:0 10px;">Page ${page} of ${pages}</span>`;
+        if (page < pages) html += `<button class="button jwpm-page-btn" data-page="${page + 1}">Next »</button>`;
+        
         $pagination.html(html);
     }
 
@@ -206,12 +304,12 @@
 
 
     // =============================
-    // Charts
+    // Charts (Unchanged Logic)
     // =============================
 
     function updateBarChart(dataset) {
 
-        if (!barCanvas) return;
+        if (!barCanvas || typeof Chart === 'undefined') return;
         if (barChart) barChart.destroy();
 
         barChart = new Chart(barCanvas, {
@@ -240,7 +338,7 @@
 
     function updateDonutChart(dataset) {
 
-        if (!donutCanvas) return;
+        if (!donutCanvas || typeof Chart === 'undefined') return;
         if (donutChart) donutChart.destroy();
 
         donutChart = new Chart(donutCanvas, {
@@ -278,7 +376,7 @@
 
 
     // =============================
-    // Export
+    // Export (Unchanged Logic)
     // =============================
     $root.find('[data-role="stock-export"]').on("click", () => {
 
@@ -297,7 +395,7 @@
 
 
     // =============================
-    // Print
+    // Print (Unchanged Logic)
     // =============================
     $root.find('[data-role="stock-print"]').on("click", function () {
         window.jwpmPrintTable($root.find("table")[0], "Stock Report");
@@ -305,7 +403,7 @@
 
 
     // =============================
-    // Demo Data
+    // Demo Data (Unchanged Logic)
     // =============================
     $root.find('[data-role="stock-demo"]').on("click", function () {
 
@@ -329,7 +427,4 @@
 
 
     // 🔴 یہاں پر [Stock Report JS] ختم ہو رہا ہے
-    // ✅ Syntax verified block end
-
 })(jQuery);
-
