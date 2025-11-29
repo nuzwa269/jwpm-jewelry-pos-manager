@@ -1,5 +1,6 @@
 /**
  * JWPM — Settings Page JS (Master Control Panel)
+ * Updated: Direct HTML Injection (No PHP Templates required)
  * یہ (JavaScript) Settings Page میں تمام actions (Logo, Theme, Language, API, Backup, Demo, Reset) کو handle کرتا ہے۔
  */
 
@@ -21,40 +22,107 @@
         return;
     }
 
-    const $tpl = $("#jwpm-settings-layout");
-    if ($tpl.length === 0) {
-        console.warn("JWPM Warning: Settings Template Missing");
-        return;
-    }
-
-    // Template Mount
-    const mount =
-        window.jwpmMountTemplate ||
-        function (tpl, $target) {
-            $target.html($(tpl).html());
-        };
-
-    mount($tpl, $root);
-
-    // Localized Data
-    const ajaxUrl = window.jwpmSettings.ajaxUrl;
-    const nonce = window.jwpmSettings.nonce;
-    const actions = window.jwpmSettings.actions;
-    const i18n = window.jwpmSettings.i18n;
-
-    function wpAjax(action, data) {
-        return $.ajax({
-            url: ajaxUrl,
-            method: "POST",
-            data: Object.assign({}, data, {
-                action: action,
-                nonce: nonce,
-            }),
-        });
-    }
+    // Localized Data (with safety checks)
+    const settingsData = window.jwpmSettings || {
+        ajaxUrl: window.ajaxurl || '/wp-admin/admin-ajax.php',
+        nonce: '',
+        actions: {},
+        i18n: {
+            noLogo: 'No logo uploaded.',
+            logoSaved: 'Logo uploaded successfully!',
+            confirmRemove: 'Are you sure you want to remove the logo?',
+            saved: 'Settings saved successfully!',
+            languageSaved: 'Language settings saved. Please reload page.',
+            error: 'An error occurred. Please try again.',
+            demoConfirm: 'WARNING: This will load demo data, replacing existing data. Are you sure?',
+            resetConfirm: 'DANGER: This will delete ALL data. Are you sure you want to reset the system?'
+        }
+    };
+    const ajaxUrl = settingsData.ajaxUrl;
+    const nonce = settingsData.nonce;
+    const actions = settingsData.actions;
+    const i18n = settingsData.i18n;
 
     // ---------------------------------------------------------
-    // Elements
+    // RENDER LAYOUT (Replaces Template Mount)
+    // ---------------------------------------------------------
+    function renderLayout() {
+        $root.html(`
+            <div class="jwpm-wrapper">
+                <h2 style="margin-top:0;">⚙️ Master Control Panel</h2>
+                
+                <div style="display:flex; gap:20px; flex-wrap:wrap;">
+
+                    <div style="flex:1; min-width:400px; display:flex; flex-direction:column; gap:20px;">
+                        
+                        <div class="jwpm-card" style="padding:20px;">
+                            <h3>General Settings</h3>
+                            <div style="margin-bottom:15px;">
+                                <label>Theme Mode</label>
+                                <select data-role="theme-mode" style="padding:6px; width:100%; margin-bottom:10px;">
+                                    <option value="light">Light</option>
+                                    <option value="dark">Dark</option>
+                                </select>
+                                <button class="button button-primary" data-role="theme-save">Save Theme</button>
+                            </div>
+
+                            <div style="margin-bottom:15px;">
+                                <label>Language</label>
+                                <select data-role="language-select" style="padding:6px; width:100%; margin-bottom:10px;">
+                                    <option value="en">English</option>
+                                    <option value="ur">اردو (Urdu)</option>
+                                </select>
+                                <button class="button button-primary" data-role="language-save">Save Language</button>
+                            </div>
+                        </div>
+
+                        <div class="jwpm-card" style="padding:20px;">
+                            <h3>Gold Price API Key</h3>
+                            <label>API Key</label>
+                            <input type="text" data-role="gold-api-key" placeholder="Enter API Key" class="widefat" style="margin-bottom:10px;">
+                            <button class="button button-primary" data-role="gold-api-save">Save API Key</button>
+                        </div>
+
+                         <div class="jwpm-card" style="padding:20px;">
+                            <h3>Company Logo</h3>
+                            <div data-role="logo-preview" style="margin-bottom:10px; border:1px dashed #ccc; padding:10px;">
+                                <span>${i18n.noLogo}</span>
+                            </div>
+                            <input type="file" data-role="logo-file" accept="image/*" style="margin-bottom:10px;">
+                            <button class="button button-primary" data-role="logo-upload">Upload Logo</button>
+                            <button class="button button-secondary" data-role="logo-remove" style="margin-left:10px;">Remove Logo</button>
+                        </div>
+                    </div>
+
+                    <div style="flex:1; min-width:300px; display:flex; flex-direction:column; gap:20px;">
+
+                        <div class="jwpm-card" style="padding:20px; background:#e6f0ff;">
+                            <h3>Data Management</h3>
+                            <p>Export all sales, inventory, and ledger data to Excel/CSV for backup.</p>
+                            <button class="button button-primary button-large" data-role="backup-export" style="width:100%;">Download Full Backup</button>
+                        </div>
+                        
+                        <div class="jwpm-card" style="padding:20px; background:#fff0e6; border:1px solid orange;">
+                            <h3>Load Demo Data (Testing)</h3>
+                            <p>For testing purposes only. Overwrites most data.</p>
+                            <button class="button button-secondary button-large" data-role="demo-load" style="width:100%;">Load Sample Data</button>
+                        </div>
+
+                        <div class="jwpm-card" style="padding:20px; background:#ffe6e6; border:1px solid red;">
+                            <h3>Danger Zone: Reset</h3>
+                            <p>Permanently delete all business data (sales, customers, inventory, ledger).</p>
+                            <button class="button button-danger button-large" data-role="reset-system" style="width:100%;">Reset ALL Data</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+    }
+
+    renderLayout(); // Inject the UI immediately
+
+    // ---------------------------------------------------------
+    // Element Caching (Post-Render)
     // ---------------------------------------------------------
 
     // Logo Manager
@@ -82,6 +150,16 @@
     const $demoBtn = $root.find('[data-role="demo-load"]');
     const $resetBtn = $root.find('[data-role="reset-system"]');
 
+    function wpAjax(action, data) {
+        return $.ajax({
+            url: ajaxUrl,
+            method: "POST",
+            data: Object.assign({}, data, {
+                action: action,
+                nonce: nonce,
+            }),
+        });
+    }
 
     // ---------------------------------------------------------
     // Load Saved Settings Initially
@@ -160,6 +238,7 @@
             .done((res) => {
                 if (res.success) {
                     $logoPreview.html(`<span>${i18n.noLogo}</span>`);
+                    alert(i18n.logoSaved); // Use logoSaved for success message
                 } else {
                     alert(i18n.error);
                 }
@@ -223,6 +302,7 @@
         wpAjax(actions.backup_export, {})
             .done((res) => {
                 if (res.success && res.data.rows) {
+                    // Assumes jwpmExportToExcel is available via jwpm-common.js
                     window.jwpmExportToExcel(
                         "JWPM Backup",
                         res.data.headers,
@@ -276,7 +356,4 @@
 
 
     // 🔴 یہاں پر [Settings Page JS] ختم ہو رہا ہے
-    // ✅ Syntax verified block end
-
 })(jQuery);
-
