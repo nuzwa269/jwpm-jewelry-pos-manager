@@ -1,6 +1,26 @@
 /* === JWPM Jewelry POS Manager - Common Styles === */
 
-/* ایک عام wrapper جسے آپ ہر ایڈمن پیج پر استعمال کر سکتے ہیں */
+/* 1. Dashboard Card Style (یہ JS فائل کے لیے ضروری ہے) */
+.jwpm-card {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+    padding: 30px;
+    margin-top: 20px;
+    max-width: 800px;
+    border-radius: 5px;
+}
+
+.jwpm-card h2 {
+    margin-top: 0;
+    color: #23282d;
+    font-size: 1.6em;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+}
+
+/* 2. General Wrapper (آپ کا کوڈ) */
 .jwpm-wrapper {
     margin: 20px;
     padding: 20px;
@@ -15,7 +35,7 @@
     border-bottom: 1px solid #eee;
 }
 
-/* ایک عام بٹن کا اسٹائل */
+/* 3. Button Styles */
 .jwpm-button {
     background-color: #0073aa;
     color: #fff;
@@ -25,17 +45,21 @@
     cursor: pointer;
     font-size: 13px;
     line-height: 1.4;
+    text-decoration: none;
+    display: inline-block;
 }
 
 .jwpm-button:hover {
     background-color: #005a87;
     border-color: #005a87;
+    color: #fff;
 }
 
-/* فارم کے لیے عام اسٹائل */
+/* 4. Form Tables */
 .jwpm-form-table {
     width: 100%;
     clear: both;
+    border-collapse: collapse;
 }
 
 .jwpm-form-table td {
@@ -50,15 +74,24 @@
 .jwpm-form-table input[type="number"],
 .jwpm-form-table select,
 .jwpm-form-table textarea {
-    width: 25em;
+    width: 100%;
+    max-width: 25em;
+    padding: 5px;
+    border: 1px solid #ddd;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,.07);
+    background-color: #fff;
+    color: #32373c;
+    outline: 0;
+    transition: 50ms border-color ease-in-out;
 }
 
-/* نوٹیفیکیشن یا پیغام کے لیے */
+/* 5. Notifications/Alerts */
 .jwpm-notice {
     padding: 10px 15px;
     margin: 15px 0;
     border-left: 4px solid;
     background-color: #fff;
+    box-shadow: 0 1px 1px 0 rgba(0,0,0,.1);
 }
 
 .jwpm-notice.success {
@@ -67,4 +100,9 @@
 
 .jwpm-notice.error {
     border-left-color: #dc3232;
+}
+
+/* 6. Utility Helper for Roots */
+#jwpm-pos-root, #jwpm-inventory-root {
+    min-height: 200px;
 }
