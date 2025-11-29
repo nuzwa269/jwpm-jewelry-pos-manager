@@ -32,7 +32,7 @@ class JWPM_Activator {
 		// لہذا صرف create_tables کو کال کرنا کافی ہے۔
 		if ( class_exists( 'JWPM_DB' ) && method_exists( 'JWPM_DB', 'create_tables' ) ) {
 			JWPM_DB::create_tables();
-		}
+		} 
 
 		// 3. ورژن محفوظ کریں
 		if ( defined( 'JWPM_VERSION' ) ) {
