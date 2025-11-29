@@ -2,7 +2,7 @@
 /**
  * The Main Plugin Class.
  *
- * یہ کلاس پلگ ان کے تمام حصوں (Admin, Loader, AJAX) کو آپس میں جوڑتی ہے۔
+ * یہ کلاس پلگ ان کے تمام حصوں (Admin, Loader, AJAX, Assets) کو آپس میں جوڑتی ہے۔
  * اسے ہم "The Brain" آف پلگ ان کہہ سکتے ہیں۔
  *
  * @package    JWPM
@@ -58,18 +58,18 @@ class JWPM {
 
 	/**
 	 * ضروری فائلز اور کلاسز کو لوڈ کرنا۔
-	 *
-	 * چونکہ 'JWPM_Loader' کلاس پہلے ہی مین فائل میں require ہو چکی ہے،
-	 * ہم یہاں صرف اس کا نیا انسٹینس بنائیں گے۔
 	 */
 	private function load_dependencies() {
+		// 1. لوڈر کلاس شروع کریں
 		$this->loader = new JWPM_Loader();
+
+		// 2. Assets (CSS/JS) کلاس شروع کریں
+		// یہ کلاس اپنے کنسٹرکٹر میں ہی admin_enqueue_scripts کو ہک کر لے گی۔
+		new JWPM_Assets();
 	}
 
 	/**
 	 * لوکلائزیشن (زبان) سیٹ کریں۔
-	 *
-	 * یہ فنکشن languages فولڈر کا راستہ بتاتا ہے۔
 	 */
 	private function set_locale() {
 		$this->loader->add_action( 'plugins_loaded', $this, 'load_plugin_textdomain' );
@@ -79,7 +79,6 @@ class JWPM {
 	 * ٹیکسٹ ڈومین لوڈ کرنے کا کال بیک فنکشن۔
 	 */
 	public function load_plugin_textdomain() {
-		// dirname( dirname(...) ) اس لیے استعمال کیا گیا کیونکہ یہ فائل includes فولڈر میں ہے۔
 		load_plugin_textdomain(
 			'jwpm-jewelry-pos-manager',
 			false,
@@ -89,43 +88,33 @@ class JWPM {
 
 	/**
 	 * ایڈمن سائڈ کے تمام ہکس (Hooks) یہاں رجسٹر کریں۔
-	 *
-	 * اس میں CSS/JS، مینیو اور AJAX ہینڈلرز شامل ہیں۔
 	 */
 	private function define_admin_hooks() {
 
-		// Admin Class کا انسٹینس بنائیں
+		// Admin Class کا انسٹینس بنائیں (صرف مینیو اور پیج رینڈرنگ کے لیے)
 		$plugin_admin = new JWPM_Admin( $this->get_plugin_name(), $this->get_version() );
 
-		// 1. CSS/JS Assets Enqueue
-		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
-		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
+		// نوٹ: ہم نے یہاں سے enqueue_scripts کی لائنز ہٹا دی ہیں
+		// کیونکہ اب یہ کام JWPM_Assets کلاس خود بخود کر رہی ہے۔
 
-		// 2. Admin Menu Creation
+		// 1. Admin Menu Creation
 		$this->loader->add_action( 'admin_menu', $plugin_admin, 'add_menu_items' );
 
-		// 3. AJAX Hooks Registration
-		// چونکہ ہماری JWPM_Ajax کلاس static میتھڈز استعمال کر رہی ہے، ہم اسے براہ راست رجسٹر کر سکتے ہیں۔
+		// 2. AJAX Hooks Registration
 		if ( class_exists( 'JWPM_Ajax' ) ) {
-			// ہم 'init' پر AJAX ہکس رجسٹر کر رہے ہیں تاکہ وہ WP کے لوڈ ہونے پر دستیاب ہوں۔
 			$this->loader->add_action( 'init', 'JWPM_Ajax', 'register_ajax_hooks' );
 		}
 	}
 
 	/**
 	 * پبلک (Front-end) سائڈ کے ہکس (فی الحال خالی ہے)۔
-	 * مستقبل میں شارٹ کوڈز یا فرنٹ اینڈ فیچرز کے لیے استعمال ہو سکتا ہے۔
 	 */
 	private function define_public_hooks() {
-		// $plugin_public = new JWPM_Public( $this->get_plugin_name(), $this->get_version() );
-		// $this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_styles' );
+		// فی الحال کوئی پبلک ہکس نہیں ہیں
 	}
 
 	/**
 	 * پلگ ان کو چلائیں (Run)۔
-	 *
-	 * یہ لوڈر کے run() فنکشن کو کال کرتا ہے جو تمام جمع شدہ ہکس (Hooks)
-	 * کو ورڈپریس کے add_action اور add_filter فنکشنز میں بھیجتا ہے۔
 	 */
 	public function run() {
 		$this->loader->run();
