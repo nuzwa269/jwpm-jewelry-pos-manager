@@ -1,5 +1,6 @@
 /**
  * JWPM — Expense Report JS (Layout C — Purple Royal UI)
+ * Updated: Direct HTML Injection (No PHP Templates required)
  * یہ فائل Expense Report کی تمام UI Activities, AJAX, Charts اور Pagination control کرتی ہے۔
  */
 
@@ -10,7 +11,7 @@
 
     /** Part 1 — JS: Expense Report Page */
 
-    const rootId = (window.jwpmExpenseReport && window.jwpmExpenseReport.rootId) 
+    const rootId = (window.jwpmExpenseReport && window.jwpmExpenseReport.rootId)
         || "jwpm-expense-report-root";
 
     const $root = $("#" + rootId);
@@ -20,46 +21,141 @@
         return;
     }
 
-    const $tpl = $("#jwpm-expense-report-layout");
-    if ($tpl.length === 0) {
-        console.warn("JWPM Warning: Expense Report template missing");
-        return;
+    // Localized (with fallbacks)
+    const reportData = window.jwpmExpenseReport || {
+        ajaxUrl: window.ajaxurl || '/wp-admin/admin-ajax.php',
+        nonce: '',
+        actions: {},
+        i18n: {
+            loading: 'Loading Report...',
+            error: 'Error loading report data.',
+            demoConfirm: 'Do you want to generate demo expense report data?'
+        }
+    };
+    const ajaxUrl = reportData.ajaxUrl;
+    const nonce = reportData.nonce;
+    const actions = reportData.actions;
+    const i18n = reportData.i18n;
+
+    // ---------------------------------------------------------
+    // RENDER LAYOUT (Replaces Template Mount)
+    // ---------------------------------------------------------
+    function renderLayout() {
+        $root.html(`
+            <div class="jwpm-wrapper">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #eee;">
+                    <h2 style="margin:0;">📊 Expense Report (Category & Vendor)</h2>
+                    <div>
+                        <button class="button" data-role="expense-export">Export</button>
+                        <button class="button" data-role="expense-print">Print</button>
+                        <button class="button" data-role="expense-demo">Demo Data</button>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:20px; margin-bottom:20px; align-items:flex-start;">
+                    
+                    <div class="jwpm-card" style="padding:15px; flex:1; min-width:250px;">
+                        <h4 style="margin-top:0;">Filters</h4>
+                        <label>From Date:</label>
+                        <input type="date" data-role="filter-from-date" class="widefat" style="margin-bottom:10px;">
+                        
+                        <label>To Date:</label>
+                        <input type="date" data-role="filter-to-date" class="widefat" style="margin-bottom:10px;">
+                        
+                        <label>Category:</label>
+                        <input type="text" data-role="filter-category" placeholder="Filter by Category" class="widefat" style="margin-bottom:10px;">
+                        
+                        <label>Vendor:</label>
+                        <input type="text" data-role="filter-vendor" placeholder="Filter by Vendor" class="widefat" style="margin-bottom:10px;">
+                        
+                        <button class="button" onclick="jQuery('[data-role^=filter-]').val('').trigger('change');">Clear</button>
+                    </div>
+
+                    <div style="flex:2; display:flex; flex-wrap:wrap; gap:15px;">
+                        <div class="jwpm-stat-card" style="flex:1; background:#8b5cf6; color:#fff;" data-role="sum-total-expense">
+                            <h4 style="margin-top:0; color:#fff;">Total Expense</h4>
+                            <div class="jwpm-summary-value" style="font-size:1.8em; font-weight:bold;">0.00</div>
+                        </div>
+                        <div class="jwpm-stat-card" style="flex:1; background:#a78bfa; color:#fff;" data-role="sum-categories">
+                            <h4 style="margin-top:0; color:#fff;">Categories Count</h4>
+                            <div class="jwpm-summary-value" style="font-size:1.8em; font-weight:bold;">0</div>
+                        </div>
+                        <div class="jwpm-stat-card" style="flex:1; background:#c084fc; color:#fff;" data-role="sum-vendors">
+                            <h4 style="margin-top:0; color:#fff;">Unique Vendors</h4>
+                            <div class="jwpm-summary-value" style="font-size:1.8em; font-weight:bold;">0</div>
+                        </div>
+                         <div class="jwpm-stat-card" style="flex:1; background:#d8b4fe; color:#333;" data-role="sum-average-expense">
+                            <h4 style="margin-top:0; color:#333;">Average Expense</h4>
+                            <div class="jwpm-summary-value" style="font-size:1.8em; font-weight:bold;">0.00</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:20px; margin-bottom:20px;">
+                    
+                    <div class="jwpm-card" style="padding:15px; flex:1;">
+                        <h4 style="margin-top:0;">Expense Distribution (By Category)</h4>
+                        <canvas id="jwpm-expense-donut-chart" style="max-height:350px;"></canvas>
+                    </div>
+                    
+                    <div class="jwpm-card" style="padding:15px; flex:1;">
+                        <h4 style="margin-top:0;">Top 10 Category Spend</h4>
+                        <canvas id="jwpm-expense-bar-chart" style="max-height:350px;"></canvas>
+                    </div>
+                </div>
+
+                <div class="jwpm-card" style="padding:15px;">
+                    <h3 style="margin-top:0;">Detailed Expense List</h3>
+                    <table class="wp-list-table widefat fixed striped">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Category</th>
+                                <th>Vendor</th>
+                                <th style="text-align:right;">Amount</th>
+                                <th>Note</th>
+                            </tr>
+                        </thead>
+                        <tbody data-role="expense-tbody">
+                            <tr><td colspan="5">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="tablenav bottom">
+                    <div class="tablenav-pages" data-role="expense-pagination"></div>
+                </div>
+            </div>
+        `);
     }
 
-    // Mount Template
-    const mount = window.jwpmMountTemplate || function (tpl, $target) {
-        $target.html($(tpl).html());
-    };
+    renderLayout(); // Inject the UI immediately
 
-    mount($tpl, $root);
-
-    // Localized
-    const ajaxUrl = window.jwpmExpenseReport.ajaxUrl;
-    const nonce   = window.jwpmExpenseReport.nonce;
-    const actions = window.jwpmExpenseReport.actions;
-    const i18n    = window.jwpmExpenseReport.i18n;
+    // ---------------------------------------------------------
+    // Caching Elements (Post-Render)
+    // ---------------------------------------------------------
 
     // Elements
-    const $tbody      = $root.find('[data-role="expense-tbody"]');
+    const $tbody = $root.find('[data-role="expense-tbody"]');
     const $pagination = $root.find('[data-role="expense-pagination"]');
 
     // Summary cards
     const $sumTotalExpense = $root.find('[data-role="sum-total-expense"] .jwpm-summary-value');
-    const $sumCategories   = $root.find('[data-role="sum-categories"] .jwpm-summary-value');
-    const $sumVendors      = $root.find('[data-role="sum-vendors"] .jwpm-summary-value');
-    const $sumAverage      = $root.find('[data-role="sum-average-expense"] .jwpm-summary-value');
+    const $sumCategories = $root.find('[data-role="sum-categories"] .jwpm-summary-value');
+    const $sumVendors = $root.find('[data-role="sum-vendors"] .jwpm-summary-value');
+    const $sumAverage = $root.find('[data-role="sum-average-expense"] .jwpm-summary-value');
 
     // Filters
-    const $filterFrom   = $root.find('[data-role="filter-from-date"]');
-    const $filterTo     = $root.find('[data-role="filter-to-date"]');
-    const $filterCat    = $root.find('[data-role="filter-category"]');
+    const $filterFrom = $root.find('[data-role="filter-from-date"]');
+    const $filterTo = $root.find('[data-role="filter-to-date"]');
+    const $filterCat = $root.find('[data-role="filter-category"]');
     const $filterVendor = $root.find('[data-role="filter-vendor"]');
 
     // Charts
-    const barCanvas   = document.getElementById("jwpm-expense-bar-chart");
+    const barCanvas = document.getElementById("jwpm-expense-bar-chart");
     const donutCanvas = document.getElementById("jwpm-expense-donut-chart");
 
-    let barChart   = null;
+    let barChart = null;
     let donutChart = null;
 
     // Utilities
@@ -69,7 +165,7 @@
             method: "POST",
             data: Object.assign({}, data, {
                 action: action,
-                nonce : nonce
+                nonce: nonce
             })
         });
     }
@@ -83,14 +179,14 @@
     function getFilters() {
         return {
             from_date: $filterFrom.val(),
-            to_date  : $filterTo.val(),
-            category : $filterCat.val(),
-            vendor   : $filterVendor.val()
+            to_date: $filterTo.val(),
+            category: $filterCat.val(),
+            vendor: $filterVendor.val()
         };
     }
 
     // =============================
-    // Fetch + Render
+    // Fetch + Render (Unchanged Logic)
     // =============================
     let currentPage = 1;
     let perPage = 25;
@@ -106,46 +202,46 @@
             page: currentPage,
             per_page: perPage,
             from_date: filters.from_date,
-            to_date  : filters.to_date,
-            category : filters.category,
-            vendor   : filters.vendor
+            to_date: filters.to_date,
+            category: filters.category,
+            vendor: filters.vendor
         })
-        .done((res) => {
+            .done((res) => {
 
-            if (!res.success) {
+                if (!res.success) {
+                    $tbody.html(`<tr><td colspan="5">${i18n.error}</td></tr>`);
+                    return;
+                }
+
+                const rows = res.data.items;
+                const summary = res.data.summary;
+                const charts = res.data.charts;
+
+                // Table
+                if (rows.length === 0) {
+                    $tbody.html(`
+                        <tr class="jwpm-empty-row">
+                            <td colspan="5">کوئی خرچہ (Expense) ریکارڈ نہیں ملا۔</td>
+                        </tr>
+                    `);
+                } else {
+                    renderRows(rows);
+                }
+
+                // Summary
+                updateSummary(summary);
+
+                // Pagination
+                renderPagination(res.data.total, res.data.page, res.data.perPage);
+
+                // Charts
+                updateBarChart(charts.bar);
+                updateDonutChart(charts.donut);
+
+            })
+            .fail(() => {
                 $tbody.html(`<tr><td colspan="5">${i18n.error}</td></tr>`);
-                return;
-            }
-
-            const rows    = res.data.items;
-            const summary = res.data.summary;
-            const charts  = res.data.charts;
-
-            // Table
-            if (rows.length === 0) {
-                $tbody.html(`
-                    <tr class="jwpm-empty-row">
-                        <td colspan="5">کوئی خرچہ (Expense) ریکارڈ نہیں ملا۔</td>
-                    </tr>
-                `);
-            } else {
-                renderRows(rows);
-            }
-
-            // Summary
-            updateSummary(summary);
-
-            // Pagination
-            renderPagination(res.data.total, res.data.page, res.data.perPage);
-
-            // Charts
-            updateBarChart(charts.bar);
-            updateDonutChart(charts.donut);
-
-        })
-        .fail(() => {
-            $tbody.html(`<tr><td colspan="5">${i18n.error}</td></tr>`);
-        });
+            });
     }
 
     function renderRows(rows) {
@@ -166,8 +262,8 @@
 
     function updateSummary(s) {
         $sumTotalExpense.text(format(s.total_expense));
-        $sumCategories.text(format(s.categories));
-        $sumVendors.text(format(s.vendors));
+        $sumCategories.text(s.categories); // Assuming categories count is not currency
+        $sumVendors.text(s.vendors);       // Assuming vendors count is not currency
         $sumAverage.text(format(s.average_expense));
     }
 
@@ -179,10 +275,11 @@
         }
 
         let html = "";
-        for (let p = 1; p <= pages; p++) {
-            html += `<span class="jwpm-page-btn ${page === p ? "active" : ""}" data-page="${p}">${p}</span>`;
-        }
-
+        // Simplified pagination buttons for injected layout
+        if (page > 1) html += `<button class="button jwpm-page-btn" data-page="${page - 1}">« Prev</button> `;
+        html += `<span style="padding:0 10px;">Page ${page} of ${pages}</span>`;
+        if (page < pages) html += `<button class="button jwpm-page-btn" data-page="${page + 1}">Next »</button>`;
+        
         $pagination.html(html);
     }
 
@@ -191,11 +288,13 @@
     });
 
     // =============================
-    // Charts
+    // Charts (Unchanged Logic)
     // =============================
+    
+    // NOTE: This assumes Chart.js library is loaded globally.
 
     function updateBarChart(dataset) {
-        if (!barCanvas) return;
+        if (!barCanvas || typeof Chart === 'undefined') return;
         if (barChart) barChart.destroy();
 
         barChart = new Chart(barCanvas, {
@@ -227,7 +326,7 @@
     }
 
     function updateDonutChart(dataset) {
-        if (!donutCanvas) return;
+        if (!donutCanvas || typeof Chart === 'undefined') return;
         if (donutChart) donutChart.destroy();
 
         donutChart = new Chart(donutCanvas, {
@@ -256,7 +355,7 @@
     }
 
     // =============================
-    // Filters Auto Reload
+    // Filters Auto Reload (Unchanged Logic)
     // =============================
     $filterFrom.on("change", () => loadExpenses(1));
     $filterTo.on("change", () => loadExpenses(1));
@@ -264,7 +363,7 @@
     $filterVendor.on("input", () => loadExpenses(1));
 
     // =============================
-    // Export
+    // Export (Unchanged Logic)
     // =============================
     $root.find('[data-role="expense-export"]').on("click", () => {
         wpAjax(actions.export, {})
@@ -278,14 +377,14 @@
     });
 
     // =============================
-    // Print
+    // Print (Unchanged Logic)
     // =============================
     $root.find('[data-role="expense-print"]').on("click", function () {
         window.jwpmPrintTable($root.find("table")[0], "Expense Report");
     });
 
     // =============================
-    // Demo Data
+    // Demo Data (Unchanged Logic)
     // =============================
     $root.find('[data-role="expense-demo"]').on("click", function () {
 
@@ -307,7 +406,4 @@
 
     // 🔴 یہاں پر [Expense Report JS] ختم ہو رہا ہے
 
-    // ✅ Syntax verified block end
-
 })(jQuery);
-
