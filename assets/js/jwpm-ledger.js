@@ -1,5 +1,6 @@
 /**
  * JWPM — Accounts Ledger JS
+ * Updated: Direct HTML Injection (No PHP Templates required)
  * یہ فائل Ledger Page کا UI Behaviour، Filters, Summary, Pagination
  * اور Export / Demo Events handle کرتی ہے۔
  */
@@ -11,7 +12,7 @@
 
     /** Part 1 — JS: Accounts Ledger Page */
 
-    // Root + Template
+    // Root & Config (Safe Fallbacks)
     const rootId = (window.jwpmLedger && window.jwpmLedger.rootId) || "jwpm-ledger-root";
     const $root = $("#" + rootId);
 
@@ -20,23 +21,105 @@
         return;
     }
 
-    const $layoutTpl = $("#jwpm-ledger-layout");
-    if ($layoutTpl.length === 0) {
-        console.warn("JWPM Warning: Ledger layout template missing");
-        return;
+    // Localized Data (with safety checks)
+    const ledgerData = window.jwpmLedger || {
+        ajaxUrl: window.ajaxurl || '/wp-admin/admin-ajax.php',
+        nonce: '',
+        actions: {},
+        i18n: {
+            loading: 'Loading Ledger...',
+            errorGeneric: 'Error processing request.',
+            demoConfirm: 'Do you want to generate demo ledger data?'
+        }
+    };
+    const ajaxUrl = ledgerData.ajaxUrl;
+    const nonce = ledgerData.nonce;
+    const actions = ledgerData.actions;
+    const i18n = ledgerData.i18n;
+
+    // ---------------------------------------------------------
+    // RENDER LAYOUT (Replaces Template Mount)
+    // ---------------------------------------------------------
+    function renderLayout() {
+        $root.html(`
+            <div class="jwpm-wrapper">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #eee;">
+                    <h2 style="margin:0;">📜 Accounts Ledger (Debit/Credit)</h2>
+                    <div>
+                        <button class="button" data-role="ledger-export">Export</button>
+                        <button class="button" data-role="ledger-print">Print</button>
+                        <button class="button" data-role="ledger-demo">Demo Data</button>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:20px; margin-bottom:20px; flex-wrap:wrap;">
+                    
+                    <div class="jwpm-card" style="padding:15px; flex:2; min-width:350px; display:flex; gap:10px; flex-wrap:wrap;">
+                        <input type="date" data-role="filter-from-date" title="From Date">
+                        <input type="date" data-role="filter-to-date" title="To Date">
+                        
+                        <select data-role="filter-entry-type" style="padding:6px;">
+                            <option value="">All Types</option>
+                            <option value="SALE">Sale</option>
+                            <option value="PURCHASE">Purchase</option>
+                            <option value="PAYMENT">Payment</option>
+                            <option value="EXPENSE">Expense</option>
+                        </select>
+                        
+                        <input type="text" data-role="filter-customer-id" placeholder="Customer ID/Name">
+                        <input type="text" data-role="filter-supplier-id" placeholder="Supplier ID/Name">
+
+                        <button class="button" onclick="jQuery('[data-role^=filter-]').val('').trigger('change');">Clear Filters</button>
+                    </div>
+
+                    <div style="flex:1; display:flex; flex-wrap:wrap; gap:10px;">
+                        <div class="jwpm-stat-card" style="flex:1; background:#fff0e6; color:#ff9900;" data-role="summary-total-debit">
+                            <div style="font-size:12px;">Total Debit</div>
+                            <div class="jwpm-balance-value" style="font-size:1.5em; font-weight:bold;">0.00</div>
+                        </div>
+                        <div class="jwpm-stat-card" style="flex:1; background:#e6fff0; color:#059669;" data-role="summary-total-credit">
+                            <div style="font-size:12px;">Total Credit</div>
+                            <div class="jwpm-balance-value" style="font-size:1.5em; font-weight:bold;">0.00</div>
+                        </div>
+                         <div class="jwpm-card" style="flex:1 1 100%; text-align:center; background:#e6f0ff; color:#0073aa;" data-role="summary-balance">
+                            <div style="font-size:12px;">Net Balance</div>
+                            <div class="jwpm-balance-value" style="font-size:1.8em; font-weight:bold;">0.00</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="jwpm-card" style="padding:15px;">
+                    <table class="wp-list-table widefat fixed striped">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Ref ID</th>
+                                <th>Customer</th>
+                                <th>Supplier</th>
+                                <th>Description</th>
+                                <th style="text-align:right;">Debit (Dr)</th>
+                                <th style="text-align:right;">Credit (Cr)</th>
+                            </tr>
+                        </thead>
+                        <tbody data-role="ledger-tbody">
+                            <tr><td colspan="8">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="tablenav bottom">
+                    <div class="tablenav-pages" data-role="ledger-pagination"></div>
+                </div>
+            </div>
+        `);
     }
 
-    const mount = window.jwpmMountTemplate || function (tpl, $target) {
-        $target.html($(tpl).html());
-    };
+    renderLayout(); // Inject the UI immediately
 
-    mount($layoutTpl, $root);
-
-    // Localized Data
-    const ajaxUrl = window.jwpmLedger.ajaxUrl;
-    const nonce = window.jwpmLedger.nonce;
-    const actions = window.jwpmLedger.actions;
-    const i18n = window.jwpmLedger.i18n;
+    // ---------------------------------------------------------
+    // Element Caching (Post-Render)
+    // ---------------------------------------------------------
 
     // Elements
     const $tbody = $root.find('[data-role="ledger-tbody"]');
@@ -81,7 +164,7 @@
     }
 
     // -----------------------------
-    // Fetch Ledger
+    // Fetch Ledger (Unchanged Logic)
     // -----------------------------
     let currentPage = 1;
     let perPage = 50;
@@ -132,16 +215,20 @@
         let html = "";
 
         rows.forEach((r) => {
+            // Apply balance color based on sign
+            const balanceColor = r.balance < 0 ? 'color:red; font-weight:bold;' : 'color:green; font-weight:bold;';
+            const typeClass = r.entry_type.toLowerCase();
+            
             html += `
-                <tr>
+                <tr data-type="${typeClass}">
                     <td>${r.created_at}</td>
                     <td>${r.entry_type}</td>
-                    <td>${r.ref_id || ""}</td>
-                    <td>${r.customer_id || ""}</td>
-                    <td>${r.supplier_id || ""}</td>
-                    <td>${r.description || ""}</td>
-                    <td class="jwpm-column-number">${format(r.debit)}</td>
-                    <td class="jwpm-column-number">${format(r.credit)}</td>
+                    <td>${r.ref_id || "-"}</td>
+                    <td>${r.customer_id || "-"}</td>
+                    <td>${r.supplier_id || "-"}</td>
+                    <td>${r.description || "-"}</td>
+                    <td class="jwpm-column-number" style="color:red;">${r.debit > 0 ? format(r.debit) : "-"}</td>
+                    <td class="jwpm-column-number" style="color:green;">${r.credit > 0 ? format(r.credit) : "-"}</td>
                 </tr>
             `;
         });
@@ -152,7 +239,13 @@
     function updateSummary(summary) {
         $sumDebit.text(format(summary.total_debit || 0));
         $sumCredit.text(format(summary.total_credit || 0));
-        $sumBalance.text(format(summary.balance || 0));
+        
+        const balance = summary.balance || 0;
+        const balanceText = format(Math.abs(balance));
+        const color = balance < 0 ? 'red' : 'green';
+        const sign = balance < 0 ? 'Dr' : 'Cr';
+
+        $sumBalance.css('color', color).text(`${balanceText} (${sign})`);
     }
 
     function renderPagination(total, page, perPage) {
@@ -164,10 +257,10 @@
         }
 
         let html = "";
-        for (let p = 1; p <= totalPages; p++) {
-            html += `<span class="jwpm-page-btn ${p === page ? "active" : ""}" data-page="${p}">${p}</span>`;
-        }
-
+        if (page > 1) html += `<button class="button jwpm-page-btn" data-page="${page - 1}">« Prev</button> `;
+        html += `<span style="padding:0 10px;">Page ${page} of ${totalPages}</span>`;
+        if (page < totalPages) html += `<button class="button jwpm-page-btn" data-page="${page + 1}">Next »</button>`;
+        
         $pagination.html(html);
     }
 
@@ -185,7 +278,7 @@
     $filterSupplier.on("input", () => loadLedger(1));
 
     // -----------------------------
-    // Export Excel
+    // Export Excel (Unchanged Logic)
     // -----------------------------
     $root.find('[data-role="ledger-export"]').on("click", function () {
         wpAjax(actions.export, {}).done((res) => {
@@ -198,14 +291,14 @@
     });
 
     // -----------------------------
-    // Print
+    // Print (Unchanged Logic)
     // -----------------------------
     $root.find('[data-role="ledger-print"]').on("click", function () {
         window.jwpmPrintTable($root.find("table")[0], "Ledger Records");
     });
 
     // -----------------------------
-    // Demo Data
+    // Demo Data (Unchanged Logic)
     // -----------------------------
     $root.find('[data-role="ledger-demo"]').on("click", function () {
         if (!confirm(i18n.demoConfirm)) return;
@@ -224,8 +317,4 @@
     loadLedger(1);
 
     // 🔴 یہاں پر [Ledger JS] ختم ہو رہا ہے
-
-    // ✅ Syntax verified block end
-
 })(jQuery);
-
