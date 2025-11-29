@@ -1,5 +1,6 @@
-/** Part 1 — JWPM Repair Jobs Page Script (UI + AJAX)
- * یہاں Repair Jobs / Workshop Repairs پیج کا مکمل (JavaScript) behaviour ہے۔
+/**
+ * JWPM Repair Jobs Page Script (UI + AJAX)
+ * Updated: Direct HTML Injection (No PHP Templates required)
  */
 (function ($) {
 	'use strict';
@@ -12,9 +13,6 @@
 	var jwpmRepairConfig = window.jwpmRepairData || {
 		ajaxUrl: window.ajaxurl || '/wp-admin/admin-ajax.php',
 		mainNonce: '',
-		importNonce: '',
-		exportNonce: '',
-		demoNonce: '',
 		strings: {
 			loading: 'Repair Jobs لوڈ ہو رہے ہیں…',
 			saving: 'ڈیٹا محفوظ ہو رہا ہے…',
@@ -22,10 +20,6 @@
 			saveError: 'محفوظ کرتے وقت مسئلہ آیا، دوبارہ کوشش کریں۔',
 			deleteConfirm: 'کیا آپ واقعی اس Repair job کو cancel کرنا چاہتے ہیں؟',
 			deleteSuccess: 'Repair job cancel / update ہو گیا۔',
-			importSuccess: 'Import مکمل ہو گیا۔',
-			importError: 'Import کے دوران مسئلہ آیا۔',
-			demoCreateSuccess: 'Demo Repairs بنا دیے گئے۔',
-			demoClearSuccess: 'Demo Repairs حذف ہو گئے۔',
 			noRecords: 'کوئی Repair job نہیں ملا۔'
 		},
 		pagination: {
@@ -133,35 +127,240 @@
 			this.$pagination = null;
 			this.$sidePanel = null;
 			this.$importModal = null;
-
-			this.templates = {
-				layout: document.getElementById('jwpm-repair-layout-template'),
-				row: document.getElementById('jwpm-repair-row-template'),
-				panel: document.getElementById('jwpm-repair-panel-template'),
-				importModal: document.getElementById('jwpm-repair-import-template')
-			};
+			
+			// Templates now defined as methods returning HTML strings
 
 			this.init();
 		}
 
-		JWPMRepairPage.prototype.init = function () {
-			if (!this.templates.layout) {
-				notifyError('Repair Jobs layout template نہیں ملا۔');
-				return;
-			}
+		// 1. HTML Layout Injection
+		JWPMRepairPage.prototype.renderLayout = function () {
+			this.$root.html(`
+				<div class="jwpm-page-repair jwpm-wrapper">
+					<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #eee;">
+						<h2 style="margin:0;">🛠️ Repair Jobs / Workshop Repairs</h2>
+						<div>
+							<button class="button button-primary" data-jwpm-repair-action="add">+ New Job</button>
+							<button class="button" data-jwpm-repair-action="export">Export</button>
+							<button class="button" data-jwpm-repair-action="demo-create">Demo Data</button>
+						</div>
+					</div>
 
+					<div style="display:flex; gap:20px; margin-bottom:20px; flex-wrap:wrap;">
+						
+						<div class="jwpm-card" style="flex:1; padding:15px; background:#e6f0ff; border-left:4px solid #0073aa;">
+							<div style="font-size:12px; color:#555;">In Workshop</div>
+							<div data-jwpm-repair-stat="workshop" style="font-size:1.5em; color:#0073aa;">
+                                <span class="jwpm-stat-value" style="font-weight:bold;">0</span>
+                            </div>
+						</div>
+						<div class="jwpm-card" style="flex:1; padding:15px; background:#fff0e6; border-left:4px solid #ff9900;">
+							<div style="font-size:12px; color:#555;">Ready (Pending Delivery)</div>
+							<div data-jwpm-repair-stat="ready" style="font-size:1.5em; color:#ff9900;">
+                                <span class="jwpm-stat-value" style="font-weight:bold;">0</span>
+                            </div>
+						</div>
+						<div class="jwpm-card" style="flex:1; padding:15px; background:#ffe6e6; border-left:4px solid #d63638;">
+							<div style="font-size:12px; color:#555;">Overdue Jobs</div>
+							<div data-jwpm-repair-stat="overdue" style="font-size:1.5em; color:#d63638;">
+                                <span class="jwpm-stat-value" style="font-weight:bold;">0</span>
+                            </div>
+						</div>
+						<div class="jwpm-card" style="flex:1; padding:15px; background:#f0f0f1; border-left:4px solid #333;">
+							<div style="font-size:12px; color:#555;">Pending Balance</div>
+							<div data-jwpm-repair-stat="pending_amount" style="font-size:1.5em;">
+                                <span class="jwpm-stat-value" style="font-weight:bold;">0.00</span>
+                            </div>
+						</div>
+
+						<div class="jwpm-card" style="padding:15px; flex:2; display:flex; gap:10px; align-items:center;">
+							<input type="text" data-jwpm-repair-filter="search" placeholder="Search Code / Tag / Customer..." style="padding:6px; width:180px;">
+							<select data-jwpm-repair-filter="status" style="padding:6px;">
+								<option value="">All Status</option>
+								<option value="received">Received</option>
+								<option value="in_workshop">In Workshop</option>
+								<option value="ready">Ready</option>
+								<option value="delivered">Delivered</option>
+								<option value="cancelled">Cancelled</option>
+							</select>
+							<select data-jwpm-repair-filter="priority" style="padding:6px;">
+								<option value="">All Priority</option>
+								<option value="normal">Normal</option>
+								<option value="urgent">Urgent</option>
+								<option value="vip">VIP</option>
+							</select>
+							<input type="date" data-jwpm-repair-filter="date_from" title="From Date">
+							<input type="date" data-jwpm-repair-filter="date_to" title="To Date">
+						</div>
+					</div>
+
+					<table class="wp-list-table widefat fixed striped jwpm-table-repairs">
+						<thead>
+							<tr>
+								<th>Job Code</th>
+								<th>Tag No</th>
+								<th>Customer</th>
+								<th>Item Description</th>
+								<th>Job Type</th>
+								<th>Promised Date</th>
+								<th>Charges</th>
+								<th>Balance Due</th>
+								<th>Status</th>
+								<th>Priority</th>
+								<th>Actions</th>
+							</tr>
+						</thead>
+						<tbody data-jwpm-repair-table-body>
+							<tr><td colspan="11">Loading...</td></tr>
+						</tbody>
+					</table>
+
+					<div class="tablenav bottom">
+						<div class="tablenav-pages" data-jwpm-repair-pagination></div>
+					</div>
+
+					<div data-jwpm-repair-side-panel style="display:none; position:fixed; top:0; right:0; width:650px; height:100%; background:#fff; box-shadow:-2px 0 10px rgba(0,0,0,0.2); z-index:9999; display:flex; flex-direction:column;">
+						</div>
+				</div>
+			`);
+		};
+
+		// 2. Templates for dynamic parts
+		JWPMRepairPage.prototype.templatePanel = function (isNew = true) {
+			// Tab content HTML
+			const overviewTab = `
+				<div data-jwpm-repair-tab-panel="overview" class="jwpm-tab-panel is-active">
+					<form data-jwpm-repair-form>
+						<input type="hidden" data-jwpm-repair-input="id" name="id" value="">
+						<div style="display:flex; gap:10px; margin-bottom:10px;">
+							<div style="flex:1;"><label>Job Code</label><input type="text" data-jwpm-repair-input="job_code" name="job_code" class="widefat" readonly style="background:#f0f0f0;"></div>
+							<div style="flex:1;"><label>Tag No (Optional)</label><input type="text" data-jwpm-repair-input="tag_no" name="tag_no" class="widefat"></div>
+						</div>
+						<div style="display:flex; gap:10px; margin-bottom:10px;">
+							<div style="flex:1;"><label>Customer Name *</label><input type="text" data-jwpm-repair-input="customer_name" name="customer_name" class="widefat" required></div>
+							<div style="flex:1;"><label>Phone *</label><input type="text" data-jwpm-repair-input="customer_phone" name="customer_phone" class="widefat" required></div>
+						</div>
+						<label>Item Description / Type *</label>
+						<input type="text" data-jwpm-repair-input="item_description" name="item_description" class="widefat" required style="margin-bottom:10px;">
+						<div style="display:flex; gap:10px; margin-bottom:10px;">
+							<div style="flex:1;"><label>Job Type</label><input type="text" data-jwpm-repair-input="job_type" name="job_type" class="widefat" list="job-types"></div>
+							<div style="flex:1;"><label>Received Date</label><input type="date" data-jwpm-repair-input="received_date" name="received_date" class="widefat"></div>
+							<div style="flex:1;"><label>Promised Date</label><input type="date" data-jwpm-repair-input="promised_date" name="promised_date" class="widefat"></div>
+						</div>
+						<datalist id="job-types"><option value="Polishing"><option value="Setting"><option value="Resizing"><option value="Customization"></datalist>
+						
+						<label>Observed Problems / Defects</label>
+						<textarea data-jwpm-repair-input="problems" name="problems" class="widefat" style="margin-bottom:10px;"></textarea>
+
+						<div style="display:flex; gap:10px; margin-top:20px; border-top:1px dashed #ccc; padding-top:10px;">
+							<div style="flex:1;"><label>Estimated Charges</label><input type="number" step="0.01" data-jwpm-repair-input="estimated_charges" name="estimated_charges" class="widefat"></div>
+							<div style="flex:1;"><label>Actual Charges</label><input type="number" step="0.01" data-jwpm-repair-input="actual_charges" name="actual_charges" class="widefat"></div>
+							<div style="flex:1;"><label>Advance Received</label><input type="number" step="0.01" data-jwpm-repair-input="advance_amount" name="advance_amount" class="widefat"></div>
+							<div style="flex:1;"><label>Balance Due</label><input type="number" data-jwpm-repair-input="balance_amount" name="balance_amount" class="widefat" readonly style="background:#eee;"></div>
+						</div>
+						
+						<div style="margin-top:20px;"><button type="submit" class="button button-primary button-large" data-jwpm-repair-action="save-repair" style="width:100%;">Save Repair Job</button></div>
+					</form>
+				</div>
+			`;
+
+			const workshopTab = `
+				<div data-jwpm-repair-tab-panel="workshop" class="jwpm-tab-panel" style="display:none;">
+					<form data-jwpm-repair-workshop-form>
+						<label>Instructions to Workshop</label>
+						<textarea data-jwpm-repair-input="instructions" name="instructions" class="widefat" style="margin-bottom:10px;"></textarea>
+						<label>Workshop Notes (Internal)</label>
+						<textarea data-jwpm-repair-input="workshop_notes" name="workshop_notes" class="widefat" style="margin-bottom:10px;"></textarea>
+						
+						<div style="display:flex; gap:10px; margin-bottom:10px;">
+							<div style="flex:1;"><label>Gold Weight In (g)</label><input type="number" step="0.001" data-jwpm-repair-input="gold_weight_in" name="gold_weight_in" class="widefat"></div>
+							<div style="flex:1;"><label>Gold Weight Out (g)</label><input type="number" step="0.001" data-jwpm-repair-input="gold_weight_out" name="gold_weight_out" class="widefat"></div>
+						</div>
+
+						<div style="display:flex; gap:10px; margin-bottom:10px;">
+							<div style="flex:1;"><label>Job Status</label>
+								<select data-jwpm-repair-input="job_status" name="job_status" class="widefat">
+									<option value="received">Received</option>
+									<option value="in_workshop">In Workshop</option>
+									<option value="ready">Ready</option>
+									<option value="delivered">Delivered</option>
+									<option value="cancelled">Cancelled</option>
+								</select>
+							</div>
+							<div style="flex:1;"><label>Assigned To</label><input type="text" data-jwpm-repair-input="assigned_to" name="assigned_to" class="widefat"></div>
+							<div style="flex:1;"><label>Priority</label>
+								<select data-jwpm-repair-input="priority" name="priority" class="widefat">
+									<option value="normal">Normal</option>
+									<option value="urgent">Urgent</option>
+									<option value="vip">VIP</option>
+								</select>
+							</div>
+						</div>
+						<div style="margin-top:20px;"><button type="button" class="button button-primary button-large" data-jwpm-repair-action="save-repair" style="width:100%;">Update Workshop Details</button></div>
+					</form>
+				</div>
+			`;
+
+			const timelineTab = `
+				<div data-jwpm-repair-tab-panel="timeline" class="jwpm-tab-panel" style="display:none;">
+					<div style="margin-bottom:15px; padding:10px; border:1px solid #ddd;">
+						<h4 style="margin-top:0;">Add Log Entry</h4>
+						<div style="display:flex; gap:10px; margin-bottom:10px;">
+							<select data-jwpm-repair-log-input="status" style="flex:1;">
+								<option value="received">Received</option>
+								<option value="in_workshop">In Workshop</option>
+								<option value="ready">Ready</option>
+								<option value="delivered">Delivered</option>
+								<option value="cancelled">Cancelled</option>
+							</select>
+							<input type="text" data-jwpm-repair-log-input="note" placeholder="Note/Update (Optional)" style="flex:2;">
+						</div>
+						<button class="button button-small" data-jwpm-repair-action="add-log">Add Log</button>
+					</div>
+					
+					<h4 style="margin-top:0;">Job History</h4>
+					<table class="widefat striped">
+						<thead>
+							<tr><th>Date/Time</th><th>Status</th><th>Note</th><th>By</th></tr>
+						</thead>
+						<tbody data-jwpm-repair-logs-body>
+							<tr><td colspan="4">History will load here.</td></tr>
+						</tbody>
+					</table>
+				</div>
+			`;
+			
+			// Main panel container HTML
+			return `
+				<div style="padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; background:#f5f5f5;">
+					<h2 data-jwpm-repair-panel-title style="margin:0;">${isNew ? 'New Repair Job' : 'Loading...'}</h2>
+					<span data-jwpm-repair-panel-tag class="jwpm-status-badge" style="margin-left:10px;"></span>
+					<span data-jwpm-repair-panel-status class="jwpm-status-badge" style="margin-left:10px;"></span>
+					<span data-jwpm-repair-panel-priority class="jwpm-priority-badge" style="margin-left:10px;"></span>
+					<button class="button" data-jwpm-repair-action="close-panel">Close ❌</button>
+				</div>
+				
+				<div class="jwpm-tabs" style="display:flex; border-bottom:1px solid #ccc; padding:0 15px; margin-top:10px;">
+					<div class="jwpm-tab is-active" data-jwpm-repair-tab="overview" style="padding:10px 15px; cursor:pointer; font-weight:bold; border-bottom:3px solid transparent;">Overview</div>
+					<div class="jwpm-tab" data-jwpm-repair-tab="workshop" style="padding:10px 15px; cursor:pointer; font-weight:bold; border-bottom:3px solid transparent;">Workshop Details</div>
+					<div class="jwpm-tab" data-jwpm-repair-tab="timeline" style="padding:10px 15px; cursor:pointer; font-weight:bold; border-bottom:3px solid transparent;">Timeline/Logs</div>
+				</div>
+
+				<div style="flex:1; overflow-y:auto; padding:20px;">
+					${overviewTab}
+					${workshopTab}
+					${timelineTab}
+				</div>
+			`;
+		};
+
+
+		JWPMRepairPage.prototype.init = function () {
+			// No template check needed now
 			this.renderLayout();
 			this.cacheElements();
 			this.bindEvents();
 			this.loadRepairs();
-		};
-
-		JWPMRepairPage.prototype.renderLayout = function () {
-			var tmpl = this.templates.layout.content
-				? this.templates.layout.content.cloneNode(true)
-				: document.importNode(this.templates.layout, true);
-
-			this.$root.empty().append(tmpl);
 		};
 
 		JWPMRepairPage.prototype.cacheElements = function () {
@@ -175,34 +374,17 @@
 			var self = this;
 
 			// Filters
-			this.$layout.on('input', '[data-jwpm-repair-filter="search"]', function () {
-				self.state.filters.search = $(this).val();
+			this.$layout.on('input change', '[data-jwpm-repair-filter]', function () {
+				var filterName = $(this).data('jwpm-repair-filter');
+				self.state.filters[filterName] = $(this).val();
 				self.state.page = 1;
-				self.loadRepairs();
-			});
-
-			this.$layout.on('change', '[data-jwpm-repair-filter="status"]', function () {
-				self.state.filters.status = $(this).val();
-				self.state.page = 1;
-				self.loadRepairs();
-			});
-
-			this.$layout.on('change', '[data-jwpm-repair-filter="priority"]', function () {
-				self.state.filters.priority = $(this).val();
-				self.state.page = 1;
-				self.loadRepairs();
-			});
-
-			this.$layout.on('change', '[data-jwpm-repair-filter="date_from"]', function () {
-				self.state.filters.date_from = $(this).val();
-				self.state.page = 1;
-				self.loadRepairs();
-			});
-
-			this.$layout.on('change', '[data-jwpm-repair-filter="date_to"]', function () {
-				self.state.filters.date_to = $(this).val();
-				self.state.page = 1;
-				self.loadRepairs();
+				
+				if(filterName === 'search') {
+					clearTimeout(self.searchTimer);
+					self.searchTimer = setTimeout(() => self.loadRepairs(), 500);
+				} else {
+					self.loadRepairs();
+				}
 			});
 
 			// Toolbar actions
@@ -320,6 +502,49 @@
 					self.state.page = 1;
 					self.loadRepairs();
 				}
+			});
+			
+			// Sidepanel Specific Events
+			// Save repair (handles both overview form and workshop update form)
+			this.$sidePanel.off('click', '[data-jwpm-repair-action="save-repair"]').on('click', '[data-jwpm-repair-action="save-repair"]', function(e) {
+				e.preventDefault();
+				const $form = $(this).closest('form');
+				if($form.length) self.saveRepair($form);
+			});
+
+			// Auto balance calc (must be delegated since panel is dynamic)
+			this.$sidePanel.off('input', '[data-jwpm-repair-input="actual_charges"], [data-jwpm-repair-input="advance_amount"]').on(
+				'input',
+				'[data-jwpm-repair-input="actual_charges"], [data-jwpm-repair-input="advance_amount"]',
+				function () {
+					const $panelForm = $(this).closest('[data-jwpm-repair-form]');
+					self.recalculateAmounts($panelForm);
+				}
+			);
+
+			// Timeline: add log
+			this.$sidePanel.off('click', '[data-jwpm-repair-action="add-log"]').on('click', '[data-jwpm-repair-action="add-log"]', function (e) {
+				e.preventDefault();
+				var repairId = self.state.currentRepairId;
+				if (!repairId) {
+					notifyInfo('پہلے Repair job محفوظ کریں، پھر Timeline update کریں۔');
+					return;
+				}
+				self.saveRepairLog(repairId);
+			});
+			
+			// Tabs
+			this.$sidePanel.off('click', '.jwpm-tab').on('click', '.jwpm-tab', function () {
+				var tab = $(this).attr('data-jwpm-repair-tab');
+				if (!tab) return;
+
+				self.$sidePanel.find('.jwpm-tab').removeClass('is-active');
+				$(this).addClass('is-active');
+
+				self.$sidePanel.find('.jwpm-tab-panel').removeClass('is-active').hide();
+				self.$sidePanel
+					.find('[data-jwpm-repair-tab-panel="' + tab + '"]')
+					.addClass('is-active').show();
 			});
 		};
 
@@ -466,86 +691,47 @@
 				return;
 			}
 
-			if (!this.templates.row) {
-				notifyError('Repair row template نہیں ملا۔');
-				return;
-			}
+			// Removed check for templates.row
 
 			this.state.items.forEach(function (item) {
-				var $tr;
+				var $tr = $('<tr/>', { 'data-jwpm-repair-row': '', 'data-id': item.id });
+				const itemJson = JSON.stringify(item).replace(/'/g, "&#39;");
+				$tr.attr('data-json', itemJson);
 
-				if (self.templates.row.content) {
-					var node = self.templates.row.content.cloneNode(true);
-					$tr = $(node).children('tr').first();
-				} else {
-					$tr = $(document.importNode(self.templates.row, true));
-				}
-
-				$tr.attr('data-jwpm-repair-row', '').attr('data-id', item.id);
-
-				$tr
-					.find('[data-jwpm-repair-field="job_code"]')
-					.text(item.job_code || '');
-				$tr
-					.find('[data-jwpm-repair-field="tag_no"]')
-					.text(item.tag_no || '');
-				$tr
-					.find('[data-jwpm-repair-field="customer_name"]')
-					.text(item.customer_name || '');
-				$tr
-					.find('[data-jwpm-repair-field="customer_phone"]')
-					.text(item.customer_phone || '');
-				$tr
-					.find('[data-jwpm-repair-field="item_description"]')
-					.text(item.item_description || '');
-				$tr
-					.find('[data-jwpm-repair-field="job_type"]')
-					.text(item.job_type || '');
-				$tr
-					.find('[data-jwpm-repair-field="promised_date"]')
-					.text(item.promised_date || '');
-				$tr
-					.find('[data-jwpm-repair-field="actual_charges"]')
-					.text(formatAmount(item.actual_charges));
-				$tr
-					.find('[data-jwpm-repair-field="balance_amount"]')
-					.text(formatAmount(item.balance_amount));
+				$tr.append($('<td/>').text(item.job_code || ''));
+				$tr.append($('<td/>').text(item.tag_no || ''));
+				$tr.append($('<td/>').text(item.customer_name || ''));
+				$tr.append($('<td/>').text(item.item_description || ''));
+				$tr.append($('<td/>').text(item.job_type || ''));
+				$tr.append($('<td/>').text(item.promised_date || ''));
+				$tr.append($('<td/>', {'data-jwpm-repair-field': 'actual_charges'}).text(formatAmount(item.actual_charges)));
+				$tr.append($('<td/>', {'data-jwpm-repair-field': 'balance_amount'}).text(formatAmount(item.balance_amount)));
 
 				// Status badge
 				var status = item.job_status || 'received';
-				var $statusBadge = $tr.find(
-					'[data-jwpm-repair-field="status_badge"]'
-				);
-				$statusBadge
+				var $statusBadge = $('<span/>')
 					.attr('data-status', status)
 					.addClass('jwpm-status-badge')
 					.text(
-						status === 'in_workshop'
-							? 'In Workshop'
-							: status === 'ready'
-							? 'Ready'
-							: status === 'delivered'
-							? 'Delivered'
-							: status === 'cancelled'
-							? 'Cancelled'
-							: 'Received'
+						status === 'in_workshop' ? 'In Workshop' : status === 'ready' ? 'Ready' : status === 'delivered' ? 'Delivered' : status === 'cancelled' ? 'Cancelled' : 'Received'
 					);
+				$tr.append($('<td/>', {'data-jwpm-repair-field': 'status_badge'}).append($statusBadge));
 
 				// Priority badge
 				var priority = item.priority || 'normal';
-				var $priorityBadge = $tr.find(
-					'[data-jwpm-repair-field="priority_badge"]'
-				);
-				$priorityBadge
+				var $priorityBadge = $('<span/>')
 					.attr('data-priority', priority)
 					.addClass('jwpm-priority-badge')
 					.text(
-						priority === 'urgent'
-							? 'Urgent'
-							: priority === 'vip'
-							? 'VIP'
-							: 'Normal'
+						priority === 'urgent' ? 'Urgent' : priority === 'vip' ? 'VIP' : 'Normal'
 					);
+				$tr.append($('<td/>', {'data-jwpm-repair-field': 'priority_badge'}).append($priorityBadge));
+
+				var $actions = $('<td/>');
+				$actions.append($('<button/>', { class: 'button button-small', text: 'View', 'data-jwpm-repair-action': 'view' }));
+				$actions.append($('<button/>', { class: 'button button-small', text: 'Print', 'data-jwpm-repair-action': 'print-ticket' }));
+				$actions.append($('<button/>', { class: 'button button-small', text: 'Cancel', 'data-jwpm-repair-action': 'delete' }));
+				$tr.append($actions);
 
 				self.$tableBody.append($tr);
 			});
@@ -614,88 +800,28 @@
 		 */
 		JWPMRepairPage.prototype.openRepairPanel = function (id) {
 			var self = this;
-
-			if (!this.templates.panel) {
-				notifyError('Repair panel template نہیں ملا۔');
-				return;
-			}
-
-			this.$sidePanel.empty();
-
-			var node;
-			if (this.templates.panel.content) {
-				node = this.templates.panel.content.cloneNode(true);
-			} else {
-				node = document.importNode(this.templates.panel, true);
-			}
-
-			this.$sidePanel.append(node);
-			this.$sidePanel.prop('hidden', false);
+			
+			// 1. Inject Panel HTML
+			this.$sidePanel.empty().html(this.templatePanel(!id)).show();
 
 			var $panel = this.$sidePanel;
 			var $form = $panel.find('[data-jwpm-repair-form]').first();
 			var $title = $panel.find('[data-jwpm-repair-panel-title]').first();
-			var $subtitle = $panel
-				.find('[data-jwpm-repair-panel-subtitle]')
-				.first();
-			var $statusBadge = $panel
-				.find('[data-jwpm-repair-panel-status]')
-				.first();
-			var $priorityBadge = $panel
-				.find('[data-jwpm-repair-panel-priority]')
-				.first();
-			var $tagBadge = $panel
-				.find('[data-jwpm-repair-panel-tag]')
-				.first();
+			var $statusBadge = $panel.find('[data-jwpm-repair-panel-status]').first();
+			var $priorityBadge = $panel.find('[data-jwpm-repair-panel-priority]').first();
+			var $tagBadge = $panel.find('[data-jwpm-repair-panel-tag]').first();
+			
+			// Tabs (bind events dynamically on panel load)
+			$panel.find('.jwpm-tab.is-active').trigger('click');
 
-			// Tabs
-			$panel.on('click', '.jwpm-tab', function () {
-				var tab = $(this).attr('data-jwpm-repair-tab');
-				if (!tab) return;
-
-				$panel.find('.jwpm-tab').removeClass('is-active');
-				$(this).addClass('is-active');
-
-				$panel.find('.jwpm-tab-panel').removeClass('is-active');
-				$panel
-					.find('[data-jwpm-repair-tab-panel="' + tab + '"]')
-					.addClass('is-active');
-			});
 
 			// Close actions
 			$panel.on('click', '[data-jwpm-repair-action="close-panel"]', this.closeSidePanel.bind(this));
-
-			// Save repair
-			$panel.on('click', '[data-jwpm-repair-action="save-repair"]', function (e) {
-				e.preventDefault();
-				self.saveRepair($form);
-			});
-
-			// Auto balance calc (actual_charges - advance_amount)
-			$panel.on(
-				'input',
-				'[data-jwpm-repair-input="actual_charges"], [data-jwpm-repair-input="advance_amount"]',
-				function () {
-					self.recalculateAmounts($form);
-				}
-			);
-
-			// Timeline: add log
-			$panel.on('click', '[data-jwpm-repair-action="add-log"]', function (e) {
-				e.preventDefault();
-				if (!self.state.currentRepairId && !id) {
-					notifyInfo('پہلے Repair job محفوظ کریں، پھر Timeline update کریں۔');
-					return;
-				}
-				var repairId = self.state.currentRepairId || id;
-				self.saveRepairLog(repairId);
-			});
 
 			// New repair vs existing
 			if (!id) {
 				this.state.currentRepairId = null;
 				$title.text('New Repair Job');
-				$subtitle.text('');
 				$statusBadge
 					.text('Received')
 					.attr('data-status', 'received')
@@ -705,21 +831,22 @@
 					.attr('data-priority', 'normal')
 					.addClass('jwpm-priority-badge');
 				$tagBadge.text('').attr('data-tag', '');
-
-				if ($form.length && $form[0]) {
-					$form[0].reset();
-				}
-				$form.find('[data-jwpm-repair-input="id"]').val('');
+				
+				// Set default dates
+				$form.find('[data-jwpm-repair-input="received_date"]').val(new Date().toISOString().slice(0, 10));
+				$form.find('[data-jwpm-repair-input="job_status"]').val('received');
+				
 				this.recalculateAmounts($form);
 				this.renderLogs([]);
 			} else {
 				this.state.currentRepairId = id;
-				this.loadRepairIntoPanel(id, $panel, $form, $title, $subtitle, $statusBadge, $priorityBadge, $tagBadge);
+				// Load the rest of the details via AJAX
+				this.loadRepairIntoPanel(id, $panel, $form, $title, null, $statusBadge, $priorityBadge, $tagBadge);
 			}
 		};
 
 		JWPMRepairPage.prototype.closeSidePanel = function () {
-			this.$sidePanel.prop('hidden', true).empty();
+			this.$sidePanel.hide().empty();
 		};
 
 		JWPMRepairPage.prototype.loadRepairIntoPanel = function (
@@ -727,7 +854,7 @@
 			$panel,
 			$form,
 			$title,
-			$subtitle,
+			$subtitle, // Note: subtitle element removed in new template, ignored here.
 			$statusBadge,
 			$priorityBadge,
 			$tagBadge
@@ -735,7 +862,6 @@
 			var self = this;
 
 			$title.text('Loading…');
-			$subtitle.text('');
 
 			ajaxRequest('jwpm_get_repair', {
 				nonce: jwpmRepairConfig.mainNonce,
@@ -755,11 +881,8 @@
 					var logs = response.data.logs || [];
 
 					$title.text('Repair: ' + (header.job_code || ''));
-					$subtitle.text(
-						(header.customer_name || '') +
-							(header.customer_phone ? ' • ' + header.customer_phone : '')
-					);
-
+					
+					// Update badges
 					$tagBadge
 						.text(header.tag_no || '')
 						.attr('data-tag', header.tag_no || '');
@@ -767,15 +890,7 @@
 					var st = header.job_status || 'received';
 					$statusBadge
 						.text(
-							st === 'in_workshop'
-								? 'In Workshop'
-								: st === 'ready'
-								? 'Ready'
-								: st === 'delivered'
-								? 'Delivered'
-								: st === 'cancelled'
-								? 'Cancelled'
-								: 'Received'
+							st === 'in_workshop' ? 'In Workshop' : st === 'ready' ? 'Ready' : st === 'delivered' ? 'Delivered' : st === 'cancelled' ? 'Cancelled' : 'Received'
 						)
 						.attr('data-status', st)
 						.addClass('jwpm-status-badge');
@@ -783,11 +898,7 @@
 					var priority = header.priority || 'normal';
 					$priorityBadge
 						.text(
-							priority === 'urgent'
-								? 'Urgent'
-								: priority === 'vip'
-								? 'VIP'
-								: 'Normal'
+							priority === 'urgent' ? 'Urgent' : priority === 'vip' ? 'VIP' : 'Normal'
 						)
 						.attr('data-priority', priority)
 						.addClass('jwpm-priority-badge');
@@ -896,7 +1007,6 @@
 			);
 
 			var balance = actual - advance;
-			if (balance < 0) balance = 0;
 
 			$form
 				.find('[data-jwpm-repair-input="balance_amount"]')
@@ -912,14 +1022,27 @@
 			if (!$form || !$form.length) {
 				return;
 			}
-
-			var data = this.serializeForm($form);
-			data.nonce = jwpmRepairConfig.mainNonce;
-
+			
+			// Collect data from the entire panel scope
+			const mainForm = this.$sidePanel.find('[data-jwpm-repair-form]').first();
+			
+			// Combine data from all input fields within the side panel
+			var data = {};
+			$panel.find(':input[name]').each(function() {
+				const name = $(this).attr('name');
+				const value = $(this).val();
+				// Use the last value if multiple forms have the same name (like job_status)
+				data[name] = value; 
+			});
+			
+			// Ensure essential fields from the overview tab are checked
 			if (!data.customer_name && !data.customer_phone) {
 				notifyError('Customer کا نام یا فون نمبر درج کرنا ضروری ہے۔');
 				return;
 			}
+			
+			data.nonce = jwpmRepairConfig.mainNonce;
+			data.action = 'jwpm_save_repair'; // Ensure correct action is set
 
 			this.setLoading(true);
 			notifyInfo(
@@ -942,11 +1065,13 @@
 							'Repair job محفوظ ہو گیا۔'
 					);
 
-					if (response.data && response.data.id) {
-						self.state.currentRepairId = parseInt(response.data.id, 10) || null;
+					if (response.data && response.data.id && !self.state.currentRepairId) {
+						self.state.currentRepairId = parseInt(response.data.id, 10);
+						// For new entry, reload panel to show Job Code and enable Logs/Workshop
+						self.openRepairPanel(self.state.currentRepairId);
+					} else {
+						self.closeSidePanel();
 					}
-
-					self.closeSidePanel();
 					self.loadRepairs();
 				})
 				.fail(function () {
@@ -1172,6 +1297,7 @@
 					notifySuccess('History update محفوظ ہو گیا۔');
 					$note.val('');
 					self.loadLogs(repairId);
+					self.loadRepairs(); // Update main table status
 				})
 				.fail(function () {
 					notifyError('History update محفوظ نہیں ہو سکی۔');
@@ -1183,32 +1309,31 @@
 		 */
 		JWPMRepairPage.prototype.openImportModal = function () {
 			var self = this;
-
-			if (!this.templates.importModal) {
-				notifyError('Import modal template نہیں ملا۔');
-				return;
-			}
-
-			if (this.$importModal && this.$importModal.length) {
-				this.$importModal.remove();
-				this.$importModal = null;
-			}
-
-			var node;
-			if (this.templates.importModal.content) {
-				node = this.templates.importModal.content.cloneNode(true);
-			} else {
-				node = document.importNode(this.templates.importModal, true);
-			}
-
-			this.$importModal = $(node);
+			
+			// Inject Modal HTML
+			var importModalHtml = `
+				<div class="jwpm-modal-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; display:flex; align-items:center; justify-content:center;">
+					<div class="jwpm-modal-content" style="background:#fff; padding:20px; border-radius:5px; width:500px;">
+						<h3 style="margin-top:0;">Import Repair Jobs</h3>
+						<form data-jwpm-repair-import-form>
+							<label>CSV File *</label>
+							<input type="file" name="file" accept=".csv" required style="margin-bottom:10px;">
+							<label><input type="checkbox" name="skip_duplicates" checked> Skip duplicate job codes</label>
+							<div data-jwpm-repair-import-result style="margin:10px 0; color:blue;"></div>
+							<div style="display:flex; justify-content:space-between; margin-top:20px;">
+								<button type="button" class="button" data-jwpm-repair-action="close-import">Cancel</button>
+								<button type="button" class="button button-primary" data-jwpm-repair-action="do-import">Start Import</button>
+							</div>
+						</form>
+					</div>
+				</div>
+			`;
+			this.$importModal = $(importModalHtml);
 			$('body').append(this.$importModal);
 
 			var $modal = this.$importModal;
 			var $form = $modal.find('[data-jwpm-repair-import-form]').first();
-			var $result = $modal
-				.find('[data-jwpm-repair-import-result]')
-				.first();
+			var $result = $modal.find('[data-jwpm-repair-import-result]').first();
 
 			function closeModal() {
 				$modal.remove();
@@ -1234,11 +1359,7 @@
 				formData.append('nonce', jwpmRepairConfig.importNonce);
 				formData.append('file', fileInput.files[0]);
 
-				var skipDup = $form
-					.find('input[name="skip_duplicates"]')
-					.is(':checked')
-					? 1
-					: 0;
+				var skipDup = $form.find('input[name="skip_duplicates"]').is(':checked') ? 1 : 0;
 				formData.append('skip_duplicates', skipDup);
 
 				$result.empty().text(
@@ -1390,37 +1511,50 @@
 				notifyError('Ticket کیلئے row ڈیٹا نہیں ملا۔');
 				return;
 			}
+			
+			// Fetch data from data-json attribute if available
+			const item = $row.data('json');
+			if(!item) {
+				notifyError('Ticket کیلئے تفصیلی ڈیٹا نہیں ملا۔');
+				return;
+			}
 
-			var jobCode = $row.find('[data-jwpm-repair-field="job_code"]').text() || '';
-			var tagNo = $row.find('[data-jwpm-repair-field="tag_no"]').text() || '';
-			var customer = $row.find('[data-jwpm-repair-field="customer_name"]').text() || '';
-			var phone = $row.find('[data-jwpm-repair-field="customer_phone"]').text() || '';
-			var item = $row.find('[data-jwpm-repair-field="item_description"]').text() || '';
-			var jobType = $row.find('[data-jwpm-repair-field="job_type"]').text() || '';
-			var promised = $row.find('[data-jwpm-repair-field="promised_date"]').text() || '';
-			var charges = $row.find('[data-jwpm-repair-field="actual_charges"]').text() || '';
-			var advance = ''; // detail کیلئے future version میں header load کر سکتے ہیں
+			var jobCode = item.job_code || '';
+			var tagNo = item.tag_no || '';
+			var customer = item.customer_name || '';
+			var phone = item.customer_phone || '';
+			var itemDesc = item.item_description || '';
+			var jobType = item.job_type || '';
+			var promised = item.promised_date || '';
+			var actualCharges = formatAmount(item.actual_charges);
+			var advance = formatAmount(item.advance_amount);
+			var balance = formatAmount(item.balance_amount);
+			var received = item.received_date || '';
 
 			var html = '<html><head><title>Repair Ticket</title>';
 			html +=
-				'<style>body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:11px;color:#000;padding:12px;} table{width:100%;border-collapse:collapse;margin-bottom:8px;} td{padding:3px 4px;vertical-align:top;} .label{width:30%;font-weight:bold;} .title{font-size:14px;font-weight:bold;margin-bottom:6px;text-align:center;} .small{font-size:10px;color:#555;} .border{border:1px solid #000;padding:6px;}</style>';
+				'<style>body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:11px;color:#000;padding:12px;} table{width:100%;border-collapse:collapse;margin-bottom:8px;} td{padding:3px 4px;vertical-align:top;} .label{width:35%;font-weight:bold;} .title{font-size:14px;font-weight:bold;margin-bottom:6px;text-align:center;} .small{font-size:10px;color:#555;} .border{border:1px solid #000;padding:6px;}</style>';
 			html += '</head><body>';
 			html += '<div class="border">';
-			html += '<div class="title">Repair Job Ticket</div>';
+			html += '<div class="title">Repair Job Ticket (' + jobCode + ')</div>';
 			html += '<table>';
-			html += '<tr><td class="label">Job Code</td><td>' + jobCode + '</td></tr>';
-			html += '<tr><td class="label">Tag No</td><td>' + tagNo + '</td></tr>';
+			html += '<tr><td class="label">Received Date</td><td>' + received + '</td></tr>';
+			html += '<tr><td class="label">Promised Date</td><td>' + promised + '</td></tr>';
 			html += '<tr><td class="label">Customer</td><td>' + customer + '</td></tr>';
 			html += '<tr><td class="label">Phone</td><td>' + phone + '</td></tr>';
-			html += '<tr><td class="label">Item</td><td>' + item + '</td></tr>';
+			html += '<tr><td class="label">Item/Tag</td><td>' + tagNo + ' / ' + itemDesc + '</td></tr>';
 			html += '<tr><td class="label">Job Type</td><td>' + jobType + '</td></tr>';
-			html += '<tr><td class="label">Promised Date</td><td>' + promised + '</td></tr>';
-			html += '<tr><td class="label">Charges</td><td>' + charges + '</td></tr>';
-			html += '<tr><td class="label">Advance</td><td>' + advance + '</td></tr>';
 			html += '</table>';
-			html += '<table>';
-			html += '<tr><td>Customer Signature: ____________________</td></tr>';
-			html += '<tr><td>Received By: _________________________</td></tr>';
+			
+			html += '<table style="margin-top:10px;">';
+			html += '<tr><td class="label">Actual Charges</td><td style="text-align:right;">' + actualCharges + '</td></tr>';
+			html += '<tr><td class="label">Advance Paid</td><td style="text-align:right;">' + advance + '</td></tr>';
+			html += '<tr><td class="label">Balance Due</td><td style="text-align:right;">' + balance + '</td></tr>';
+			html += '</table>';
+			
+			html += '<table style="margin-top:15px;">';
+			html += '<tr><td style="border:none;">Customer Signature: ____________________</td></tr>';
+			html += '<tr><td style="border:none;">Received By: _________________________</td></tr>';
 			html += '</table>';
 			html += '<div class="small">' + new Date().toLocaleString() + '</div>';
 			html += '</div>';
@@ -1469,4 +1603,3 @@
 })(jQuery);
 
 // ✅ Syntax verified block end
-
