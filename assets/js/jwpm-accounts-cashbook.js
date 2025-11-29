@@ -1,374 +1,381 @@
 /**
  * JWPM — Accounts Cashbook JS
- * یہ فائل UI Behavior + AJAX Calls ہینڈل کرتی ہے۔
- * Root: #jwpm-accounts-cashbook-root
+ * Updated: Direct HTML Injection (No PHP Templates required)
  */
 
 (function ($) {
     'use strict';
 
-    // 🟢 یہاں سے [Cashbook JS] شروع ہو رہا ہے
+    // 🟢 JWPM Cashbook Module Start
 
-    /** Part 1 — JS: Accounts Cashbook Page */
-
-    // Soft warning helper
-    function warnMissing(el, name) {
-        if (!el || el.length === 0) {
-            console.warn(`JWPM Warning: Missing element for ${name}`);
+    // 1. Safe Config & Helpers
+    var config = window.jwpmAccountsCashbook || {
+        ajaxUrl: window.ajaxurl || '/wp-admin/admin-ajax.php',
+        nonce: '',
+        actions: {
+            fetch: 'jwpm_cashbook_fetch',
+            save: 'jwpm_cashbook_save',
+            delete: 'jwpm_cashbook_delete',
+            export: 'jwpm_cashbook_export',
+            import: 'jwpm_cashbook_import',
+            demo: 'jwpm_cashbook_demo'
+        },
+        i18n: {
+            loading: 'Loading...',
+            errorGeneric: 'Error processing request',
+            confirmDelete: 'Are you sure you want to delete this entry?'
         }
-    }
-
-    // Mount root
-    const rootId = (window.jwpmAccountsCashbook && window.jwpmAccountsCashbook.rootId) || 'jwpm-accounts-cashbook-root';
-    const $root = $('#' + rootId);
-    warnMissing($root, 'Root Element');
-
-    if ($root.length === 0) {
-        return; // Page not found — nothing to mount
-    }
-
-    // Load Layout Template
-    const $layoutTpl = $('#jwpm-accounts-cashbook-layout');
-    warnMissing($layoutTpl, 'Template');
-
-    const mount = window.jwpmMountTemplate || function (tpl, $target) {
-        $target.html($(tpl).html());
     };
 
-    mount($layoutTpl, $root);
-
-    // -----------------------------------------------------------------------
-    // Elements
-    // -----------------------------------------------------------------------
-    const ajaxUrl = window.jwpmAccountsCashbook.ajaxUrl;
-    const nonce   = window.jwpmAccountsCashbook.nonce;
-    const actions = window.jwpmAccountsCashbook.actions;
-    const i18n    = window.jwpmAccountsCashbook.i18n;
-
-    const $tbody = $root.find('[data-role="cashbook-tbody"]');
-    const $pagination = $root.find('[data-role="cashbook-pagination"]');
-
-    const $sidepanel = $root.find('[data-role="cashbook-sidepanel"]');
-    const $sidepanelTitle = $sidepanel.find('[data-role="sidepanel-title"]');
-    const $form = $sidepanel.find('[data-role="cashbook-form"]');
-    const $entryId = $form.find('[data-role="entry-id"]');
-
-    const $fieldDate = $form.find('[data-role="field-date"]');
-    const $fieldType = $form.find('[data-role="field-type"]');
-    const $fieldCategory = $form.find('[data-role="field-category"]');
-    const $fieldReference = $form.find('[data-role="field-reference"]');
-    const $fieldAmount = $form.find('[data-role="field-amount"]');
-    const $fieldRemarks = $form.find('[data-role="field-remarks"]');
-
-    // Filters
-    const $filterFrom = $root.find('[data-role="filter-from-date"]');
-    const $filterTo   = $root.find('[data-role="filter-to-date"]');
-    const $filterType = $root.find('[data-role="filter-type"]');
-    const $filterCat  = $root.find('[data-role="filter-category"]');
-
-    // Summary
-    const $sumOpening = $root.find('[data-role="balance-opening"] .jwpm-balance-value');
-    const $sumIn      = $root.find('[data-role="balance-in"] .jwpm-balance-value');
-    const $sumOut     = $root.find('[data-role="balance-out"] .jwpm-balance-value');
-    const $sumClosing = $root.find('[data-role="balance-closing"] .jwpm-balance-value');
-
-    warnMissing($tbody, 'Cashbook Table Body');
-    warnMissing($sidepanel, 'Sidepanel');
-
-    // -----------------------------------------------------------------------
-    // Utils
-    // -----------------------------------------------------------------------
-
-    function format(n) {
+    function formatCurrency(n) {
         return parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2 });
-    }
-
-    function openPanel(title) {
-        $sidepanelTitle.text(title);
-        $sidepanel.addClass('open');
-    }
-
-    function closePanel() {
-        $sidepanel.removeClass('open');
-        $form[0].reset();
-        $entryId.val('');
-    }
-
-    function getFilters() {
-        return {
-            from_date: $filterFrom.val(),
-            to_date: $filterTo.val(),
-            type: $filterType.val(),
-            category: $filterCat.val(),
-        };
     }
 
     function wpAjax(action, data) {
         return $.ajax({
-            url: ajaxUrl,
+            url: config.ajaxUrl,
             method: 'POST',
             data: Object.assign({}, data, {
                 action: action,
-                nonce: nonce,
+                nonce: config.nonce,
             }),
         });
     }
 
-    // -----------------------------------------------------------------------
-    // Fetch Table Data
-    // -----------------------------------------------------------------------
+    // 2. Main Class
+    class JWPM_Cashbook_Page {
+        constructor($root) {
+            this.$root = $root;
+            this.state = {
+                page: 1,
+                perPage: 25
+            };
+            this.init();
+        }
 
-    let currentPage = 1;
-    let perPage = 25;
+        init() {
+            this.renderLayout();
+            this.cacheElements();
+            this.bindEvents();
+            this.loadTable(1);
+        }
 
-    function loadTable(page = 1) {
-        currentPage = page;
+        // --- UI RENDERER ---
+        renderLayout() {
+            this.$root.html(`
+                <div class="jwpm-wrapper">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #eee;">
+                        <h2 style="margin:0;">📒 Accounts Cashbook</h2>
+                        <div>
+                            <button class="button button-primary" data-role="cashbook-add">+ Add Entry</button>
+                            <button class="button" data-role="cashbook-export">Export</button>
+                            <button class="button" data-role="cashbook-demo">Demo Data</button>
+                        </div>
+                    </div>
 
-        const filters = getFilters();
+                    <div class="jwpm-card" style="display:flex; justify-content:space-between; margin-bottom:20px; padding:20px; background:#f9f9f9;">
+                        <div data-role="balance-opening" style="text-align:center;">
+                            <span style="display:block; color:#777; font-size:12px;">Opening Balance</span>
+                            <span class="jwpm-balance-value" style="font-size:18px; font-weight:bold;">0.00</span>
+                        </div>
+                        <div data-role="balance-in" style="text-align:center; color:green;">
+                            <span style="display:block; font-size:12px;">Total In (+)</span>
+                            <span class="jwpm-balance-value" style="font-size:18px; font-weight:bold;">0.00</span>
+                        </div>
+                        <div data-role="balance-out" style="text-align:center; color:red;">
+                            <span style="display:block; font-size:12px;">Total Out (-)</span>
+                            <span class="jwpm-balance-value" style="font-size:18px; font-weight:bold;">0.00</span>
+                        </div>
+                        <div data-role="balance-closing" style="text-align:center; color:#0073aa;">
+                            <span style="display:block; font-size:12px;">Closing Balance</span>
+                            <span class="jwpm-balance-value" style="font-size:18px; font-weight:bold;">0.00</span>
+                        </div>
+                    </div>
 
-        $tbody.html(`<tr><td colspan="7">${i18n.loading}</td></tr>`);
+                    <div class="jwpm-card" style="padding:15px; margin-bottom:20px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                        <label>From: <input type="date" data-role="filter-from-date" style="padding:5px;"></label>
+                        <label>To: <input type="date" data-role="filter-to-date" style="padding:5px;"></label>
+                        
+                        <select data-role="filter-type" style="padding:5px;">
+                            <option value="">All Types</option>
+                            <option value="in">Cash In</option>
+                            <option value="out">Cash Out</option>
+                        </select>
+                        
+                        <input type="text" data-role="filter-category" placeholder="Filter by Category..." style="padding:6px;">
+                        
+                        <button class="button" onclick="jQuery('[data-role=filter-from-date]').val(''); jQuery('[data-role=filter-to-date]').val('');">Clear Dates</button>
+                    </div>
 
-        wpAjax(actions.fetch, {
-            page: currentPage,
-            per_page: perPage,
-            from_date: filters.from_date,
-            to_date: filters.to_date,
-            type: filters.type,
-            category: filters.category,
-        })
-            .done(function (res) {
-                if (!res.success) {
-                    $tbody.html(`<tr><td colspan="7">${i18n.errorGeneric}</td></tr>`);
+                    <table class="wp-list-table widefat fixed striped">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Category</th>
+                                <th>Reference</th>
+                                <th>Remarks</th>
+                                <th style="text-align:right;">Amount</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody data-role="cashbook-tbody">
+                            <tr><td colspan="7">Loading...</td></tr>
+                        </tbody>
+                    </table>
+
+                    <div class="tablenav bottom">
+                        <div class="tablenav-pages" data-role="cashbook-pagination"></div>
+                    </div>
+
+                    <div data-role="cashbook-sidepanel" style="display:none; position:fixed; top:0; right:0; width:400px; height:100%; background:#fff; box-shadow:-2px 0 5px rgba(0,0,0,0.1); z-index:9999; padding:20px; overflow-y:auto;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+                            <h2 data-role="sidepanel-title" style="margin:0;">Entry</h2>
+                            <button class="button" data-role="sidepanel-close">Close ❌</button>
+                        </div>
+                        
+                        <form data-role="cashbook-form">
+                            <input type="hidden" data-role="entry-id">
+                            
+                            <label>Date <span style="color:red">*</span></label>
+                            <input type="date" data-role="field-date" class="widefat" required style="margin-bottom:10px;">
+                            
+                            <label>Type <span style="color:red">*</span></label>
+                            <select data-role="field-type" class="widefat" style="margin-bottom:10px;">
+                                <option value="in">Cash In (+)</option>
+                                <option value="out">Cash Out (-)</option>
+                            </select>
+
+                            <label>Category</label>
+                            <input type="text" data-role="field-category" class="widefat" list="jwpm-cats" style="margin-bottom:10px;">
+                            <datalist id="jwpm-cats">
+                                <option value="Sale">
+                                <option value="Purchase">
+                                <option value="Expense">
+                                <option value="Salary">
+                                <option value="Utility Bills">
+                            </datalist>
+
+                            <label>Reference (Optional)</label>
+                            <input type="text" data-role="field-reference" class="widefat" style="margin-bottom:10px;">
+
+                            <label>Amount <span style="color:red">*</span></label>
+                            <input type="number" step="0.01" data-role="field-amount" class="widefat" required style="margin-bottom:10px;">
+
+                            <label>Remarks</label>
+                            <textarea data-role="field-remarks" class="widefat" style="height:80px; margin-bottom:20px;"></textarea>
+
+                            <button type="submit" class="button button-primary button-large" style="width:100%;">Save Entry</button>
+                        </form>
+                    </div>
+                </div>
+            `);
+        }
+
+        cacheElements() {
+            this.$tbody = this.$root.find('[data-role="cashbook-tbody"]');
+            this.$pagination = this.$root.find('[data-role="cashbook-pagination"]');
+            
+            // Sidepanel
+            this.$sidepanel = this.$root.find('[data-role="cashbook-sidepanel"]');
+            this.$form = this.$root.find('[data-role="cashbook-form"]');
+            
+            // Filters
+            this.$filterFrom = this.$root.find('[data-role="filter-from-date"]');
+            this.$filterTo = this.$root.find('[data-role="filter-to-date"]');
+            this.$filterType = this.$root.find('[data-role="filter-type"]');
+            this.$filterCat = this.$root.find('[data-role="filter-category"]');
+            
+            // Summary
+            this.$sumOpening = this.$root.find('[data-role="balance-opening"] .jwpm-balance-value');
+            this.$sumIn = this.$root.find('[data-role="balance-in"] .jwpm-balance-value');
+            this.$sumOut = this.$root.find('[data-role="balance-out"] .jwpm-balance-value');
+            this.$sumClosing = this.$root.find('[data-role="balance-closing"] .jwpm-balance-value');
+        }
+
+        bindEvents() {
+            const self = this;
+
+            // Filters
+            this.$filterFrom.on('change', () => this.loadTable(1));
+            this.$filterTo.on('change', () => this.loadTable(1));
+            this.$filterType.on('change', () => this.loadTable(1));
+            this.$filterCat.on('input', () => {
+                clearTimeout(this.timer);
+                this.timer = setTimeout(() => self.loadTable(1), 500);
+            });
+
+            // Pagination
+            this.$root.on('click', '.jwpm-page-btn', function() {
+                self.loadTable($(this).data('page'));
+            });
+
+            // Add New
+            this.$root.on('click', '[data-role="cashbook-add"]', () => {
+                this.openPanel('Add Entry');
+                this.$form[0].reset();
+                this.$form.find('[data-role="field-date"]').val(new Date().toISOString().split('T')[0]); // Default today
+                this.$form.find('[data-role="entry-id"]').val('');
+            });
+
+            // Edit
+            this.$root.on('click', '[data-role="edit-entry"]', function() {
+                const $tr = $(this).closest('tr');
+                const json = $tr.data('json'); // Get full data object
+                if(json) {
+                    self.openPanel('Edit Entry');
+                    self.$form.find('[data-role="entry-id"]').val(json.id);
+                    self.$form.find('[data-role="field-date"]').val(json.entry_date);
+                    self.$form.find('[data-role="field-type"]').val(json.type);
+                    self.$form.find('[data-role="field-category"]').val(json.category);
+                    self.$form.find('[data-role="field-reference"]').val(json.reference);
+                    self.$form.find('[data-role="field-amount"]').val(json.amount);
+                    self.$form.find('[data-role="field-remarks"]').val(json.remarks);
+                }
+            });
+
+            // Delete
+            this.$root.on('click', '[data-role="delete-entry"]', function() {
+                if(!confirm(config.i18n.confirmDelete)) return;
+                const id = $(this).closest('tr').data('id');
+                
+                wpAjax(config.actions.delete, { id: id }).done((res) => {
+                    if(res.success) self.loadTable(self.state.page);
+                    else alert('Failed to delete');
+                });
+            });
+
+            // Save Form
+            this.$form.on('submit', function(e) {
+                e.preventDefault();
+                const data = {
+                    id: $(this).find('[data-role="entry-id"]').val(),
+                    entry_date: $(this).find('[data-role="field-date"]').val(),
+                    type: $(this).find('[data-role="field-type"]').val(),
+                    category: $(this).find('[data-role="field-category"]').val(),
+                    reference: $(this).find('[data-role="field-reference"]').val(),
+                    amount: $(this).find('[data-role="field-amount"]').val(),
+                    remarks: $(this).find('[data-role="field-remarks"]').val()
+                };
+
+                wpAjax(config.actions.save, data).done((res) => {
+                    if(res.success) {
+                        self.$sidepanel.hide();
+                        self.loadTable(self.state.page);
+                    } else {
+                        alert(res.data.message || 'Error saving');
+                    }
+                });
+            });
+
+            // Close Panel
+            this.$root.on('click', '[data-role="sidepanel-close"]', () => this.$sidepanel.hide());
+            
+            // Demo Data
+            this.$root.on('click', '[data-role="cashbook-demo"]', () => {
+                if(confirm("Generate Demo Data?")) {
+                    wpAjax(config.actions.demo, {}).done((res) => {
+                        alert(res.data.message);
+                        self.loadTable(1);
+                    });
+                }
+            });
+            
+             // Export
+            this.$root.on('click', '[data-role="cashbook-export"]', () => {
+                window.open(config.ajaxUrl + '?action=' + config.actions.export + '&nonce=' + config.nonce, '_blank');
+            });
+        }
+
+        // --- DATA LOADING ---
+        loadTable(page) {
+            this.state.page = page;
+            this.$tbody.html('<tr><td colspan="7" style="text-align:center;">Loading...</td></tr>');
+
+            const payload = {
+                page: page,
+                per_page: this.state.perPage,
+                from_date: this.$filterFrom.val(),
+                to_date: this.$filterTo.val(),
+                type: this.$filterType.val(),
+                category: this.$filterCat.val()
+            };
+
+            wpAjax(config.actions.fetch, payload).done((res) => {
+                if(!res.success) {
+                    this.$tbody.html('<tr><td colspan="7" style="color:red; text-align:center;">Error loading data</td></tr>');
                     return;
                 }
 
-                const data = res.data.items;
-
-                if (data.length === 0) {
-                    $tbody.html(`
-                        <tr class="jwpm-empty-row">
-                            <td colspan="7">کوئی ریکارڈ نہیں ملا۔</td>
-                        </tr>
-                    `);
-                } else {
-                    renderRows(data);
-                }
-
-                updateSummary(res.data.summary);
-                renderPagination(res.data.total, res.data.page, res.data.perPage);
-            })
-            .fail(function () {
-                $tbody.html(`<tr><td colspan="7">${i18n.errorGeneric}</td></tr>`);
+                this.renderRows(res.data.items);
+                this.updateSummary(res.data.summary);
+                this.renderPagination(res.data.total, res.data.page, res.data.perPage);
             });
-    }
-
-    function renderRows(rows) {
-        let html = '';
-
-        rows.forEach(function (row) {
-            html += `
-                <tr data-id="${row.id}">
-                    <td>${row.entry_date}</td>
-                    <td>${row.type === 'in' ? 'Cash In' : 'Cash Out'}</td>
-                    <td>${row.category}</td>
-                    <td>${row.reference || ''}</td>
-                    <td>${row.remarks || ''}</td>
-                    <td class="jwpm-column-number">${format(row.amount)}</td>
-                    <td>
-                        <button class="button button-small" data-role="edit-entry">Edit</button>
-                        <button class="button button-small" data-role="delete-entry">Delete</button>
-                    </td>
-                </tr>
-            `;
-        });
-
-        $tbody.html(html);
-    }
-
-    function updateSummary(sum) {
-        $sumOpening.text(format(sum.opening));
-        $sumIn.text(format(sum.total_in));
-        $sumOut.text(format(sum.total_out));
-        $sumClosing.text(format(sum.closing));
-    }
-
-    function renderPagination(total, page, perPage) {
-        const totalPages = Math.ceil(total / perPage);
-
-        if (totalPages <= 1) {
-            $pagination.html('');
-            return;
         }
 
-        let html = '';
+        renderRows(items) {
+            if(!items.length) {
+                this.$tbody.html('<tr><td colspan="7" style="text-align:center;">No entries found.</td></tr>');
+                return;
+            }
 
-        for (let p = 1; p <= totalPages; p++) {
-            html += `<span class="jwpm-page-btn ${p === page ? 'active' : ''}" data-page="${p}">${p}</span>`;
+            let html = '';
+            items.forEach(item => {
+                const json = JSON.stringify(item).replace(/'/g, "&#39;");
+                const color = item.type === 'in' ? 'green' : 'red';
+                const sign = item.type === 'in' ? '+' : '-';
+                
+                html += `
+                    <tr data-id="${item.id}" data-json='${json}'>
+                        <td>${item.entry_date}</td>
+                        <td style="color:${color}; font-weight:bold; text-transform:uppercase;">${item.type}</td>
+                        <td>${item.category}</td>
+                        <td>${item.reference || '-'}</td>
+                        <td style="color:#666;">${item.remarks || ''}</td>
+                        <td style="text-align:right; font-family:monospace; font-size:1.1em;">${sign} ${formatCurrency(item.amount)}</td>
+                        <td>
+                            <button class="button button-small" data-role="edit-entry">Edit</button>
+                            <button class="button button-small" data-role="delete-entry" style="color:red;">Del</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            this.$tbody.html(html);
         }
 
-        $pagination.html(html);
+        updateSummary(sum) {
+            this.$sumOpening.text(formatCurrency(sum.opening || 0));
+            this.$sumIn.text(formatCurrency(sum.total_in || 0));
+            this.$sumOut.text(formatCurrency(sum.total_out || 0));
+            this.$sumClosing.text(formatCurrency(sum.closing || 0));
+        }
+
+        renderPagination(total, page, perPage) {
+            const totalPages = Math.ceil(total / perPage);
+            if(totalPages <= 1) {
+                this.$pagination.empty();
+                return;
+            }
+
+            let html = '';
+            if(page > 1) html += `<button class="button jwpm-page-btn" data-page="${page-1}">« Prev</button> `;
+            html += `<span style="padding:0 10px;">Page ${page} of ${totalPages}</span>`;
+            if(page < totalPages) html += ` <button class="button jwpm-page-btn" data-page="${page+1}">Next »</button>`;
+            
+            this.$pagination.html(html);
+        }
+
+        openPanel(title) {
+            this.$sidepanel.find('[data-role="sidepanel-title"]').text(title);
+            this.$sidepanel.show();
+        }
     }
 
-    // Pagination click
-    $pagination.on('click', '[data-page]', function () {
-        const page = parseInt($(this).data('page'));
-        loadTable(page);
-    });
-
-    // Filters change
-    $filterFrom.on('change', () => loadTable(1));
-    $filterTo.on('change', () => loadTable(1));
-    $filterType.on('change', () => loadTable(1));
-    $filterCat.on('input', () => loadTable(1));
-
-    // -----------------------------------------------------------------------
-    // Add New Entry
-    // -----------------------------------------------------------------------
-    $root.find('[data-role="cashbook-add"]').on('click', function () {
-        openPanel('Add Cashbook Entry');
-        $form[0].reset();
-        $entryId.val('');
-    });
-
-    // Edit Entry
-    $tbody.on('click', '[data-role="edit-entry"]', function () {
-        const $tr = $(this).closest('tr');
-        const id = $tr.data('id');
-
-        // Read values
-        const date = $tr.children().eq(0).text().trim();
-        const typeText = $tr.children().eq(1).text().trim();
-        const type = typeText.toLowerCase().includes('in') ? 'in' : 'out';
-        const category = $tr.children().eq(2).text().trim();
-        const reference = $tr.children().eq(3).text().trim();
-        const remarks = $tr.children().eq(4).text().trim();
-        const amount = $tr.children().eq(5).text().replace(/,/g, '');
-
-        openPanel('Edit Entry');
-
-        $entryId.val(id);
-        $fieldDate.val(date);
-        $fieldType.val(type);
-        $fieldCategory.val(category);
-        $fieldReference.val(reference);
-        $fieldAmount.val(amount);
-        $fieldRemarks.val(remarks);
-    });
-
-    // Delete Entry
-    $tbody.on('click', '[data-role="delete-entry"]', function () {
-        if (!confirm(i18n.confirmDelete)) {
-            return;
+    // Init
+    $(function() {
+        if($('#jwpm-accounts-cashbook-root').length) {
+            new JWPM_Cashbook_Page($('#jwpm-accounts-cashbook-root'));
         }
-
-        const id = $(this).closest('tr').data('id');
-
-        wpAjax(actions.delete, { id: id })
-            .done(function (res) {
-                if (res.success) {
-                    loadTable(currentPage);
-                } else {
-                    alert(i18n.errorGeneric);
-                }
-            });
     });
-
-    // -----------------------------------------------------------------------
-    // Save Entry (Add/Update)
-    // -----------------------------------------------------------------------
-    $form.on('submit', function (e) {
-        e.preventDefault();
-
-        const payload = {
-            id: $entryId.val(),
-            entry_date: $fieldDate.val(),
-            type: $fieldType.val(),
-            category: $fieldCategory.val(),
-            reference: $fieldReference.val(),
-            amount: $fieldAmount.val(),
-            remarks: $fieldRemarks.val(),
-        };
-
-        wpAjax(actions.save, payload)
-            .done(function (res) {
-                if (res.success) {
-                    closePanel();
-                    loadTable(currentPage);
-                } else {
-                    alert(res.data?.message || i18n.errorGeneric);
-                }
-            })
-            .fail(function () {
-                alert(i18n.errorGeneric);
-            });
-    });
-
-    // Cancel Entry
-    $root.find('[data-role="cancel-entry"], [data-role="sidepanel-close"]').on('click', function () {
-        closePanel();
-    });
-
-    // -----------------------------------------------------------------------
-    // Export
-    // -----------------------------------------------------------------------
-    $root.find('[data-role="cashbook-export"]').on('click', function () {
-        wpAjax(actions.export, {})
-            .done(function (res) {
-                if (res.success && res.data.rows) {
-                    window.jwpmExportToExcel('Cashbook', res.data.headers, res.data.rows);
-                } else {
-                    alert(i18n.errorGeneric);
-                }
-            });
-    });
-
-    // -----------------------------------------------------------------------
-    // Import
-    // -----------------------------------------------------------------------
-    $root.find('[data-role="cashbook-import"]').on('click', function () {
-        window.jwpmImportDialog(function (rows) {
-            wpAjax(actions.import, { rows: rows })
-                .done(function (res) {
-                    if (res.success) {
-                        alert(res.data.message);
-                        loadTable(1);
-                    } else {
-                        alert(i18n.errorGeneric);
-                    }
-                });
-        });
-    });
-
-    // -----------------------------------------------------------------------
-    // Print
-    // -----------------------------------------------------------------------
-    $root.find('[data-role="cashbook-print"]').on('click', function () {
-        window.jwpmPrintTable($tbody.closest('table')[0], 'Cashbook Records');
-    });
-
-    // -----------------------------------------------------------------------
-    // Demo Data
-    // -----------------------------------------------------------------------
-    $root.find('[data-role="cashbook-demo"]').on('click', function () {
-        if (!confirm('Demo Data شامل کریں؟')) return;
-
-        wpAjax(actions.demo, {})
-            .done(function (res) {
-                if (res.success) {
-                    alert(res.data.message);
-                    loadTable(1);
-                } else {
-                    alert(i18n.errorGeneric);
-                }
-            });
-    });
-
-    // Initial Load
-    loadTable(1);
-
-    // 🔴 یہاں پر [Cashbook JS] ختم ہو رہا ہے
-
-    // ✅ Syntax verified block end
 
 })(jQuery);
-
