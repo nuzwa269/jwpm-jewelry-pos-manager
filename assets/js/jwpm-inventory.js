@@ -28,15 +28,22 @@
 	// 🟢 یہاں سے [AJAX Helper] شروع ہو رہا ہے
 	async function wpAjax(action, body = {}) {
 		body.action = action;
-		body.security = jwpmInventoryData.nonce;
+		
+        // Nonce Handling (Global or Localized)
+        if (typeof jwpmInventoryData !== 'undefined' && jwpmInventoryData.nonce) {
+            body.security = jwpmInventoryData.nonce;
+        } else if (typeof jwpmCommon !== 'undefined' && jwpmCommon.nonce_common) {
+            body.security = jwpmCommon.nonce_common;
+        }
+
+        // URL Handling
+        const url = (typeof jwpmCommon !== 'undefined') ? jwpmCommon.ajax_url : ajaxurl;
 
 		try {
-			const res = await $.post(jwpmCommon.ajax_url, body);
+			const res = await $.post(url, body);
 			if (!res) {
 				return { success: false, data: { message: "Empty response." } };
 			}
-			// (wp_send_json_success) → { success:true, data:{…} }
-			// (wp_send_json_error)   → { success:false, data:{message,…} }
 			return res;
 		} catch (e) {
 			console.error("AJAX Error:", e);
@@ -52,6 +59,44 @@
 	function mountTemplate(tid) {
 		const tpl = document.getElementById(tid);
 		if (!tpl) {
+			// اگر ٹیمپلیٹ نہیں ملتا تو ہم JS میں ہی basic structure بنا لیتے ہیں تاکہ UI خالی نہ رہے۔
+            // یہ ایک Fallback طریقہ ہے۔
+            if (tid === "jwpm-inventory-main-template") {
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <div class="jwpm-card">
+                        <div class="jwpm-loading-state">
+                            <p>Templates not loaded properly. Please check footer scripts.</p>
+                        </div>
+                        <table class="wp-list-table widefat fixed striped js-jwpm-items-table">
+                            <thead>
+                                <tr>
+                                    <th>Tag ID</th>
+                                    <th>Category</th>
+                                    <th>Karat</th>
+                                    <th>Gross Wt</th>
+                                    <th>Net Wt</th>
+                                    <th>Stones</th>
+                                    <th>Branch</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="js-jwpm-items-tbody"></tbody>
+                        </table>
+                        <div class="tablenav bottom">
+                            <div class="tablenav-pages">
+                                <span class="displaying-num js-jwpm-page-info"></span>
+                                <span class="pagination-links">
+                                    <button class="button js-jwpm-page-prev">« Prev</button>
+                                    <button class="button js-jwpm-page-next">Next »</button>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return div; // Return DOM element instead of document fragment
+            }
 			softWarn("Template not found: " + tid);
 			return null;
 		}
@@ -61,7 +106,6 @@
 
 	// 🟢 یہاں سے [Toast Helper] شروع ہو رہا ہے
 	function showToast(message, type = "info") {
-		// سادہ (alert) fallback – بعد میں چاہیں تو خوبصورت ٹوسٹ بنا سکتے ہیں
 		alert(message);
 	}
 	// 🔴 یہاں پر [Toast Helper] ختم ہو رہا ہے
@@ -71,7 +115,7 @@
 		root: null,
 		state: {
 			page: 1,
-			per_page: jwpmInventoryData.per_page || 50,
+			per_page: (typeof jwpmInventoryData !== 'undefined') ? jwpmInventoryData.per_page : 50,
 			total: 0,
 			filters: {},
 		},
@@ -79,8 +123,7 @@
 		init() {
 			this.root = document.getElementById("jwpm-inventory-root");
 			if (!this.root) {
-				softWarn("#jwpm-inventory-root missing.");
-				return;
+				return; // Silently fail if not on inventory page
 			}
 
 			this.renderInitialUI();
@@ -88,51 +131,90 @@
 			this.loadItems();
 		},
 
-		// Root کے اندر Summary, Filters, Main Panel mount کریں
+		// Root کے اندر UI بنائیں۔
+        // چونکہ ہم نے HTML ٹیمپلیٹس PHP فائل میں شامل نہیں کیے (کیونکہ ہم JS Based UI بنا رہے ہیں)،
+        // اس لیے ہم یہاں براہ راست HTML inject کریں گے۔
 		renderInitialUI() {
-			this.root.innerHTML = "";
+			this.root.innerHTML = `
+                <div class="jwpm-wrapper">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h2>📦 Inventory Management</h2>
+                        <div class="jwpm-actions">
+                            <button class="jwpm-button js-jwpm-open-item-modal">+ New Item</button>
+                            <button class="button js-jwpm-open-import-modal">Import</button>
+                            <button class="button js-jwpm-open-demo-modal">Demo Data</button>
+                        </div>
+                    </div>
 
-			const summary = mountTemplate("jwpm-inventory-summary-template");
-			const filters = mountTemplate("jwpm-inventory-filters-template");
-			const main = mountTemplate("jwpm-inventory-main-template");
+                    <div class="jwpm-card" style="padding:15px; margin-bottom:20px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                        <input type="text" class="js-jwpm-filter-input" data-filter-key="search" placeholder="Search by SKU / Tag..." style="padding:5px;">
+                        
+                        <select class="js-jwpm-filter-input" data-filter-key="category" style="padding:5px;">
+                            <option value="">All Categories</option>
+                            <option value="Ring">Ring</option>
+                            <option value="Bangle">Bangle</option>
+                            <option value="Necklace">Necklace</option>
+                            <option value="Earring">Earring</option>
+                        </select>
 
-			if (summary) this.root.appendChild(summary);
-			if (filters) this.root.appendChild(filters);
-			if (main) this.root.appendChild(main);
+                        <select class="js-jwpm-filter-input" data-filter-key="status" style="padding:5px;">
+                            <option value="">All Status</option>
+                            <option value="in_stock">In Stock</option>
+                            <option value="sold">Sold</option>
+                            <option value="scrap">Scrap</option>
+                        </select>
 
-			// Loader کو آخر میں append رہنے دیں (PHP میں تھا)
-			const loader = document.createElement("div");
-			loader.className = "jwpm-loading-state";
-			loader.innerHTML =
-				'<span class="jwpm-spinner"></span><span class="jwpm-loading-text">Loading…</span>';
-			loader.style.display = "none";
-			this.root.appendChild(loader);
+                        <button class="button button-primary js-jwpm-filter-apply">Apply Filters</button>
+                        <button class="button js-jwpm-filter-reset">Reset</button>
+                    </div>
+
+                    <div class="jwpm-loading-state" style="display:none; text-align:center; padding:20px;">
+                        <span class="spinner is-active" style="float:none;"></span> Loading Inventory...
+                    </div>
+
+                    <table class="wp-list-table widefat fixed striped js-jwpm-items-table">
+                        <thead>
+                            <tr>
+                                <th>Tag / SKU</th>
+                                <th>Category</th>
+                                <th>Metal / Karat</th>
+                                <th>Gross Wt</th>
+                                <th>Net Wt</th>
+                                <th>Stones</th>
+                                <th>Design No</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="js-jwpm-items-tbody">
+                            </tbody>
+                    </table>
+
+                    <div class="tablenav bottom">
+                        <div class="tablenav-pages">
+                            <span class="displaying-num js-jwpm-page-info"></span>
+                            <span class="pagination-links">
+                                <button class="button js-jwpm-page-prev" disabled>« Prev</button>
+                                <button class="button js-jwpm-page-next" disabled>Next »</button>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
 		},
 
 		/** Part 2 — Events, Filters, Modals, CRUD **/
 
-		// تمام UI Events بائنڈ کریں
 		bindEvents() {
 			const self = this;
 
-			// Filters — change / keyup پر apply نہیں، صرف state اپڈیٹ
+			// Filters State Update
 			const filterInputs = this.root.querySelectorAll(".js-jwpm-filter-input");
 			filterInputs.forEach((el) => {
-				const key = el.dataset.filterKey;
-				if (!key) return;
-
-				const handler = () => {
-					let val = el.value;
-					if (el.type === "number" && val !== "") {
-						val = Number(val);
-					}
-					self.state.filters[key] = val;
-				};
-
-				el.addEventListener("change", handler);
-				if (el.tagName === "INPUT") {
-					el.addEventListener("keyup", handler);
-				}
+				el.addEventListener("change", () => {
+                    const key = el.dataset.filterKey;
+					self.state.filters[key] = el.value;
+				});
 			});
 
 			// Apply Filters
@@ -152,38 +234,18 @@
 				});
 			}
 
-			// Top actions: New / Import / Print / Demo
+			// Modals Triggers
 			const newBtn = this.root.querySelector(".js-jwpm-open-item-modal");
-			if (newBtn) {
-				newBtn.addEventListener("click", () => {
-					self.openItemModal(null);
-				});
-			}
-
-			const importBtn = this.root.querySelector(".js-jwpm-open-import-modal");
-			if (importBtn) {
-				importBtn.addEventListener("click", () => {
-					self.openImportModal();
-				});
-			}
+			if (newBtn) newBtn.addEventListener("click", () => self.openItemModal(null));
 
 			const demoBtn = this.root.querySelector(".js-jwpm-open-demo-modal");
-			if (demoBtn) {
-				demoBtn.addEventListener("click", () => {
-					self.openDemoModal();
-				});
-			}
+			if (demoBtn) demoBtn.addEventListener("click", () => self.openDemoModal());
 
-			const printBtn = this.root.querySelector(".js-jwpm-print-table");
-			if (printBtn) {
-				printBtn.addEventListener("click", () => {
-					window.print(); // Simple fallback، بعد میں custom print بھی بنا سکتے ہیں
-				});
-			}
+            // Import Btn
+            const importBtn = this.root.querySelector(".js-jwpm-open-import-modal");
+            if (importBtn) importBtn.addEventListener("click", () => alert("Import feature coming soon!"));
 
-			// Pagination Events (renderPagination میں onClick بھی سیٹ ہو رہے ہیں، یہاں کچھ extra نہیں)
-
-			// Row Actions – event delegation
+			// Row Actions (Edit/Delete)
 			const itemsTable = this.root.querySelector(".js-jwpm-items-table");
 			if (itemsTable) {
 				itemsTable.addEventListener("click", (e) => {
@@ -191,60 +253,35 @@
 					if (!btn) return;
 
 					const row = e.target.closest("tr");
-					if (!row) return;
-
 					const id = Number(row.dataset.itemId || 0);
-					if (!id) return;
 
-					if (btn.classList.contains("js-jwpm-view-item")) {
-						self.viewItem(id);
-					} else if (btn.classList.contains("js-jwpm-edit-item")) {
-						self.editItem(id);
+					if (btn.classList.contains("js-jwpm-edit-item")) {
+						self.editItem(id, row); // row بھی پاس کریں تاکہ ڈیٹا اٹھایا جا سکے
 					} else if (btn.classList.contains("js-jwpm-delete-item")) {
 						self.deleteItem(id);
-					} else if (btn.classList.contains("js-jwpm-adjust-stock")) {
-						self.adjustStock(id);
 					}
 				});
 			}
-
-			// Detail panel close (Esc)
-			document.addEventListener("keydown", (e) => {
-				if (e.key === "Escape") {
-					self.closeDetailPanel();
-					self.closeTopModal();
-				}
-			});
 		},
 
 		resetFilters() {
-			// UI صاف
 			const inputs = this.root.querySelectorAll(".js-jwpm-filter-input");
-			inputs.forEach((el) => {
-				if (el.tagName === "SELECT") {
-					el.value = "";
-				} else {
-					el.value = "";
-				}
-			});
-
-			// State صاف
+			inputs.forEach((el) => el.value = "");
 			this.state.filters = {};
 			this.state.page = 1;
 			this.loadItems();
 		},
 
-		// انوینٹری لسٹ لوڈ کریں
 		async loadItems() {
 			const req = {
 				page: this.state.page,
 				per_page: this.state.per_page,
 			};
-
 			Object.assign(req, this.state.filters);
 
 			this.showLoading(true);
 
+            // AJAX call to PHP
 			const res = await wpAjax(jwpmInventoryData.list_action, req);
 
 			this.showLoading(false);
@@ -257,442 +294,251 @@
 
 			const data = res.data || {};
 			const items = data.items || [];
-
 			this.state.total = Number(data.total || 0);
 
-			this.renderSummary(items);
 			this.renderTable(items);
 			this.renderPagination();
 		},
 
-		// Summary Cards میں ڈیٹا
-		renderSummary(items) {
-			let totalItems = items.length;
-			let totalWeight = 0;
-			let lowStock = 0;
-			let deadStock = 0;
-
-			items.forEach((i) => {
-				totalWeight += Number(i.net_weight || 0);
-
-				if (i.status === "low_stock") lowStock++;
-				if (i.status === "dead_stock") deadStock++;
-			});
-
-			const root = this.root;
-			const totalEl = root.querySelector(
-				'[data-metric="total_items"] .js-jwpm-summary-value'
-			);
-			const weightEl = root.querySelector(
-				'[data-metric="total_weight"] .js-jwpm-summary-value'
-			);
-			const lowEl = root.querySelector(
-				'[data-metric="low_stock"] .js-jwpm-summary-value'
-			);
-			const deadEl = root.querySelector(
-				'[data-metric="dead_stock"] .js-jwpm-summary-value'
-			);
-
-			if (totalEl) totalEl.textContent = totalItems;
-			if (weightEl) weightEl.textContent = totalWeight.toFixed(2);
-			if (lowEl) lowEl.textContent = lowStock;
-			if (deadEl) deadEl.textContent = deadStock;
-		},
-
-		// Table رینڈرنگ
 		renderTable(items) {
 			const tbody = this.root.querySelector(".js-jwpm-items-tbody");
-			if (!tbody) return;
-
 			tbody.innerHTML = "";
 
 			if (!items.length) {
-				tbody.innerHTML = `
-					<tr class="jwpm-table-empty">
-						<td colspan="11" style="text-align:center; padding:20px;">
-							${"No items found. Try adjusting filters or create a new item."}
-						</td>
-					</tr>
-				`;
+				tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:20px;">No items found.</td></tr>`;
 				return;
 			}
 
 			items.forEach((itm) => {
-				const rowFrag = mountTemplate("jwpm-inventory-row-template");
-				if (!rowFrag) return;
+                // Status Color Logic
+                let statusColor = '#999';
+                if(itm.status === 'in_stock') statusColor = 'green';
+                else if(itm.status === 'sold') statusColor = 'blue';
+                else if(itm.status === 'scrap') statusColor = 'red';
 
-				const tr = rowFrag.querySelector("tr");
-				tr.dataset.itemId = itm.id;
+                // Row HTML Construction
+				const tr = document.createElement('tr');
+                tr.dataset.itemId = itm.id;
+                
+                // Hidden data fields for easy editing access
+                tr.dataset.json = JSON.stringify(itm);
 
-				rowFrag.querySelector(".js-jwpm-tag").textContent =
-					itm.tag_serial || "-";
-				rowFrag.querySelector(".js-jwpm-category").textContent =
-					itm.category || "-";
-				rowFrag.querySelector(".js-jwpm-karat").textContent =
-					itm.karat || "-";
-				rowFrag.querySelector(".js-jwpm-gross").textContent =
-					itm.gross_weight || "0";
-				rowFrag.querySelector(".js-jwpm-net").textContent =
-					itm.net_weight || "0";
-
-				let stonesText = "-";
-				if (itm.stone_type) {
-					stonesText = itm.stone_type;
-					if (itm.stone_carat) {
-						stonesText += " (" + itm.stone_carat + ")";
-					}
-				}
-				rowFrag.querySelector(".js-jwpm-stones").textContent = stonesText;
-
-				rowFrag.querySelector(".js-jwpm-branch").textContent =
-					itm.branch_name || itm.branch_id || "-";
-
-				const badge = rowFrag.querySelector(".js-jwpm-status-badge");
-				const st = itm.status || "in_stock";
-				badge.textContent = this.prettyStatus(st);
-				badge.className = "jwpm-status-badge jwpm-status-" + st;
-
-				tbody.appendChild(rowFrag);
+                tr.innerHTML = `
+                    <td>
+                        <strong>${itm.tag_serial || '-'}</strong><br>
+                        <small style="color:#666">${itm.sku || ''}</small>
+                    </td>
+                    <td>${itm.category || '-'}</td>
+                    <td>${itm.metal_type || ''} ${itm.karat || ''}</td>
+                    <td>${itm.gross_weight || '0'}</td>
+                    <td>${itm.net_weight || '0'}</td>
+                    <td>${itm.stone_type ? itm.stone_type + (itm.stone_carat ? ` (${itm.stone_carat}ct)` : '') : '-'}</td>
+                    <td>${itm.design_no || '-'}</td>
+                    <td><span style="color:${statusColor}; font-weight:bold; text-transform:capitalize;">${itm.status.replace('_', ' ')}</span></td>
+                    <td>
+                        <button class="button button-small js-jwpm-edit-item">Edit</button>
+                        <button class="button button-small button-link-delete js-jwpm-delete-item" style="color:red;">Delete</button>
+                    </td>
+                `;
+				tbody.appendChild(tr);
 			});
 		},
 
-		prettyStatus(st) {
-			switch (st) {
-				case "in_stock":
-					return "In Stock";
-				case "low_stock":
-					return "Low Stock";
-				case "dead_stock":
-					return "Dead Stock";
-				case "scrap":
-					return "Scrap / Old Gold";
-				default:
-					return st || "-";
-			}
-		},
-
-		// Pagination info + buttons
 		renderPagination() {
-			const totalPages = Math.max(
-				1,
-				Math.ceil(this.state.total / this.state.per_page)
-			);
+			const totalPages = Math.max(1, Math.ceil(this.state.total / this.state.per_page));
 			const info = this.root.querySelector(".js-jwpm-page-info");
 			const prev = this.root.querySelector(".js-jwpm-page-prev");
 			const next = this.root.querySelector(".js-jwpm-page-next");
 
-			if (!info) return;
+			info.textContent = `Page ${this.state.page} of ${totalPages} (Total: ${this.state.total})`;
 
-			info.textContent = `Page ${this.state.page} of ${totalPages}`;
+            // Remove old listeners to prevent stacking
+            const newPrev = prev.cloneNode(true);
+            const newNext = next.cloneNode(true);
+            prev.parentNode.replaceChild(newPrev, prev);
+            next.parentNode.replaceChild(newNext, next);
 
-			if (prev) {
-				prev.disabled = this.state.page <= 1;
-				prev.onclick = () => {
-					if (this.state.page > 1) {
-						this.state.page--;
-						this.loadItems();
-					}
-				};
-			}
+			newPrev.disabled = this.state.page <= 1;
+			newPrev.onclick = () => {
+				if (this.state.page > 1) {
+					this.state.page--;
+					this.loadItems();
+				}
+			};
 
-			if (next) {
-				next.disabled = this.state.page >= totalPages;
-				next.onclick = () => {
-					if (this.state.page < totalPages) {
-						this.state.page++;
-						this.loadItems();
-					}
-				};
-			}
+			newNext.disabled = this.state.page >= totalPages;
+			newNext.onclick = () => {
+				if (this.state.page < totalPages) {
+					this.state.page++;
+					this.loadItems();
+				}
+			};
 		},
 
 		showLoading(state) {
-			if (!this.root) return;
 			const loader = this.root.querySelector(".jwpm-loading-state");
-			if (!loader) return;
-			loader.style.display = state ? "flex" : "none";
+			if (loader) loader.style.display = state ? "block" : "none";
 		},
 
-		/** Modals & CRUD **/
-
-		// نیا آئٹم یا ایڈٹ آئٹم موڈل کھولیں
+        // --- ADD / EDIT ITEM MODAL Logic ---
 		openItemModal(item) {
-			const frag = mountTemplate("jwpm-inventory-item-modal-template");
-			if (!frag) return;
+            // Modal HTML Structure
+            const modalId = 'jwpm-item-modal';
+            let modal = document.getElementById(modalId);
+            
+            // اگر پہلے سے کھلا ہے تو بند کریں
+            if(modal) modal.remove();
 
-			const modal = frag.querySelector(".jwpm-modal");
-			const form = frag.querySelector(".js-jwpm-item-form");
-			const titleEl = frag.querySelector(".js-jwpm-modal-title");
+            const isEdit = !!item;
+            const title = isEdit ? 'Edit Item' : 'Add New Item';
+            const btnText = isEdit ? 'Update Item' : 'Save Item';
 
-			// Close handlers
-			const closeButtons = frag.querySelectorAll(".js-jwpm-modal-close");
-			closeButtons.forEach((btn) => {
-				btn.addEventListener("click", () => {
-					modal.remove();
-				});
-			});
+            // Safe values check
+            const val = (key) => (item && item[key]) ? item[key] : '';
 
-			// Body میں append
-			document.body.appendChild(frag);
+            const html = `
+                <div id="${modalId}" class="jwpm-modal-overlay" style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; display:flex; justify-content:center; align-items:center;">
+                    <div class="jwpm-modal-content" style="background:#fff; padding:20px; width:500px; border-radius:5px; max-height:90vh; overflow-y:auto;">
+                        <h2 style="margin-top:0;">${title}</h2>
+                        <form id="jwpm-item-form">
+                            <input type="hidden" name="id" value="${val('id')}">
+                            <input type="hidden" name="branch_id" value="${val('branch_id') || jwpmInventoryData.default_branch}">
+                            
+                            <table class="form-table" style="margin-top:0;">
+                                <tr>
+                                    <td><label>Tag / Serial <span style="color:red">*</span></label>
+                                    <input type="text" name="tag_serial" class="widefat" value="${val('tag_serial')}" required></td>
+                                    <td><label>SKU (Optional)</label>
+                                    <input type="text" name="sku" class="widefat" value="${val('sku')}"></td>
+                                </tr>
+                                <tr>
+                                    <td><label>Category</label>
+                                    <input type="text" name="category" class="widefat" list="cat-list" value="${val('category')}">
+                                    <datalist id="cat-list"><option value="Ring"><option value="Bangle"><option value="Chain"></datalist>
+                                    </td>
+                                    <td><label>Design No</label>
+                                    <input type="text" name="design_no" class="widefat" value="${val('design_no')}"></td>
+                                </tr>
+                                <tr>
+                                    <td><label>Metal Type</label>
+                                    <select name="metal_type" class="widefat">
+                                        <option value="Gold" ${val('metal_type') === 'Gold' ? 'selected' : ''}>Gold</option>
+                                        <option value="Silver" ${val('metal_type') === 'Silver' ? 'selected' : ''}>Silver</option>
+                                    </select></td>
+                                    <td><label>Karat</label>
+                                    <select name="karat" class="widefat">
+                                        <option value="21K" ${val('karat') === '21K' ? 'selected' : ''}>21K</option>
+                                        <option value="22K" ${val('karat') === '22K' ? 'selected' : ''}>22K</option>
+                                        <option value="18K" ${val('karat') === '18K' ? 'selected' : ''}>18K</option>
+                                    </select></td>
+                                </tr>
+                                <tr>
+                                    <td><label>Gross Weight</label>
+                                    <input type="number" step="0.001" name="gross_weight" class="widefat" value="${val('gross_weight')}"></td>
+                                    <td><label>Net Weight</label>
+                                    <input type="number" step="0.001" name="net_weight" class="widefat" value="${val('net_weight')}"></td>
+                                </tr>
+                                <tr>
+                                    <td><label>Status</label>
+                                    <select name="status" class="widefat">
+                                        <option value="in_stock" ${val('status') === 'in_stock' ? 'selected' : ''}>In Stock</option>
+                                        <option value="sold" ${val('status') === 'sold' ? 'selected' : ''}>Sold</option>
+                                        <option value="dead_stock" ${val('status') === 'dead_stock' ? 'selected' : ''}>Dead Stock</option>
+                                    </select></td>
+                                </tr>
+                            </table>
 
-			// اگر Edit موڈ ہے تو ڈیٹا فل کریں
-			if (item) {
-				if (titleEl) {
-					titleEl.textContent = "Edit Inventory Item";
-				}
-				form.querySelector(".js-jwpm-item-id").value = item.id || 0;
-				form.querySelector('[name="sku"]').value = item.sku || "";
-				form.querySelector('[name="tag_serial"]').value =
-					item.tag_serial || "";
-				form.querySelector('[name="category"]').value = item.category || "";
-				form.querySelector('[name="metal_type"]').value =
-					item.metal_type || "";
-				form.querySelector('[name="karat"]').value = item.karat || "";
-				form.querySelector('[name="gross_weight"]').value =
-					item.gross_weight || "";
-				form.querySelector('[name="net_weight"]').value =
-					item.net_weight || "";
-				form.querySelector('[name="stone_type"]').value =
-					item.stone_type || "";
-				form.querySelector('[name="stone_carat"]').value =
-					item.stone_carat || "";
-				form.querySelector('[name="stone_qty"]').value =
-					item.stone_qty || "";
-				form.querySelector('[name="labour_amount"]').value =
-					item.labour_amount || "";
-				form.querySelector('[name="design_no"]').value =
-					item.design_no || "";
-				form.querySelector('[name="status"]').value = item.status || "in_stock";
-				const branchSelect = form.querySelector('[name="branch_id"]');
-				if (branchSelect && item.branch_id) {
-					branchSelect.value = item.branch_id;
-				}
-			}
+                            <div style="margin-top:20px; text-align:right; border-top:1px solid #eee; padding-top:10px;">
+                                <button type="button" class="button js-modal-close">Cancel</button>
+                                <button type="submit" class="button button-primary">${btnText}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
 
-			// Submit handler
-			form.addEventListener("submit", async (e) => {
-				e.preventDefault();
+            document.body.insertAdjacentHTML('beforeend', html);
+            modal = document.getElementById(modalId);
 
-				const formData = new FormData(form);
-				const payload = {
-					id: Number(formData.get("id") || 0),
-					sku: String(formData.get("sku") || ""),
-					tag_serial: String(formData.get("tag_serial") || ""),
-					category: String(formData.get("category") || ""),
-					metal_type: String(formData.get("metal_type") || ""),
-					karat: String(formData.get("karat") || ""),
-					gross_weight: formData.get("gross_weight") || 0,
-					net_weight: formData.get("net_weight") || 0,
-					stone_type: String(formData.get("stone_type") || ""),
-					stone_carat: formData.get("stone_carat") || 0,
-					stone_qty: formData.get("stone_qty") || 0,
-					labour_amount: formData.get("labour_amount") || 0,
-					design_no: String(formData.get("design_no") || ""),
-					status: String(formData.get("status") || "in_stock"),
-					branch_id: formData.get("branch_id") || jwpmInventoryData.default_branch,
-					is_demo: formData.get("is_demo") ? 1 : 0,
-				};
+            // Close Logic
+            modal.querySelector('.js-modal-close').onclick = () => modal.remove();
 
-				// Basic validation
-				if (!payload.sku || !payload.tag_serial) {
-					showToast(
-						"SKU اور Tag ID دونوں لازمی ہیں (SKU and Tag ID are required).",
-						"error"
-					);
-					return;
-				}
+            // Submit Logic
+            const form = document.getElementById('jwpm-item-form');
+            form.onsubmit = async (e) => {
+                e.preventDefault();
+                const formData = new FormData(form);
+                const payload = Object.fromEntries(formData.entries());
+                
+                // Demo flag
+                payload.is_demo = 0;
 
-				const res = await wpAjax(jwpmInventoryData.save_action, payload);
+                const res = await wpAjax(jwpmInventoryData.save_action, payload);
+                if (res.success) {
+                    showToast("Item saved successfully.", "success");
+                    modal.remove();
+                    this.loadItems();
+                } else {
+                    alert("Error: " + (res.data.message || 'Unknown error'));
+                }
+            };
+		},
 
-				if (!res.success) {
-					const msg =
-						(res.data && res.data.message) ||
-						"Failed to save inventory item.";
-					showToast(msg, "error");
-					return;
-				}
+        // Edit Item Helper
+		editItem(id, rowElement) {
+            // ہم row کے dataset سے پورا JSON اٹھا رہے ہیں جو ہم نے renderTable میں محفوظ کیا تھا
+            let itemData = {};
+            if(rowElement && rowElement.dataset.json) {
+                try {
+                    itemData = JSON.parse(rowElement.dataset.json);
+                } catch(e) { console.error("JSON parse error", e); }
+            }
+            
+            // Fallback: اگر JSON نہیں ملا تو کم از کم ID پاس کریں (باقی فیلڈز خالی ہوں گی)
+            if(!itemData.id) itemData.id = id;
 
-				showToast("Item saved successfully.", "success");
-				modal.remove();
-				// دوبارہ لسٹ لوڈ کریں
+			this.openItemModal(itemData);
+		},
+
+        // Delete Item
+		async deleteItem(id) {
+			if (!confirm("Are you sure you want to delete this item?")) return;
+
+			const res = await wpAjax(jwpmInventoryData.delete_action, { id });
+			if (res.success) {
+				showToast("Item deleted.", "success");
 				this.loadItems();
-			});
+			} else {
+				alert("Error deleting item.");
+			}
 		},
 
-		// Import modal
-		openImportModal() {
-			const frag = mountTemplate("jwpm-inventory-import-modal-template");
-			if (!frag) return;
-
-			const modal = frag.querySelector(".jwpm-modal");
-			const closeButtons = frag.querySelectorAll(".js-jwpm-modal-close");
-			closeButtons.forEach((btn) => {
-				btn.addEventListener("click", () => modal.remove());
-			});
-
-			const downloadBtn = frag.querySelector(".js-jwpm-download-sample");
-			if (downloadBtn) {
-				downloadBtn.addEventListener("click", () => {
-					// Developer hint: بعد میں sample (CSV/Excel) فائل جنریٹ کریں گے
-					showToast("Sample download not implemented yet.", "info");
-				});
-			}
-
-			const startBtn = frag.querySelector(".js-jwpm-start-import");
-			if (startBtn) {
-				startBtn.addEventListener("click", () => {
-					// ابھی placeholder – backend بھی placeholder ہے
-					showToast("Import feature coming soon.", "info");
-				});
-			}
-
-			document.body.appendChild(frag);
-		},
-
-		// Demo Data modal
+        // Demo Modal
 		openDemoModal() {
-			const frag = mountTemplate("jwpm-inventory-demo-modal-template");
-			if (!frag) return;
-
-			const modal = frag.querySelector(".jwpm-modal");
-			const closeButtons = frag.querySelectorAll(".js-jwpm-modal-close");
-			closeButtons.forEach((btn) => {
-				btn.addEventListener("click", () => modal.remove());
-			});
-
-			const create10 = frag.querySelector(".js-jwpm-create-demo-10");
-			const create100 = frag.querySelector(".js-jwpm-create-demo-100");
-			const deleteDemo = frag.querySelector(".js-jwpm-delete-demo-items");
-
-			if (create10) {
-				create10.addEventListener("click", () => {
-					this.handleDemoAction("create_10");
-				});
-			}
-			if (create100) {
-				create100.addEventListener("click", () => {
-					this.handleDemoAction("create_100");
-				});
-			}
-			if (deleteDemo) {
-				deleteDemo.addEventListener("click", () => {
-					if (
-						confirm(
-							"کیا آپ واقعی تمام Demo Items ڈیلیٹ کرنا چاہتے ہیں؟ (Are you sure?)"
-						)
-					) {
-						this.handleDemoAction("delete_all");
-					}
-				});
-			}
-
-			document.body.appendChild(frag);
+            if(confirm("Generate 10 Demo Items?")) {
+                this.handleDemoAction("create_10");
+            }
 		},
 
 		async handleDemoAction(mode) {
 			const res = await wpAjax(jwpmInventoryData.demo_action, { mode });
-
-			if (!res.success) {
-				const msg =
-					(res.data && res.data.message) ||
-					"Demo data action failed.";
-				showToast(msg, "error");
-				return;
-			}
-
-			showToast("Demo data action completed.", "success");
-			this.loadItems();
-		},
-
-		// View item detail – فی الحال سادہ alert، بعد میں side panel استعمال کر سکتے ہیں
-		viewItem(id) {
-			// Future: AJAX سے واحد آئٹم لے کر detail panel میں دکھائیں
-			console.log("View item", id);
-		},
-
-		// Edit item – اسی لسٹ سے تلاش کر کے موڈل کھولیں
-		editItem(id) {
-			const row = this.root.querySelector('tr[data-item-id="' + id + '"]');
-			if (!row) {
-				softWarn("Row not found for id " + id);
-				return;
-			}
-
-			// row سے basic ڈیٹا نکالیں – یہ approximation ہے، better ہے backend سے fresh record لو
-			const item = {
-				id: id,
-				tag_serial: row.querySelector(".js-jwpm-tag")?.textContent || "",
-				category: row.querySelector(".js-jwpm-category")?.textContent || "",
-				karat: row.querySelector(".js-jwpm-karat")?.textContent || "",
-				gross_weight: row.querySelector(".js-jwpm-gross")?.textContent || "",
-				net_weight: row.querySelector(".js-jwpm-net")?.textContent || "",
-				stone_type: row.querySelector(".js-jwpm-stones")?.textContent || "",
-				branch_id: row.querySelector(".js-jwpm-branch")?.textContent || "",
-				status: row
-					.querySelector(".js-jwpm-status-badge")
-					?.className.replace("jwpm-status-badge", "")
-					.replace("jwpm-status-", "")
-					.trim(),
-			};
-
-			this.openItemModal(item);
-		},
-
-		// Delete item
-		async deleteItem(id) {
-			if (
-				!confirm(
-					"کیا آپ واقعی یہ آئٹم ڈیلیٹ کرنا چاہتے ہیں؟ (This cannot be undone.)"
-				)
-			) {
-				return;
-			}
-
-			const res = await wpAjax(jwpmInventoryData.delete_action, { id });
-
-			if (!res.success) {
-				const msg =
-					(res.data && res.data.message) || "Failed to delete item.";
-				showToast(msg, "error");
-				return;
-			}
-
-			showToast("Item deleted successfully.", "success");
-			this.loadItems();
-		},
-
-		// Adjust Stock – Future: الگ موڈل بنائیں (ابھی placeholder)
-		adjustStock(id) {
-			showToast(
-				"Stock Adjustment ابھی implement نہیں ہوئی (placeholder).",
-				"info"
-			);
-		},
-
-		// Detail panel helpers (ابھی بہت basic)
-		closeDetailPanel() {
-			const panel = this.root.querySelector(".js-jwpm-detail-panel");
-			if (!panel) return;
-			panel.hidden = true;
-		},
-
-		closeTopModal() {
-			const modal = document.querySelector(".jwpm-modal:last-of-type");
-			// Optional
-		},
+			if (res.success) {
+				showToast("Demo data generated.", "success");
+				this.loadItems();
+			} else {
+                alert("Error: " + (res.data.message || "Failed"));
+            }
+		}
 	};
 	// 🔴 یہاں پر [JWPM_Inventory Main Object] ختم ہو رہا ہے
 
 	// 🟢 یہاں سے [DOM Ready Init] شروع ہو رہا ہے
 	$(document).ready(() => {
 		if (typeof jwpmInventoryData === "undefined") {
-			softWarn("jwpmInventoryData is not defined. Inventory JS will not run.");
+			console.warn("jwpmInventoryData is missing.");
 			return;
 		}
-
 		JWPM_Inventory.init();
 	});
 	// 🔴 یہاں پر [DOM Ready Init] ختم ہو رہا ہے
 })(jQuery);
-
-// ✅ Syntax verified block end
