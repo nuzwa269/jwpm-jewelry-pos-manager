@@ -143,3 +143,175 @@ jQuery(document).ready(function($) {
     };
 
 });
+/** Part 2 — jwpmCommon Core & Inventory Fallback Fix */
+/**
+ * خلاصہ:
+ * - گلوبل (jwpmCommon) آبجیکٹ کو محفوظ طریقے سے سیٹ کرنا
+ * - مشترکہ (AJAX) ہیلپر جو nonce کو دونوں keys کے ساتھ بھیجے (nonce + security)
+ * - <template> based helpers تاکہ دوسرے پیجز (خاص کر Inventory) reuse کر سکیں
+ * - Inventory root سے "📦 Inventory Module Loaded" والا dummy card ہٹا کر دوبارہ "Loading Inventory..." دکھانا
+ */
+
+(function (window, $) {
+	"use strict";
+
+	// 🟢 یہاں سے [jwpmCommon Safe Init] شروع ہو رہا ہے
+	var existing = window.jwpmCommon || {};
+
+	// Ajax URL سیٹ کریں (اگر PHP نے پہلے سے نہ سیٹ کیا ہو)
+	if (!existing.ajax_url) {
+		if (typeof ajaxurl !== "undefined") {
+			existing.ajax_url = ajaxurl;
+		} else {
+			existing.ajax_url = "";
+		}
+	}
+
+	// Common Nonce (اگر PHP سے آیا ہوا ہو تو وہی استعمال کریں)
+	if (!existing.nonce_common && typeof jwpmInventoryData !== "undefined" && jwpmInventoryData.nonce) {
+		existing.nonce_common = jwpmInventoryData.nonce;
+	}
+
+	// i18n fallback تاکہ کم از کم ایک میسج موجود ہو
+	if (!existing.i18n) {
+		existing.i18n = {
+			confirmDelete: "Are you sure you want to delete this record?",
+			errorGeneric: "Something went wrong. Please try again.",
+		};
+	}
+	// 🔴 یہاں پر [jwpmCommon Safe Init] ختم ہو رہا ہے
+
+	// 🟢 یہاں سے [jwpmCommon.wpAjax Helper] شروع ہو رہا ہے
+	/**
+	 * ایک Promise based AJAX helper
+	 * - action لازمی
+	 * - data object optional
+	 * - nonce دونوں ناموں سے بھیجتے ہیں: nonce + security
+	 */
+	existing.wpAjax = function (action, data) {
+		if (!action) {
+			console.warn("jwpmCommon.wpAjax: Missing action.");
+			return Promise.resolve({
+				success: false,
+				data: { message: "Missing AJAX action." },
+			});
+		}
+
+		var payload = $.extend(
+			{
+				action: action,
+			},
+			data || {}
+		);
+
+		// Nonce کو دونوں keys کے ساتھ بھیجیں تاکہ PHP side پر جس نام سے چیک ہو، مطابقت رہے
+		var nonce = existing.nonce_common || "";
+		if (nonce && typeof payload.nonce === "undefined") {
+			payload.nonce = nonce;
+		}
+		if (nonce && typeof payload.security === "undefined") {
+			payload.security = nonce;
+		}
+
+		var url = existing.ajax_url || (typeof ajaxurl !== "undefined" ? ajaxurl : "");
+
+		if (!url) {
+			console.error("jwpmCommon.wpAjax: ajax_url خالی ہے۔");
+			return Promise.resolve({
+				success: false,
+				data: { message: "AJAX URL is not configured." },
+			});
+		}
+
+		return new Promise(function (resolve) {
+			$.ajax({
+				url: url,
+				type: "POST",
+				dataType: "json",
+				data: payload,
+			})
+				.done(function (response) {
+					// WordPress style: { success: true/false, data: {...} }
+					if (!response) {
+						resolve({
+							success: false,
+							data: { message: "Empty server response." },
+						});
+						return;
+					}
+					resolve(response);
+				})
+				.fail(function (jqXHR, textStatus, errorThrown) {
+					console.error("jwpmCommon.wpAjax AJAX Error:", textStatus, errorThrown);
+					resolve({
+						success: false,
+						data: {
+							message:
+								existing.i18n.errorGeneric ||
+								"Network error. Please check your connection.",
+						},
+					});
+				});
+		});
+	};
+	// 🔴 یہاں پر [jwpmCommon.wpAjax Helper] ختم ہو رہا ہے
+
+	// 🟢 یہاں سے [jwpmCommon Template Helpers] شروع ہو رہا ہے
+	/**
+	 * getTemplate: <template> element واپس دیتا ہے (یا null)
+	 * cloneTemplate: template.content کی deep copy
+	 */
+	existing.getTemplate = function (templateId) {
+		if (!templateId) {
+			return null;
+		}
+		var tpl = document.getElementById(templateId);
+		if (!tpl || !("content" in tpl)) {
+			console.warn("jwpmCommon.getTemplate: Template not found or unsupported:", templateId);
+			return null;
+		}
+		return tpl;
+	};
+
+	existing.cloneTemplate = function (templateId) {
+		var tpl = existing.getTemplate(templateId);
+		if (!tpl) {
+			return null;
+		}
+		return tpl.content.cloneNode(true);
+	};
+	// 🔴 یہاں پر [jwpmCommon Template Helpers] ختم ہو رہا ہے
+
+	// 🟢 یہاں سے [Inventory Placeholder Cleanup] شروع ہو رہا ہے
+	/**
+	 * مقصد:
+	 * - jwpm-common.js کے پرانے placeholder
+	 *   "<h2>📦 Inventory Module Loaded</h2> ..." کو ہٹا دینا
+	 * - اور دوبارہ "Loading Inventory..." والا حقیقی loading state لگا دینا،
+	 *   جب تک اصلی (jwpm-inventory.js) UI render نہ کر دے۔
+	 */
+	$(function () {
+		var $invRoot = $("#jwpm-inventory-root");
+		if (!$invRoot.length) {
+			return;
+		}
+
+		// اگر root کے اندر وہی dummy card موجود ہے جو Part 1 میں set کیا گیا تھا،
+		// تو اسے صاف کر کے standard loading markup لگا دیں۔
+		var text = $invRoot.text().trim();
+		if (/Inventory Module Loaded/i.test(text)) {
+			$invRoot.html(
+				'<div class="jwpm-loading-state">' +
+					'<span class="jwpm-spinner"></span>' +
+					'<span class="jwpm-loading-text">Loading Inventory...</span>' +
+				"</div>"
+			);
+		}
+	});
+	// 🔴 یہاں پر [Inventory Placeholder Cleanup] ختم ہو رہا ہے
+
+	// آخر میں updated object واپس window میں رکھ دیں
+	window.jwpmCommon = existing;
+})(window, jQuery);
+
+// ✅ Syntax verified block end
