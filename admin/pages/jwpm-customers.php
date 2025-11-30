@@ -1,9 +1,17 @@
-/** Part 30 — Customers Page Root + Templates */
-// 🟢 یہاں سے [Customers Page Templates] شروع ہو رہا ہے
+<?php
+/**
+ * JWPM Customers Page Templates
+ *
+ * یہاں Customers پیج کے Root + تمام HTML <template> بلاکس ہیں۔
+ * اصل UI (JavaScript) سے رینڈر ہو گا۔
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+/** Part 30 — Customers Page Root + Templates */
+// 🟢 یہاں سے [Customers Page Templates] شروع ہو رہا ہے
 
 if ( ! function_exists( 'jwpm_render_customers_page' ) ) {
 
@@ -365,4 +373,3 @@ if ( ! function_exists( 'jwpm_render_customers_page' ) ) {
 
 // 🔴 یہاں پر [Customers Page Templates] ختم ہو رہا ہے
 // ✅ Syntax verified block end
-
