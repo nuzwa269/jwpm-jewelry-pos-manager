@@ -32,8 +32,10 @@
         // Nonce Handling (Global or Localized)
         if (typeof jwpmInventoryData !== 'undefined' && jwpmInventoryData.nonce) {
             body.security = jwpmInventoryData.nonce;
+			body.nonce    = jwpmInventoryData.nonce; 
         } else if (typeof jwpmCommon !== 'undefined' && jwpmCommon.nonce_common) {
             body.security = jwpmCommon.nonce_common;
+			body.nonce    = jwpmCommon.nonce_common; 
         }
 
         // URL Handling
