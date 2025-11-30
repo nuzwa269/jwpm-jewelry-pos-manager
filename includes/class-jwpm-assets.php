@@ -194,7 +194,7 @@ class JWPM_Assets {
 		wp_enqueue_style( 'jwpm-pos-css', JWPM_PLUGIN_URL . 'assets/css/jwpm-pos.css', array( 'jwpm-common-css' ), $version );
 		wp_enqueue_script( 'jwpm-pos-js', JWPM_PLUGIN_URL . 'assets/js/jwpm-pos.js', array( 'jwpm-common-js', 'jquery' ), $version, true );
 		
-		$default_branch = $this->get_default_branch_id();
+		$default_branch  = $this->get_default_branch_id();
 		$currency_symbol = function_exists( 'get_woocommerce_currency_symbol' ) ? get_woocommerce_currency_symbol() : 'Rs';
 		
 		$pos_data = array(
@@ -206,6 +206,7 @@ class JWPM_Assets {
 			'gold_rate_action'       => 'jwpm_pos_get_gold_rate',
 			'search_customer_action' => 'jwpm_pos_search_customer',
 			'complete_sale_action'   => 'jwpm_pos_complete_sale',
+			'today_stats_action'     => 'jwpm_pos_get_today_stats',
 		);
 		wp_localize_script( 'jwpm-pos-js', 'jwpmPosData', $pos_data );
 	}
@@ -310,25 +311,29 @@ class JWPM_Assets {
 			'noRecords'         => __( 'کوئی Repair job نہیں ملا۔', 'jwpm-jewelry-pos-manager' ),
 		);
 		
-		wp_localize_script( 'jwpm-repair-js', 'jwpmRepairData', array(
-			'mainNonce'   => wp_create_nonce( 'jwpm_repair_main_nonce' ),
-			'importNonce' => wp_create_nonce( 'jwpm_repair_import_nonce' ),
-			'exportNonce' => wp_create_nonce( 'jwpm_repair_export_nonce' ),
-			'demoNonce'   => wp_create_nonce( 'jwpm_repair_demo_nonce' ),
-			'actions'     => array(
-				'fetch'  => 'jwpm_repair_fetch',
-				'save'   => 'jwpm_repair_save',
-				'delete' => 'jwpm_repair_delete',
-				'import' => 'jwpm_repair_import',
-				'export' => 'jwpm_repair_export',
-				'demo'   => 'jwpm_repair_demo',
-			),
-			'strings'    => $strings,
-			'pagination' => array(
-				'defaultPerPage' => 20,
-				'perPageOptions' => array( 20, 50, 100 ),
-			),
-		));
+		wp_localize_script(
+			'jwpm-repair-js',
+			'jwpmRepairData',
+			array(
+				'mainNonce'   => wp_create_nonce( 'jwpm_repair_main_nonce' ),
+				'importNonce' => wp_create_nonce( 'jwpm_repair_import_nonce' ),
+				'exportNonce' => wp_create_nonce( 'jwpm_repair_export_nonce' ),
+				'demoNonce'   => wp_create_nonce( 'jwpm_repair_demo_nonce' ),
+				'actions'     => array(
+					'fetch'  => 'jwpm_repair_fetch',
+					'save'   => 'jwpm_repair_save',
+					'delete' => 'jwpm_repair_delete',
+					'import' => 'jwpm_repair_import',
+					'export' => 'jwpm_repair_export',
+					'demo'   => 'jwpm_repair_demo',
+				),
+				'strings'    => $strings,
+				'pagination' => array(
+					'defaultPerPage' => 20,
+					'perPageOptions' => array( 20, 50, 100 ),
+				),
+			)
+		);
 	}
 	
 	protected function enqueue_accounts_cashbook_assets( $version ) {
@@ -404,3 +409,5 @@ class JWPM_Assets {
 		wp_localize_script( 'jwpm-ledger-js', 'jwpmLedger', $localized );
 	}
 }
+
+// ✅ Syntax verified block end
