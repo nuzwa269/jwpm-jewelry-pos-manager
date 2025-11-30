@@ -3,7 +3,7 @@
  * The admin-specific functionality of the plugin.
  *
  * یہ کلاس Admin Area کے تمام UI، مینیوز اور Assets کو سنبھالتی ہے۔
- * یہ ہر صفحے کے لیے ایک Root Element فراہم کرتی ہے تاکہ (JavaScript) وہاں لوڈ ہو سکے۔
+ * ہر پیج کے لیے Root Element بناتی ہے (except وہ pages جو اپنی custom PHP template لوڈ کرتے ہیں جیسے POS, Inventory وغیرہ)۔
  *
  * @package    JWPM
  * @subpackage JWPM/includes
@@ -71,28 +71,43 @@ class JWPM_Admin {
 	/**
 	 * مرکزی JWPM مینو اور تمام ذیلی مینیوز (Submenus) کو رجسٹر کریں۔
 	 * نوٹ: یہ فنکشن Loader کے ذریعے 'admin_menu' ہک پر کال ہوتا ہے۔
+	 *
+	 * یہاں ہم:
+	 * - Dashboard, Settings وغیرہ کے لیے generic render_page() استعمال کریں گے
+	 * - POS کے لیے render_pos_page()
+	 * - Inventory کے لیے render_inventory_page() (full templates + HTML)
 	 */
 	public function add_menu_items() {
 
-		// فی الحال 'manage_options' (صرف Administrator)
-		// بعد میں آپ custom capability مثلاً 'manage_jwpm_all' استعمال کر سکتے ہیں۔
-		$capability = 'manage_options';
+		// عمومی capability (ابھی کے لیے) - زیادہ تر settings / reports وغیرہ کے لیے۔
+		$main_capability = 'manage_options';
 
-		// 1. مرکزی مینو پیج (Top Level Menu)
+		// Inventory کے لیے الگ capability (آپ activation پر یہ کسی role کو دے رہی ہوں گی)
+		$inventory_capability = 'manage_jwpm_inventory';
+
+		/**
+		 * 1. Top Level Menu (JWPM Dashboard)
+		 */
 		add_menu_page(
 			__( 'JWPM POS Manager', 'jwpm-jewelry-pos-manager' ), // Page Title
 			__( 'JWPM POS', 'jwpm-jewelry-pos-manager' ),         // Menu Title
-			$capability,
+			$main_capability,
 			'jwpm-dashboard',                                     // Slug
-			array( $this, 'render_page' ),                        // Callback
+			array( $this, 'render_page' ),                        // Callback (generic)
 			'dashicons-store',                                    // Icon
 			26                                                    // Position
 		);
 
-		// 2. عام ذیلی صفحات (Submenus) کی فہرست (POS کو یہاں سے الگ رکھیں گے)
-		$pages = array(
+		/**
+		 * 2. Generic Submenu Pages (Dashboard, Customers, Installments, Purchase, Reports, Settings وغیرہ)
+		 *    - یہ سب وہ پیجز ہیں جو صرف ایک Root <div> بناتے ہیں
+		 *      جسے (JavaScript) بعد میں بھر دیتا ہے۔
+		 *
+		 *    Inventory کو ہم یہاں شامل نہیں کر رہے، کیونکہ وہ اپنی مکمل PHP template سے لوڈ ہو گا۔
+		 */
+		$generic_pages = array(
 			'jwpm-dashboard'     => __( 'Dashboard', 'jwpm-jewelry-pos-manager' ),
-			'jwpm-inventory'     => __( 'Inventory', 'jwpm-jewelry-pos-manager' ),
+			// 'jwpm-inventory'  => __( 'Inventory', 'jwpm-jewelry-pos-manager' ), // 👈 یہ اب نیچے الگ handle ہو گا
 			'jwpm-customers'     => __( 'Customers', 'jwpm-jewelry-pos-manager' ),
 			'jwpm-installments'  => __( 'Installments', 'jwpm-jewelry-pos-manager' ),
 			'jwpm-purchase'      => __( 'Purchase', 'jwpm-jewelry-pos-manager' ),
@@ -103,23 +118,42 @@ class JWPM_Admin {
 			'jwpm-settings'      => __( 'Settings', 'jwpm-jewelry-pos-manager' ),
 		);
 
-		foreach ( $pages as $slug => $title ) {
+		foreach ( $generic_pages as $slug => $title ) {
 			add_submenu_page(
 				'jwpm-dashboard',                 // Parent Slug
 				$title,                           // Page Title
 				$title,                           // Menu Title
-				$capability,                      // Capability
+				$main_capability,                 // Capability
 				$slug,                            // Menu Slug
 				array( $this, 'render_page' )     // Generic Callback Function
 			);
 		}
 
-		// 3. POS Page — الگ callback کے ساتھ تاکہ ہمارا custom layout لوڈ ہو (admin/pages/jwpm-pos.php)
+		/**
+		 * 3. Inventory Page — الگ callback کے ساتھ
+		 *
+		 * یہاں ہم:
+		 * - menu slug: jwpm-inventory
+		 * - capability: manage_jwpm_inventory
+		 * - callback: render_inventory_page() (جو admin/pages/jwpm-inventory.php include کرے گا)
+		 */
+		add_submenu_page(
+			'jwpm-dashboard',
+			__( 'Inventory / Stock', 'jwpm-jewelry-pos-manager' ), // Page Title
+			__( 'Inventory', 'jwpm-jewelry-pos-manager' ),         // Menu Title
+			$inventory_capability,                                // Capability (custom)
+			'jwpm-inventory',                                     // Slug
+			array( $this, 'render_inventory_page' )               // Callback (special for inventory)
+		);
+
+		/**
+		 * 4. POS Page — الگ callback کے ساتھ تاکہ ہمارا custom layout لوڈ ہو (admin/pages/jwpm-pos.php)
+		 */
 		add_submenu_page(
 			'jwpm-dashboard',
 			__( 'Point of Sale', 'jwpm-jewelry-pos-manager' ),
 			__( 'Point of Sale', 'jwpm-jewelry-pos-manager' ),
-			$capability,
+			$main_capability,
 			'jwpm-pos',                        // 👈 یہی slug URL میں استعمال ہو رہا ہے
 			array( $this, 'render_pos_page' )  // 👈 POS کے لیے مخصوص callback
 		);
@@ -128,6 +162,8 @@ class JWPM_Admin {
 	/**
 	 * Default / Generic پیج رینڈرر۔
 	 * یہ صرف ایک خالی `div` بناتا ہے جسے (JavaScript) (React/Vue/jQuery) پُر کرے گا۔
+	 *
+	 * یہ Dashboard, Customers, Installments, Reports, Settings وغیرہ پر استعمال ہو رہا ہے۔
 	 */
 	public function render_page() {
 		
@@ -153,6 +189,41 @@ class JWPM_Admin {
 			</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Inventory Page کے لیے مخصوص رینڈرر۔
+	 *
+	 * یہ براہِ راست admin/pages/jwpm-inventory.php لوڈ کرتا ہے جہاں:
+	 * - Root: <div id="jwpm-inventory-root">
+	 * - تمام <template> blocks (summary, filters, table, modals وغیرہ) موجود ہیں۔
+	 *
+	 * یہاں capability دوبارہ چیک کر لینا بھی محفوظ ہے (Defense in depth)۔
+	 */
+	public function render_inventory_page() {
+
+		if ( ! current_user_can( 'manage_jwpm_inventory' ) ) {
+			wp_die(
+				esc_html__(
+					'You do not have permission to access the Inventory page.',
+					'jwpm-jewelry-pos-manager'
+				)
+			);
+		}
+
+		$path = trailingslashit( JWPM_PLUGIN_DIR ) . 'admin/pages/jwpm-inventory.php';
+
+		if ( file_exists( $path ) ) {
+			include $path;
+		} else {
+			// اگر کسی وجہ سے فائل نہ ملے تو developer friendly پیغام
+			?>
+			<div class="wrap">
+				<h1><?php esc_html_e( 'Inventory Page Missing', 'jwpm-jewelry-pos-manager' ); ?></h1>
+				<p><?php esc_html_e( 'The admin/pages/jwpm-inventory.php file could not be found. Please verify the plugin file structure.', 'jwpm-jewelry-pos-manager' ); ?></p>
+			</div>
+			<?php
+		}
 	}
 
 	/**
