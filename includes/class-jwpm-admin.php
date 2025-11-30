@@ -3,7 +3,7 @@
  * The admin-specific functionality of the plugin.
  *
  * یہ کلاس Admin Area کے تمام UI، مینیوز اور Assets کو سنبھالتی ہے۔
- * یہ ہر صفحے کے لیے ایک Root Element فراہم کرتی ہے تاکہ React/JS وہاں لوڈ ہو سکے۔
+ * یہ ہر صفحے کے لیے ایک Root Element فراہم کرتی ہے تاکہ (JavaScript) وہاں لوڈ ہو سکے۔
  *
  * @package    JWPM
  * @subpackage JWPM/includes
@@ -41,24 +41,30 @@ class JWPM_Admin {
 	}
 
 	/**
-	 * ایڈمن CSS رجسٹر اور Enqueue کریں۔
+	 * ایڈمن (CSS) رجسٹر اور Enqueue کریں۔
 	 */
 	public function enqueue_styles() {
+		// اگر آپ کو global admin (CSS) چاہیے ہو تو یہاں enqueue کریں۔
 		// wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/jwpm-admin.css', array(), $this->version, 'all' );
 	}
 
 	/**
-	 * ایڈمن JavaScript رجسٹر اور Enqueue کریں۔
+	 * ایڈمن (JavaScript) رجسٹر اور Enqueue کریں۔
 	 */
 	public function enqueue_scripts() {
+		// اگر آپ کو global admin (JS) چاہیے ہو تو یہاں enqueue کریں۔
 		// wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/jwpm-admin.js', array( 'jquery' ), $this->version, false );
 		
-		// ڈیٹا بیس/API کے لیے localized script
+		// مثال کے طور پر:
 		/*
-		wp_localize_script( $this->plugin_name, 'jwpmScript', array(
-			'ajax_url' => admin_url( 'admin-ajax.php' ),
-			'nonce'    => wp_create_nonce( 'jwpm_nonce' ),
-		));
+		wp_localize_script(
+			$this->plugin_name,
+			'jwpmScript',
+			array(
+				'ajax_url' => admin_url( 'admin-ajax.php' ),
+				'nonce'    => wp_create_nonce( 'jwpm_nonce' ),
+			)
+		);
 		*/
 	}
 
@@ -68,8 +74,8 @@ class JWPM_Admin {
 	 */
 	public function add_menu_items() {
 
-		// فی الحال 'manage_options' (Administrator only)
-		// بعد میں ہم اسے 'manage_jwpm_all' سے تبدیل کر سکتے ہیں۔
+		// فی الحال 'manage_options' (صرف Administrator)
+		// بعد میں آپ custom capability مثلاً 'manage_jwpm_all' استعمال کر سکتے ہیں۔
 		$capability = 'manage_options';
 
 		// 1. مرکزی مینو پیج (Top Level Menu)
@@ -83,10 +89,9 @@ class JWPM_Admin {
 			26                                                    // Position
 		);
 
-		// 2. ذیلی صفحات (Submenus) کی فہرست
+		// 2. عام ذیلی صفحات (Submenus) کی فہرست (POS کو یہاں سے الگ رکھیں گے)
 		$pages = array(
 			'jwpm-dashboard'     => __( 'Dashboard', 'jwpm-jewelry-pos-manager' ),
-			'jwpm-pos'           => __( 'Point of Sale', 'jwpm-jewelry-pos-manager' ),
 			'jwpm-inventory'     => __( 'Inventory', 'jwpm-jewelry-pos-manager' ),
 			'jwpm-customers'     => __( 'Customers', 'jwpm-jewelry-pos-manager' ),
 			'jwpm-installments'  => __( 'Installments', 'jwpm-jewelry-pos-manager' ),
@@ -100,19 +105,29 @@ class JWPM_Admin {
 
 		foreach ( $pages as $slug => $title ) {
 			add_submenu_page(
-				'jwpm-dashboard',      // Parent Slug
-				$title,                // Page Title
-				$title,                // Menu Title
-				$capability,           // Capability
-				$slug,                 // Menu Slug
-				array( $this, 'render_page' ) // Callback Function
+				'jwpm-dashboard',                 // Parent Slug
+				$title,                           // Page Title
+				$title,                           // Menu Title
+				$capability,                      // Capability
+				$slug,                            // Menu Slug
+				array( $this, 'render_page' )     // Generic Callback Function
 			);
 		}
+
+		// 3. POS Page — الگ callback کے ساتھ تاکہ ہمارا custom layout لوڈ ہو (admin/pages/jwpm-pos.php)
+		add_submenu_page(
+			'jwpm-dashboard',
+			__( 'Point of Sale', 'jwpm-jewelry-pos-manager' ),
+			__( 'Point of Sale', 'jwpm-jewelry-pos-manager' ),
+			$capability,
+			'jwpm-pos',                        // 👈 یہی slug URL میں استعمال ہو رہا ہے
+			array( $this, 'render_pos_page' )  // 👈 POS کے لیے مخصوص callback
+		);
 	}
 
 	/**
-	 * پیج کے مواد کو رینڈر کرتا ہے۔
-	 * یہ صرف ایک خالی `div` بناتا ہے جسے JavaScript (React/Vue/jQuery) پُر کرے گا۔
+	 * Default / Generic پیج رینڈرر۔
+	 * یہ صرف ایک خالی `div` بناتا ہے جسے (JavaScript) (React/Vue/jQuery) پُر کرے گا۔
 	 */
 	public function render_page() {
 		
@@ -121,7 +136,6 @@ class JWPM_Admin {
 		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : 'jwpm-dashboard';
 
 		// روٹ ID بنائیں (مثال: jwpm-inventory-root)
-		// ہم 'jwpm-' کو شروع سے ہٹا کر دوبارہ فارمیٹ کر رہے ہیں تاکہ مستقل مزاجی رہے۔
 		$clean_slug = str_replace( 'jwpm-', '', $page );
 		
 		// اگر ڈیش بورڈ ہے تو اسے dashboard ہی رہنے دیں
@@ -140,4 +154,14 @@ class JWPM_Admin {
 		</div>
 		<?php
 	}
+
+	/**
+	 * POS Page کے لیے مخصوص رینڈرر۔
+	 * یہ براہِ راست admin/pages/jwpm-pos.php لوڈ کرتا ہے۔
+	 */
+	public function render_pos_page() {
+		include JWPM_PLUGIN_DIR . 'admin/pages/jwpm-pos.php';
+	}
 }
+
+// ✅ Syntax verified block end
