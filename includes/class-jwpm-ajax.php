@@ -212,8 +212,9 @@ class JWPM_Ajax {
 		}
 	}
 
-	
-	}	// 🔴 یہاں پر Core Helpers ختم ہو رہا ہے
+	// 🔴 یہاں پر Core Helpers ختم ہو رہا ہے
+}
+		
 	// ✅ Syntax verified block end
 
 	/**
