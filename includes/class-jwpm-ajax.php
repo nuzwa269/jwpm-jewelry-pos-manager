@@ -213,7 +213,6 @@ class JWPM_Ajax {
 			JWPM_DB::log_activity( $user_id, $action, $entity_type, $entity_id, $meta );			
 		}
 	}
-	
 			// 🔴 یہاں پر Core Helpers ختم ہو رہا ہے
 	// ✅ Syntax verified block end
 
