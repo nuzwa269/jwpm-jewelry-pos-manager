@@ -126,7 +126,7 @@ class JWPM_Ajax {
 		add_action( 'wp_ajax_jwpm_expense_report',     array( __CLASS__, 'reports_expense' ) );
 		add_action( 'wp_ajax_jwpm_cashflow_report',    array( __CLASS__, 'reports_cashflow' ) );
 	
-
+		}
 	/**
 	 * مشترکہ ہیلپر:
 	 * (nonce) + (capability) دونوں چیک کرے
@@ -207,14 +207,14 @@ class JWPM_Ajax {
 	 * سادہ helper: (activity log) میں ریکارڈ کریں اگر (JWPM_DB) میں method موجود ہو
 	 */
 	protected static function log_activity( $user_id, $action, $entity_type, $entity_id, $meta = array() ) {
+	
+
 		if ( class_exists( 'JWPM_DB' ) && method_exists( 'JWPM_DB', 'log_activity' ) ) {
-			JWPM_DB::log_activity( $user_id, $action, $entity_type, $entity_id, $meta );
+			JWPM_DB::log_activity( $user_id, $action, $entity_type, $entity_id, $meta );			
 		}
 	}
-
-	// 🔴 یہاں پر Core Helpers ختم ہو رہا ہے
-}
-		
+	
+			// 🔴 یہاں پر Core Helpers ختم ہو رہا ہے
 	// ✅ Syntax verified block end
 
 	/**
@@ -1995,13 +1995,15 @@ class JWPM_Ajax {
 		);
 	}
 
-	// 🔴 یہاں پر Reports APIs ختم ہو رہا ہے
-	// ✅ Syntax verified block end
-}
 
-// ✅ Syntax verified block end (JWPM_Ajax کلاس)
+	
+	  		// 🔴 یہاں پر Reports APIs ختم ہو رہا ہے
+    	// ✅ Syntax verified block end
+
+	
+        	// ✅ Syntax verified block end (JWPM_Ajax کلاس)
 	/** Part X — JWPM Custom Orders AJAX */
-	// 🟢 یہاں سے [JWPM Custom Orders AJAX] شروع ہو رہا ہے
+	    // 🟢 یہاں سے [JWPM Custom Orders AJAX] شروع ہو رہا ہے
 
 	/**
 	 * Custom Orders کے لیے common access check
@@ -2564,10 +2566,12 @@ class JWPM_Ajax {
 			)
 		);
 	}
+}
 
 	// 🔴 یہاں پر [JWPM Custom Orders AJAX] ختم ہو رہا ہے
 	// ✅ Syntax verified block end
-/** Part X+1 — JWPM Custom Orders AJAX Hooks */
+
+	/** Part X+1 — JWPM Custom Orders AJAX Hooks */
 // 🟢 یہاں سے [JWPM Custom Orders AJAX Hooks] شروع ہو رہا ہے
 
 if ( is_admin() ) {
