@@ -76,6 +76,7 @@ class JWPM_Admin {
 	 * - Dashboard, Settings وغیرہ کے لیے generic render_page() استعمال کریں گے
 	 * - POS کے لیے render_pos_page()
 	 * - Inventory کے لیے render_inventory_page() (full templates + HTML)
+	 * - Customers کے لیے render_customers_page() (full templates + HTML)
 	 */
 	public function add_menu_items() {
 
@@ -99,16 +100,15 @@ class JWPM_Admin {
 		);
 
 		/**
-		 * 2. Generic Submenu Pages (Dashboard, Customers, Installments, Purchase, Reports, Settings وغیرہ)
+		 * 2. Generic Submenu Pages (Dashboard, Installments, Purchase, Reports, Settings وغیرہ)
 		 *    - یہ سب وہ پیجز ہیں جو صرف ایک Root <div> بناتے ہیں
 		 *      جسے (JavaScript) بعد میں بھر دیتا ہے۔
 		 *
-		 *    Inventory کو ہم یہاں شامل نہیں کر رہے، کیونکہ وہ اپنی مکمل PHP template سے لوڈ ہو گا۔
+		 *    Inventory اور Customers کو ہم یہاں شامل نہیں کر رہے، کیونکہ وہ اپنی مکمل PHP templates سے لوڈ ہوں گے۔
 		 */
 		$generic_pages = array(
 			'jwpm-dashboard'     => __( 'Dashboard', 'jwpm-jewelry-pos-manager' ),
-			// 'jwpm-inventory'  => __( 'Inventory', 'jwpm-jewelry-pos-manager' ), // 👈 یہ اب نیچے الگ handle ہو گا
-			'jwpm-customers'     => __( 'Customers', 'jwpm-jewelry-pos-manager' ),
+			// 'jwpm-customers'  => __( 'Customers', 'jwpm-jewelry-pos-manager' ), // Customers اب الگ submenu سے handle ہو گا
 			'jwpm-installments'  => __( 'Installments', 'jwpm-jewelry-pos-manager' ),
 			'jwpm-purchase'      => __( 'Purchase', 'jwpm-jewelry-pos-manager' ),
 			'jwpm-custom-orders' => __( 'Custom Orders', 'jwpm-jewelry-pos-manager' ),
@@ -128,6 +128,23 @@ class JWPM_Admin {
 				array( $this, 'render_page' )     // Generic Callback Function
 			);
 		}
+
+		/**
+		 * 2-b. Customers Page — الگ callback کے ساتھ
+		 *
+		 * یہاں ہم:
+		 * - menu slug: jwpm-customers
+		 * - capability: manage_options (فی الحال)
+		 * - callback: render_customers_page() (جو admin/pages/jwpm-customers.php + jwpm_render_customers_page() لوڈ کرے گا)
+		 */
+		add_submenu_page(
+			'jwpm-dashboard',
+			__( 'Customers', 'jwpm-jewelry-pos-manager' ),  // Page Title
+			__( 'Customers', 'jwpm-jewelry-pos-manager' ),  // Menu Title
+			$main_capability,                               // Capability
+			'jwpm-customers',                               // Slug
+			array( $this, 'render_customers_page' )         // Callback (special for customers)
+		);
 
 		/**
 		 * 3. Inventory Page — الگ callback کے ساتھ
@@ -163,7 +180,7 @@ class JWPM_Admin {
 	 * Default / Generic پیج رینڈرر۔
 	 * یہ صرف ایک خالی `div` بناتا ہے جسے (JavaScript) (React/Vue/jQuery) پُر کرے گا۔
 	 *
-	 * یہ Dashboard, Customers, Installments, Reports, Settings وغیرہ پر استعمال ہو رہا ہے۔
+	 * یہ Dashboard, Installments, Reports, Settings وغیرہ پر استعمال ہو رہا ہے۔
 	 */
 	public function render_page() {
 		
@@ -189,6 +206,52 @@ class JWPM_Admin {
 			</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Customers Page کے لیے مخصوص رینڈرر۔
+	 *
+	 * یہ براہِ راست admin/pages/jwpm-customers.php لوڈ کرتا ہے جہاں:
+	 * - Root: <div id="jwpm-customers-root">
+	 * - تمام <template> blocks موجود ہیں۔
+	 */
+	public function render_customers_page() {
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die(
+				esc_html__(
+					'You do not have permission to access the Customers page.',
+					'jwpm-jewelry-pos-manager'
+				)
+			);
+		}
+
+		$path = trailingslashit( JWPM_PLUGIN_DIR ) . 'admin/pages/jwpm-customers.php';
+
+		if ( file_exists( $path ) ) {
+			// فائل include کریں (جہاں jwpm_render_customers_page() define ہے)
+			include $path;
+
+			// اگر function define ہے تو اسے call کر دیں
+			if ( function_exists( 'jwpm_render_customers_page' ) ) {
+				jwpm_render_customers_page();
+			} else {
+				?>
+				<div class="wrap">
+					<h1><?php esc_html_e( 'Customers Page Template Missing', 'jwpm-jewelry-pos-manager' ); ?></h1>
+					<p><?php esc_html_e( 'The jwpm_render_customers_page() function was not found in admin/pages/jwpm-customers.php.', 'jwpm-jewelry-pos-manager' ); ?></p>
+				</div>
+				<?php
+			}
+		} else {
+			// اگر کسی وجہ سے فائل نہ ملے تو developer friendly پیغام
+			?>
+			<div class="wrap">
+				<h1><?php esc_html_e( 'Customers Page Missing', 'jwpm-jewelry-pos-manager' ); ?></h1>
+				<p><?php esc_html_e( 'The admin/pages/jwpm-customers.php file could not be found. Please verify the plugin file structure.', 'jwpm-jewelry-pos-manager' ); ?></p>
+			</div>
+			<?php
+		}
 	}
 
 	/**
