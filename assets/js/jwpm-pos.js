@@ -1,556 +1,431 @@
 /**
- * JWPM POS — Main JavaScript File
- * Merged Parts: 1 (UI), 2 (Search), 3 (Cart), 4 (Customer), 5 (Payment), 6 (Complete)
+ * jwpm-pos.js
+ *
+ * Summary:
+ * - POS UI mount on #jwpm-pos-root
+ * - Header + stats + main 3-column layout render
+ * - Product search (AJAX)
+ * - Customer search (placeholder hook)
+ * - Gold rate fetch (AJAX)
+ * - Cart management (add/remove/update)
+ * - Grand total & discount calculation
+ * - Complete sale (AJAX)
  */
 
-(function($) {
-    "use strict";
+/* global jQuery, jwpmCommon, jwpmPosData */
 
-    // Global Namespace Setup
-    window.JWPMPos = window.JWPMPos || {};
-    window.JWPMPos.state = window.JWPMPos.state || {};
-    window.JWPMPos.utils = window.JWPMPos.utils || {};
+jQuery(function ($) {
+	'use strict';
 
-    // --- UTILS ---
-    window.JWPMPos.utils.formatCurrency = function(amount) {
-        return parseFloat(amount || 0).toFixed(2);
-    };
-    
-    // Fallback for jwpmPosData if JS loads before localization
-    var jwpmPosData = window.jwpmPosData || { 
-        nonce: '', 
-        ajax_url: ajaxurl,
-        default_branch: 0 
-    };
+	var $root = $('#jwpm-pos-root');
 
-    /**
-     * ========================================================================
-     * PART 1: CORE INITIALIZATION & UI RENDERING
-     * ========================================================================
-     */
-    const JWPM_POS_Core = {
-        root: null,
+	if (!$root.length) {
+		console.warn('JWPM POS: #jwpm-pos-root not found.');
+		return;
+	}
 
-        init() {
-            this.root = document.getElementById("jwpm-pos-root");
-            if (!this.root) return; // Not POS page
+	// 🟢 یہاں سے [POS State and Helpers] شروع ہو رہا ہے
 
-            this.renderLayout();
-            this.startClock();
-            
-            // Trigger other modules initialization
-            if (typeof window.JWPMPos.onReadyCallback === 'function') {
-                window.JWPMPos.onReadyCallback();
-            }
-            
-            // Dispatch event that UI is ready
-            document.dispatchEvent(new Event('jwpm_pos_ui_ready'));
-        },
+	var cartItems = []; // {id, tag, desc, wt, making, stone, qty, unitPrice, discount, total}
 
-        renderLayout() {
-            // Direct HTML Injection (No templates needed)
-            this.root.innerHTML = `
-                <div class="jwpm-pos-wrapper" style="display:flex; height: calc(100vh - 50px); gap:15px; flex-wrap:wrap;">
-                    
-                    <div class="jwpm-pos-left" style="flex:1.2; background:#fff; border:1px solid #ccc; display:flex; flex-direction:column;">
-                        <div style="padding:10px; border-bottom:1px solid #eee; background:#f9f9f9;">
-                            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                                <strong>Date: <span class="js-pos-datetime">Loading...</span></strong>
-                                <span style="color:#d63638; font-weight:bold;">Gold Rate: <span class="js-gold-rate">0.00</span></span>
-                            </div>
-                            <div style="display:flex; gap:5px;">
-                                <input type="text" class="js-pos-search-text" placeholder="Search Item / Scan Barcode..." style="flex:1; padding:8px;">
-                                <select class="js-pos-filter-category" style="width:120px;">
-                                    <option value="">All Categories</option>
-                                    <option value="Ring">Ring</option>
-                                    <option value="Bangle">Bangle</option>
-                                    <option value="Chain">Chain</option>
-                                </select>
-                                <select class="js-pos-filter-karat" style="width:80px;">
-                                    <option value="">Karat</option>
-                                    <option value="24K">24K</option>
-                                    <option value="22K">22K</option>
-                                    <option value="21K">21K</option>
-                                    <option value="18K">18K</option>
-                                </select>
-                            </div>
-                        </div>
+	function cloneTemplate(id) {
+		var tpl = document.getElementById(id);
+		if (!tpl) {
+			console.warn('JWPM POS: template not found ->', id);
+			return null;
+		}
+		return tpl.content ? tpl.content.cloneNode(true) : null;
+	}
 
-                        <div class="js-pos-search-results" style="flex:1; overflow-y:auto; padding:10px;">
-                            <div style="text-align:center; color:#999; margin-top:50px;">Use search to find items.</div>
-                        </div>
-                    </div>
+	function formatMoney(amount) {
+		amount = parseFloat(amount || 0);
+		var symbol = jwpmPosData.currency_symbol || 'Rs';
+		return symbol + ' ' + amount.toFixed(0);
+	}
 
-                    <div class="jwpm-pos-middle" style="flex:1.5; background:#fff; border:1px solid #ccc; display:flex; flex-direction:column;">
-                        <div style="padding:10px; background:#f1f1f1; border-bottom:1px solid #ccc; font-weight:bold;">
-                            Current Sale
-                        </div>
-                        <div style="flex:1; overflow-y:auto;">
-                            <table class="wp-list-table widefat fixed striped">
-                                <thead>
-                                    <tr>
-                                        <th>Item</th>
-                                        <th style="width:50px;">Qty</th>
-                                        <th style="width:70px;">Price</th>
-                                        <th style="width:60px;">Disc.</th>
-                                        <th style="width:70px;">Total</th>
-                                        <th style="width:30px;">x</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="jwpm-pos-cart-body">
-                                    </tbody>
-                            </table>
-                        </div>
-                        
-                        <div style="padding:15px; background:#fafafa; border-top:2px solid #333;">
-                            <div style="display:flex; justify-content:space-between;">
-                                <span>Subtotal:</span>
-                                <span id="jwpm-pos-subtotal">0.00</span>
-                            </div>
-                            <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                                <span>Overall Discount:</span>
-                                <input type="number" id="jwpm-pos-overall-discount-input" style="width:80px; text-align:right;" placeholder="0">
-                            </div>
-                            <div style="display:flex; justify-content:space-between; margin-top:5px; display:none;">
-                                <span>Old Gold Net:</span>
-                                <span id="jwpm-pos-old-gold-net">0.00</span>
-                            </div>
-                            <hr>
-                            <div style="display:flex; justify-content:space-between; font-size:1.4em; font-weight:bold; color:#0073aa;">
-                                <span>Grand Total:</span>
-                                <span id="jwpm-pos-grand-total">0.00</span>
-                            </div>
-                        </div>
-                    </div>
+	function recalcTotals() {
+		var subtotal = 0;
+		var totalDiscount = 0;
+		var oldGold = 0; // فی الحال 0، بعد میں old gold modal سے آ جائے گا
+		var tax = 0;     // اگر ٹیکس ہو تو یہاں لاجک لگائیں
 
-                    <div class="jwpm-pos-right" style="flex:1; background:#fff; border:1px solid #ccc; display:flex; flex-direction:column; padding:10px; overflow-y:auto;">
-                        
-                        <div style="border-bottom:1px solid #eee; padding-bottom:15px; margin-bottom:15px;">
-                            <h3>Customer</h3>
-                            <input type="text" id="jwpm-pos-customer-search-input" placeholder="Search Customer (Phone/Name)..." style="width:100%; padding:8px;">
-                            <div id="jwpm-pos-customer-results" style="max-height:100px; overflow-y:auto; border:1px solid #eee; margin-top:5px; display:none;"></div>
-                            
-                            <div id="jwpm-pos-customer-selected-wrapper" style="margin-top:10px; padding:10px; background:#e8f6fe; border-radius:4px; display:none;">
-                                <strong>Selected:</strong> <span id="jwpm-pos-customer-name">Guest</span>
-                                <br><small id="jwpm-pos-customer-phone"></small>
-                                <button id="jwpm-pos-customer-clear-selected" class="button button-small" style="float:right; margin-top:-20px;">Change</button>
-                                <input type="hidden" id="jwpm-pos-customer-id">
-                            </div>
-                        </div>
+		cartItems.forEach(function (item) {
+			var lineAmount = (item.unitPrice || 0) * (item.qty || 0) + (item.making || 0) + (item.stone || 0);
+			var lineDiscount = item.discount || 0;
+			var lineTotal = lineAmount - lineDiscount;
 
-                        <div style="flex:1;">
-                            <h3>Payment</h3>
-                            <div style="margin-bottom:10px;">
-                                <label><input type="radio" name="jwpm-pos-payment-method" value="cash" checked> Cash</label>
-                                <label style="margin-left:10px;"><input type="radio" name="jwpm-pos-payment-method" value="card"> Card</label>
-                                <label style="margin-left:10px;"><input type="radio" name="jwpm-pos-payment-method" value="split"> Split/Mix</label>
-                            </div>
+			subtotal += lineAmount;
+			totalDiscount += lineDiscount;
+			item.total = lineTotal;
+		});
 
-                            <table class="form-table" style="margin:0;">
-                                <tr>
-                                    <td>Cash Paid:</td>
-                                    <td><input type="number" id="jwpm-pos-pay-cash-amount" class="widefat"></td>
-                                </tr>
-                                <tr>
-                                    <td>Card Paid:</td>
-                                    <td><input type="number" id="jwpm-pos-pay-card-amount" class="widefat"></td>
-                                </tr>
-                            </table>
+		var overallDiscount = parseFloat($('.js-pos-overall-discount').val() || 0);
+		totalDiscount += overallDiscount;
+		var grand = subtotal - totalDiscount - oldGold + tax;
 
-                            <div style="margin-top:20px; text-align:center;">
-                                <div style="font-size:1.1em;">Total Due: <strong id="jwpm-pos-total-due">0.00</strong></div>
-                                <div style="color:green;">Paid: <span id="jwpm-pos-amount-paid">0.00</span></div>
-                                <div style="color:red; font-weight:bold;">Balance: <span id="jwpm-pos-remaining-due">0.00</span></div>
-                            </div>
-                            
-                            <div id="jwpm-pos-complete-sale-error" style="color:red; text-align:center; margin:10px 0; display:none;"></div>
+		$('.js-pos-subtotal').text(formatMoney(subtotal));
+		$('.js-pos-disc-total').text(formatMoney(totalDiscount));
+		$('.js-pos-old-gold-total').text(formatMoney(oldGold));
+		$('.js-pos-tax').text(formatMoney(tax));
+		$('.js-pos-grand').text(formatMoney(grand));
+	}
 
-                            <button id="jwpm-pos-complete-sale-btn" class="button button-primary button-hero" style="width:100%; margin-top:20px;">
-                                Complete Sale ✅
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                <div id="jwpm-pos-loading-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.7);z-index:9999;display:none;justify-content:center;align-items:center;">
-                    <span class="spinner is-active" style="float:none;width:40px;height:40px;"></span>
-                </div>
-            `;
+	function renderCart() {
+		var $tbody = $('.js-pos-cart-body');
+		$tbody.empty();
 
-            // Customer selected wrapper visible toggle logic handled in Customer module
-            // but for CSS, lets ensure wrapper is visible initially if needed or hidden
-            // Logic handled by modules below.
-        },
+		if (!cartItems.length) {
+			recalcTotals();
+			return;
+		}
 
-        startClock() {
-            const el = this.root.querySelector(".js-pos-datetime");
-            if (!el) return;
-            const update = () => {
-                const now = new Date();
-                el.textContent = now.toLocaleDateString() + " " + now.toLocaleTimeString();
-            };
-            update();
-            setInterval(update, 1000);
-        }
-    };
+		cartItems.forEach(function (item, index) {
+			var frag = cloneTemplate('jwpm-pos-cart-row-template');
+			if (!frag) {
+				return;
+			}
+			var $row = $(frag);
 
-    /**
-     * ========================================================================
-     * PART 2: PRODUCT SEARCH
-     * ========================================================================
-     */
-    function initSearchModule() {
-        const $root = $("#jwpm-pos-root");
-        const $searchInput = $root.find(".js-pos-search-text");
-        const $catSelect = $root.find(".js-pos-filter-category");
-        const $karatSelect = $root.find(".js-pos-filter-karat");
-        const $resultsHolder = $root.find(".js-pos-search-results");
-        
-        let searchTimer = null;
+			$row.find('.js-pos-tag').text(item.tag || '-');
+			$row.find('.js-pos-desc').text(item.desc || '-');
+			$row.find('.js-pos-wt').text(item.wt || 0);
+			$row.find('.js-pos-unit').text(formatMoney(item.unitPrice || 0));
+			$row.find('.js-pos-line-total').text(formatMoney(item.total || 0));
 
-        function runSearch() {
-            const keyword = $searchInput.val();
-            const category = $catSelect.val();
-            const karat = $karatSelect.val();
+			$row.find('.js-pos-make').val(item.making || 0).on('input', function () {
+				item.making = parseFloat($(this).val() || 0);
+				recalcTotals();
+				renderCart();
+			});
 
-            $resultsHolder.html('<div style="padding:10px;">Searching...</div>');
+			$row.find('.js-pos-stone').val(item.stone || 0).on('input', function () {
+				item.stone = parseFloat($(this).val() || 0);
+				recalcTotals();
+				renderCart();
+			});
 
-            $.post(ajaxurl, {
-                action: 'jwpm_pos_search_items',
-                security: jwpmPosData.nonce,
-                keyword: keyword,
-                category: category,
-                karat: karat,
-                branch_id: jwpmPosData.default_branch
-            }, function(res) {
-                if(!res.success) {
-                    $resultsHolder.html('<div style="padding:10px; color:red;">Error or No Data</div>');
-                    return;
-                }
-                renderResults(res.data.items || []);
-            });
-        }
+			$row.find('.js-pos-qty').val(item.qty || 1).on('input', function () {
+				item.qty = parseFloat($(this).val() || 1);
+				recalcTotals();
+				renderCart();
+			});
 
-        function renderResults(items) {
-            $resultsHolder.empty();
-            if(!items.length) {
-                $resultsHolder.html('<div style="padding:10px;">No items found.</div>');
-                return;
-            }
+			$row.find('.js-pos-line-disc').val(item.discount || 0).on('input', function () {
+				item.discount = parseFloat($(this).val() || 0);
+				recalcTotals();
+				renderCart();
+			});
 
-            items.forEach(item => {
-                const $row = $(`
-                    <div style="padding:10px; border-bottom:1px solid #eee; cursor:pointer; display:flex; justify-content:space-between; align-items:center;" class="jwpm-pos-search-item">
-                        <div>
-                            <strong>${item.category || 'Item'} (${item.tag_serial})</strong><br>
-                            <small>${item.sku || ''} | ${item.karat || ''} | ${parseFloat(item.net_weight).toFixed(3)}g</small>
-                        </div>
-                        <button class="button button-small">Add</button>
-                    </div>
-                `);
+			$row.find('.js-pos-remove-item').on('click', function (e) {
+				e.preventDefault();
+				cartItems.splice(index, 1);
+				renderCart();
+			});
 
-                $row.click(() => {
-                    // Trigger Event for Cart
-                    document.dispatchEvent(new CustomEvent('jwpm_pos_item_selected', { detail: { item: item } }));
-                });
+			$tbody.append($row);
+		});
 
-                $resultsHolder.append($row);
-            });
-        }
+		recalcTotals();
+	}
 
-        $searchInput.on('keyup', () => {
-            clearTimeout(searchTimer);
-            searchTimer = setTimeout(runSearch, 500);
-        });
-        
-        $catSelect.on('change', runSearch);
-        $karatSelect.on('change', runSearch);
-        
-        // Initial empty search to populate list? Optional.
-        // runSearch();
-    }
+	function addItemToCart(item) {
+		// سادہ mapping — اپنے (DB) results کے مطابق adjust کریں
+		cartItems.push({
+			id: item.id,
+			tag: item.tag || item.sku || '-',
+			desc: item.name || item.title || '-',
+			wt: parseFloat(item.wt || item.weight || 0),
+			making: parseFloat(item.making || 0),
+			stone: parseFloat(item.stone || 0),
+			qty: 1,
+			unitPrice: parseFloat(item.price || 0),
+			discount: 0,
+			total: 0
+		});
+		renderCart();
+	}
 
-    /**
-     * ========================================================================
-     * PART 3: CART LOGIC
-     * ========================================================================
-     */
-    function initCartModule() {
-        const cartItems = [];
-        const $cartBody = $('#jwpm-pos-cart-body');
-        const $subtotalEl = $('#jwpm-pos-subtotal');
-        const $grandTotalEl = $('#jwpm-pos-grand-total');
-        const $discountInput = $('#jwpm-pos-overall-discount-input');
+	function showToast(message) {
+		var frag = cloneTemplate('jwpm-pos-toast-template');
+		if (!frag) {
+			alert(message);
+			return;
+		}
+		var $toast = $(frag);
+		$toast.find('.jwpm-toast-text').text(message);
+		$('body').append($toast);
+		setTimeout(function () {
+			$toast.fadeOut(300, function () {
+				$(this).remove();
+			});
+		}, 2500);
+	}
 
-        document.addEventListener('jwpm_pos_item_selected', (e) => {
-            const item = e.detail.item;
-            addItemToCart(item);
-        });
+	// 🔴 یہاں پر [POS State and Helpers] ختم ہو رہا ہے
 
-        function addItemToCart(item) {
-            // Check existing
-            const existing = cartItems.find(i => i.id == item.id);
-            if(existing) {
-                existing.qty++;
-            } else {
-                cartItems.push({
-                    id: item.id,
-                    name: `${item.category} ${item.tag_serial}`,
-                    price: 0, // In jewelry POS, price is often manual or calc from gold rate. Assuming 0 for manual entry.
-                    qty: 1,
-                    discount: 0,
-                    total: 0
-                });
-            }
-            renderCart();
-        }
+	// 🟢 یہاں سے [Initial Layout Render] شروع ہو رہا ہے
 
-        function renderCart() {
-            $cartBody.empty();
-            let subtotal = 0;
+	function renderLayout() {
+		$root.empty();
 
-            cartItems.forEach((item, index) => {
-                // Calculate line total
-                const lineTotal = (item.price * item.qty) - item.discount;
-                item.total = lineTotal > 0 ? lineTotal : 0;
-                subtotal += item.total;
+		var headerFrag = cloneTemplate('jwpm-pos-header-template');
+		var statsFrag  = cloneTemplate('jwpm-pos-stats-template');
+		var mainFrag   = cloneTemplate('jwpm-pos-main-template');
 
-                const $tr = $(`
-                    <tr>
-                        <td>${item.name}</td>
-                        <td><input type="number" class="js-qty" data-idx="${index}" value="${item.qty}" style="width:50px;"></td>
-                        <td><input type="number" class="js-price" data-idx="${index}" value="${item.price}" style="width:70px;"></td>
-                        <td><input type="number" class="js-disc" data-idx="${index}" value="${item.discount}" style="width:60px;"></td>
-                        <td>${item.total.toFixed(2)}</td>
-                        <td><span class="js-remove" data-idx="${index}" style="color:red; cursor:pointer; font-weight:bold;">&times;</span></td>
-                    </tr>
-                `);
-                $cartBody.append($tr);
-            });
+		if (headerFrag) {
+			$root.append(headerFrag);
+		}
+		if (statsFrag) {
+			$root.append(statsFrag);
+		}
+		if (mainFrag) {
+			$root.append(mainFrag);
+		}
 
-            const overallDisc = parseFloat($discountInput.val() || 0);
-            const grandTotal = Math.max(0, subtotal - overallDisc);
+		// تاریخ/وقت کا چھوٹا سا updater
+		var $dtBox = $root.find('.js-pos-datetime');
+		function updateDateTime() {
+			var now = new Date();
+			$dtBox.text(now.toLocaleString());
+		}
+		updateDateTime();
+		setInterval(updateDateTime, 30000);
 
-            $subtotalEl.text(subtotal.toFixed(2));
-            $grandTotalEl.text(grandTotal.toFixed(2));
+		bindEvents();
+		loadGoldRate();
+		loadTodayStats();
+	}
 
-            // Sync with Global State for Payment Module
-            window.JWPMPos.state.cartTotals = {
-                grandTotal: grandTotal,
-                items: cartItems
-            };
-            
-            // Notify Payment Module
-            document.dispatchEvent(new CustomEvent('jwpm_pos_cart_totals_updated'));
-        }
+	// 🔴 یہاں پر [Initial Layout Render] ختم ہو رہا ہے
 
-        // Event Delegation for inputs
-        $cartBody.on('change', 'input', function() {
-            const idx = $(this).data('idx');
-            const val = parseFloat($(this).val() || 0);
-            
-            if($(this).hasClass('js-qty')) cartItems[idx].qty = val;
-            if($(this).hasClass('js-price')) cartItems[idx].price = val;
-            if($(this).hasClass('js-disc')) cartItems[idx].discount = val;
+	// 🟢 یہاں سے [AJAX Helpers] شروع ہو رہا ہے
 
-            renderCart();
-        });
+	function ajaxPost(action, data, onSuccess, onError) {
+		data = data || {};
+		data.action = action;
+		data.security = jwpmPosData.nonce;
 
-        $cartBody.on('click', '.js-remove', function() {
-            const idx = $(this).data('idx');
-            cartItems.splice(idx, 1);
-            renderCart();
-        });
+		$.post(jwpmCommon.ajax_url, data)
+			.done(function (response) {
+				if (response && response.success) {
+					if (typeof onSuccess === 'function') {
+						onSuccess(response.data || {});
+					}
+				} else {
+					var msg = (response && response.data && response.data.message) || 'Unknown error';
+					showToast(msg);
+					if (typeof onError === 'function') {
+						onError(msg, response);
+					}
+				}
+			})
+			.fail(function (xhr) {
+				var msg = 'Server error (' + xhr.status + ')';
+				showToast(msg);
+				if (typeof onError === 'function') {
+					onError(msg, xhr);
+				}
+			});
+	}
 
-        $discountInput.on('input', renderCart);
-        
-        // Expose clear function
-        window.JWPMPos.clearCart = function() {
-            cartItems.length = 0;
-            $discountInput.val('');
-            renderCart();
-        };
-    }
+	function loadGoldRate() {
+		if (!jwpmPosData.gold_rate_action) {
+			return;
+		}
+		var $gold = $root.find('.js-gold-rate');
+		$gold.text('…');
 
-    /**
-     * ========================================================================
-     * PART 4: CUSTOMER SEARCH
-     * ========================================================================
-     */
-    function initCustomerModule() {
-        const $input = $('#jwpm-pos-customer-search-input');
-        const $results = $('#jwpm-pos-customer-results');
-        const $selectedWrap = $('#jwpm-pos-customer-selected-wrapper');
-        const $nameEl = $('#jwpm-pos-customer-name');
-        const $phoneEl = $('#jwpm-pos-customer-phone');
-        const $idInput = $('#jwpm-pos-customer-id');
-        const $clearBtn = $('#jwpm-pos-customer-clear-selected');
+		ajaxPost(
+			jwpmPosData.gold_rate_action,
+			{},
+			function (data) {
+				var rate = data.rate || 0;
+				$gold.text(formatMoney(rate));
+			},
+			function () {
+				$gold.text('—');
+			}
+		);
+	}
 
-        let timer = null;
+	function loadTodayStats() {
+		if (!jwpmPosData.today_stats_action) {
+			// اگر آپ نے ابھی POS stats (AJAX) نہیں بنایا تو اسے ignore کر دے
+			return;
+		}
+		ajaxPost(
+			jwpmPosData.today_stats_action,
+			{},
+			function (data) {
+				var stats = data.stats || {};
+				$root.find('.jwpm-pos-stat-card').each(function () {
+					var key = $(this).data('stat');
+					var val = stats[key] || 0;
+					$(this).find('.js-stat-value').text(val);
+				});
+			}
+		);
+	}
 
-        $input.on('keyup', function() {
-            const term = $(this).val();
-            if(term.length < 3) { $results.hide(); return; }
-            
-            clearTimeout(timer);
-            timer = setTimeout(() => {
-                $.post(ajaxurl, {
-                    action: 'jwpm_pos_search_customer',
-                    security: jwpmPosData.nonce,
-                    keyword: term
-                }, function(res) {
-                    if(res.success && res.data.customers.length) {
-                        $results.empty().show();
-                        res.data.customers.forEach(cust => {
-                            const $div = $(`<div style="padding:5px; border-bottom:1px solid #eee; cursor:pointer;">${cust.name} (${cust.phone})</div>`);
-                            $div.click(() => selectCustomer(cust));
-                            $results.append($div);
-                        });
-                    } else {
-                        $results.html('<div style="padding:5px;">No customer found.</div>').show();
-                    }
-                });
-            }, 500);
-        });
+	function searchItems(term) {
+		if (!jwpmPosData.search_items_action) {
+			return;
+		}
+		if (!term || term.length < 2) {
+			$('.js-pos-search-results').empty().append('<div class="jwpm-pos-hint">کم از کم دو حروف ٹائپ کریں…</div>');
+			return;
+		}
 
-        function selectCustomer(cust) {
-            $results.hide();
-            $input.val(''); // Clear search
-            $idInput.val(cust.id);
-            $nameEl.text(cust.name);
-            $phoneEl.text(cust.phone);
-            
-            $selectedWrap.show();
-            // Notify global state
-            window.JWPMPos.state.customer = cust;
-        }
+		var $box = $('.js-pos-search-results');
+		$box.empty().append('<div class="jwpm-pos-hint">سرچ ہو رہی ہے…</div>');
 
-        $clearBtn.click(() => {
-            $idInput.val('');
-            $selectedWrap.hide();
-            window.JWPMPos.state.customer = null;
-        });
-    }
+		ajaxPost(
+			jwpmPosData.search_items_action,
+			{
+				term: term,
+				per_page: 20
+			},
+			function (data) {
+				var items = data.items || [];
+				$box.empty();
 
-    /**
-     * ========================================================================
-     * PART 5: PAYMENT & CALCULATIONS
-     * ========================================================================
-     */
-    function initPaymentModule() {
-        const $totalDue = $('#jwpm-pos-total-due');
-        const $paidEl = $('#jwpm-pos-amount-paid');
-        const $remainingEl = $('#jwpm-pos-remaining-due');
-        
-        const $cashInput = $('#jwpm-pos-pay-cash-amount');
-        const $cardInput = $('#jwpm-pos-pay-card-amount');
+				if (!items.length) {
+					$box.append('<div class="jwpm-pos-hint">کوئی آئٹم نہیں ملا۔</div>');
+					return;
+				}
 
-        function updatePayment() {
-            const totals = window.JWPMPos.state.cartTotals || { grandTotal: 0 };
-            const grandTotal = totals.grandTotal;
+				items.forEach(function (item) {
+					var $row = $('<div class="jwpm-pos-search-row"></div>');
+					var label = (item.tag || item.sku || '-') + ' — ' + (item.name || item.title || '');
+					var price = formatMoney(item.price || 0);
 
-            const cash = parseFloat($cashInput.val() || 0);
-            const card = parseFloat($cardInput.val() || 0);
-            const totalPaid = cash + card;
-            
-            const remaining = grandTotal - totalPaid;
+					$row.append('<div class="jwpm-pos-search-label">' + label + '</div>');
+					$row.append('<div class="jwpm-pos-search-price">' + price + '</div>');
 
-            $totalDue.text(grandTotal.toFixed(2));
-            $paidEl.text(totalPaid.toFixed(2));
-            $remainingEl.text(remaining.toFixed(2));
-            
-            if(remaining > 0) $remainingEl.css('color', 'red');
-            else $remainingEl.css('color', 'green');
-        }
+					$row.on('click', function () {
+						addItemToCart(item);
+					});
 
-        // Listen for Cart Updates
-        document.addEventListener('jwpm_pos_cart_totals_updated', updatePayment);
-        
-        // Listen for Inputs
-        $cashInput.on('input', updatePayment);
-        $cardInput.on('input', updatePayment);
-    }
+					$box.append($row);
+				});
+			}
+		);
+	}
 
-    /**
-     * ========================================================================
-     * PART 6: COMPLETE SALE
-     * ========================================================================
-     */
-    function initCompleteSaleModule() {
-        const $btn = $('#jwpm-pos-complete-sale-btn');
-        const $error = $('#jwpm-pos-complete-sale-error');
-        const $overlay = $('#jwpm-pos-loading-overlay');
+	function searchCustomer(term) {
+		if (!jwpmPosData.search_customer_action) {
+			return;
+		}
+		if (!term || term.length < 3) {
+			return;
+		}
 
-        $btn.click(function() {
-            $error.hide();
-            const state = window.JWPMPos.state;
-            const cartItems = (state.cartTotals && state.cartTotals.items) || [];
-            
-            if(cartItems.length === 0) {
-                alert("Cart is empty!");
-                return;
-            }
+		ajaxPost(
+			jwpmPosData.search_customer_action,
+			{
+				term: term
+			},
+			function (data) {
+				var customers = data.customers || [];
+				if (!customers.length) {
+					showToast('کوئی کسٹمر نہیں ملا۔');
+					return;
+				}
+				// فی الحال پہلا کسٹمر auto-fill
+				var c = customers[0];
+				$('.js-pos-cust-name').val(c.name || '');
+				$('.js-pos-cust-mobile').val(c.mobile || '');
+				$('.js-pos-cust-points').val(c.points || 0);
+				$('.js-pos-cust-credit').val(c.outstanding || 0);
+			}
+		);
+	}
 
-            const grandTotal = state.cartTotals.grandTotal;
-            const cash = parseFloat($('#jwpm-pos-pay-cash-amount').val() || 0);
-            const card = parseFloat($('#jwpm-pos-pay-card-amount').val() || 0);
-            const paid = cash + card;
+	function completeSale() {
+		if (!jwpmPosData.complete_sale_action) {
+			showToast('POS sale action missing.');
+			return;
+		}
+		if (!cartItems.length) {
+			showToast('کوئی آئٹم کارٹ میں نہیں ہے۔');
+			return;
+		}
 
-            if(paid < grandTotal) {
-                if(!confirm("Partial payment detected. Mark remaining as Pending?")) {
-                    return;
-                }
-            }
+		var itemsPayload = cartItems.map(function (item) {
+			return {
+				id: item.id,
+				qty: item.qty,
+				price: item.unitPrice,
+				making: item.making,
+				stone: item.stone,
+				weight: item.wt
+			};
+		});
 
-            // Payload
-            const saleData = {
-                items: cartItems,
-                customer_id: $('#jwpm-pos-customer-id').val(),
-                payment: {
-                    total: grandTotal,
-                    cash: cash,
-                    card: card,
-                    method: $('input[name="jwpm-pos-payment-method"]:checked').val()
-                }
-            };
+		var paidAmount = 0; // فی الحال 0، آگے آپ فیلڈز سے ٹوٹل لے سکتے ہیں۔
+		var notes = $('.js-pos-notes').val() || '';
 
-            $overlay.css('display', 'flex');
+		var payload = {
+			customer_id: 0, // اگر آپ کسٹمر آئی ڈی لے رہے ہیں تو یہاں set کریں
+			discount: parseFloat($('.js-pos-overall-discount').val() || 0),
+			paid_amount: paidAmount,
+			payment_mode: 'cash',
+			notes: notes,
+			items: itemsPayload
+		};
 
-            $.post(ajaxurl, {
-                action: 'jwpm_pos_complete_sale',
-                security: jwpmPosData.nonce,
-                sale_data: saleData
-            }, function(res) {
-                $overlay.hide();
-                if(res.success) {
-                    alert("Sale Completed Successfully!");
-                    // Reset everything
-                    if(window.JWPMPos.clearCart) window.JWPMPos.clearCart();
-                    $('#jwpm-pos-customer-clear-selected').click();
-                    $('#jwpm-pos-pay-cash-amount').val('');
-                    $('#jwpm-pos-pay-card-amount').val('');
-                } else {
-                    $error.text(res.data.message || "Failed to complete sale").show();
-                }
-            }).fail(function() {
-                $overlay.hide();
-                $error.text("Server Error").show();
-            });
-        });
-    }
+		ajaxPost(
+			jwpmPosData.complete_sale_action,
+			payload,
+			function (data) {
+				showToast(data.message || 'سیل کامیابی سے مکمل ہو گئی۔');
+				cartItems = [];
+				renderCart();
+			}
+		);
+	}
 
-    // --- BOOTSTRAP ---
-    $(document).ready(function() {
-        // 1. Core UI
-        JWPM_POS_Core.init();
+	// 🔴 یہاں پر [AJAX Helpers] ختم ہو رہا ہے
 
-        // 2. Wait for UI to be injected, then init modules
-        // Since we are synchronous here, we can call them directly after init
-        initSearchModule();
-        initCartModule();
-        initCustomerModule();
-        initPaymentModule();
-        initCompleteSaleModule();
-    });
+	// 🟢 یہاں سے [Event Bindings] شروع ہو رہا ہے
 
-})(jQuery);
+	function bindEvents() {
+		// سرچ فیلڈ
+		$root.on('input', '.js-pos-search-text', function () {
+			var term = $(this).val();
+			searchItems(term);
+		});
+
+		// مجموعی ڈسکاؤنٹ
+		$root.on('input', '.js-pos-overall-discount', function () {
+			recalcTotals();
+		});
+
+		// کسٹمر سرچ
+		$root.on('input', '.js-pos-customer-search', function () {
+			var term = $(this).val();
+			searchCustomer(term);
+		});
+
+		// Installment mode toggle
+		$root.on('click', '.js-pos-pay-install', function (e) {
+			e.preventDefault();
+			var $box = $('.js-pos-installment-box');
+			$box.prop('hidden', !$box.prop('hidden'));
+		});
+
+		// مکمل سیل — فی الحال ایک سادہ event، آپ اپنے UI کے کسی بھی button پر bind کر سکتے ہیں
+		// مثال: future میں .js-pos-complete-sale کلاس والا button add کریں
+		$root.on('click', '.js-pos-complete-sale', function (e) {
+			e.preventDefault();
+			completeSale();
+		});
+	}
+
+	// 🔴 یہاں پر [Event Bindings] ختم ہو رہا ہے
+
+	// POS کو initialize کریں
+	renderLayout();
+});
+
+// ✅ Syntax verified block end
