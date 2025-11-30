@@ -802,4 +802,373 @@ body.rtl .jwpm-tab {
 
 /* 🔴 یہاں پر [JWPM Custom Orders Styles] ختم ہو رہا ہے */
 /* ✅ Syntax verified block end */
+/** Part 4 — JWPM Custom Orders Bridge Styles */
+/* 🟢 یہاں سے [JWPM Custom Orders Bridge] شروع ہو رہا ہے */
+
+/* Root container کو پرانے layout کے مطابق بنا دیں */
+.jwpm-custom-orders-page #jwpm-custom-orders-root {
+	display: flex;
+	flex-direction: column;
+	gap: var(--jwpm-gap-lg, 20px);
+	background: var(--jwpm-color-bg, #f5f7fb);
+	padding: 16px 20px;
+	border-radius: var(--jwpm-radius-lg, 12px);
+}
+
+/* Toolbar کو پرانے toolbar اسٹائل کے ساتھ گروپ کر دیں */
+.jwpm-toolbar.jwpm-custom-orders-toolbar,
+#jwpm-custom-orders-root .jwpm-co-toolbar {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: var(--jwpm-gap-md, 12px);
+	flex-wrap: wrap;
+	padding: 10px 12px;
+	border-radius: var(--jwpm-radius-md, 8px);
+	background: var(--jwpm-color-bg-alt, #ffffff);
+	border: 1px solid var(--jwpm-color-border, #d4d7e0);
+}
+
+#jwpm-custom-orders-root .jwpm-co-toolbar-left,
+#jwpm-custom-orders-root .jwpm-co-toolbar-right {
+	display: flex;
+	align-items: center;
+	gap: var(--jwpm-gap-sm, 8px);
+	flex-wrap: wrap;
+}
+
+/* Filters bar */
+#jwpm-custom-orders-root .jwpm-co-filters {
+	margin-top: 10px;
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--jwpm-gap-md, 12px);
+	background: var(--jwpm-color-bg-alt, #ffffff);
+	border-radius: var(--jwpm-radius-md, 8px);
+	border: 1px solid var(--jwpm-color-border, #d4d7e0);
+	padding: 10px 12px;
+}
+
+#jwpm-custom-orders-root .jwpm-co-filter-item {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-size: 11px;
+	color: var(--jwpm-color-muted, #6b7280);
+}
+
+#jwpm-custom-orders-root .jwpm-co-filter-item label {
+	font-size: 11px;
+	color: var(--jwpm-color-muted, #6b7280);
+}
+
+#jwpm-custom-orders-root .jwpm-co-filter-daterange {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+#jwpm-custom-orders-root .jwpm-co-filter-actions {
+	align-self: flex-end;
+}
+
+/* Inputs کو generic input اسٹائل سے match کریں */
+#jwpm-custom-orders-root .jwpm-co-filters input[type="search"],
+#jwpm-custom-orders-root .jwpm-co-filters input[type="date"],
+#jwpm-custom-orders-root .jwpm-co-filters select {
+	border-radius: var(--jwpm-radius-sm, 4px);
+	border: 1px solid var(--jwpm-color-border, #d4d7e0);
+	padding: 4px 6px;
+	font-size: 12px;
+	color: var(--jwpm-color-text, #111827);
+	background-color: #ffffff;
+	min-height: 28px;
+}
+
+#jwpm-custom-orders-root .jwpm-co-filters input:focus,
+#jwpm-custom-orders-root .jwpm-co-filters select:focus {
+	outline: 2px solid rgba(37, 99, 235, 0.35);
+	outline-offset: 0;
+	border-color: var(--jwpm-color-accent, #2563eb);
+}
+
+/* List section + table wrap */
+#jwpm-custom-orders-root .jwpm-co-list-section {
+	margin-top: 12px;
+	background: transparent;
+}
+
+#jwpm-custom-orders-root .jwpm-co-list-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 6px;
+}
+
+#jwpm-custom-orders-root .jwpm-co-list-header h2 {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--jwpm-color-text, #111827);
+}
+
+#jwpm-custom-orders-root .jwpm-co-list-count {
+	font-size: 11px;
+	color: var(--jwpm-color-muted, #6b7280);
+}
+
+#jwpm-custom-orders-root .jwpm-co-table-wrapper {
+	background: var(--jwpm-color-bg-alt, #ffffff);
+	border-radius: var(--jwpm-radius-md, 8px);
+	border: 1px solid var(--jwpm-color-border, #d4d7e0);
+	box-shadow: var(--jwpm-shadow-sm, 0 1px 2px rgba(15,23,42,0.08));
+	overflow: hidden;
+}
+
+/* Table کو پرانی generic .jwpm-table جیسے style دیں */
+#jwpm-custom-orders-root .jwpm-co-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 12px;
+}
+
+#jwpm-custom-orders-root .jwpm-co-table th,
+#jwpm-custom-orders-root .jwpm-co-table td {
+	border-bottom: 1px solid var(--jwpm-color-border, #d4d7e0);
+	padding: 6px 8px;
+	text-align: left;
+	vertical-align: middle;
+}
+
+#jwpm-custom-orders-root .jwpm-co-table th {
+	background: #f3f4f6;
+	font-weight: 600;
+	color: var(--jwpm-color-muted, #6b7280);
+	font-size: 11px;
+	white-space: nowrap;
+}
+
+#jwpm-custom-orders-root .jwpm-co-table tbody tr:nth-child(odd) {
+	background: #f9fafb;
+}
+
+#jwpm-custom-orders-root .jwpm-co-table tbody tr:hover {
+	background: #eef2ff;
+}
+
+#jwpm-custom-orders-root .jwpm-co-table-empty td {
+	text-align: center;
+	color: var(--jwpm-color-muted, #6b7280);
+	font-style: italic;
+}
+
+/* Pagination bridge */
+#jwpm-custom-orders-root .jwpm-co-pagination {
+	padding: 8px 10px;
+	display: flex;
+	justify-content: flex-end;
+}
+
+#jwpm-custom-orders-root .jwpm-co-pagination .jwpm-co-page-info {
+	font-size: 11px;
+	color: var(--jwpm-color-muted, #6b7280);
+	margin: 0 6px;
+}
+
+/* Modal bridge (ہماری .jwpm-co-modal کو موجودہ .jwpm-modal جیسے بنائیں) */
+.jwpm-modal,
+#jwpm-custom-orders-root .jwpm-co-modal {
+	position: fixed;
+	inset: 0;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	z-index: 9999;
+}
+
+.jwpm-modal.is-open,
+#jwpm-custom-orders-root .jwpm-co-modal.is-open {
+	display: flex;
+}
+
+.jwpm-modal .jwpm-co-modal-backdrop,
+#jwpm-custom-orders-root .jwpm-co-modal .jwpm-co-modal-backdrop {
+	position: absolute;
+	inset: 0;
+	background: rgba(15, 23, 42, 0.45);
+}
+
+.jwpm-modal .jwpm-co-modal-dialog,
+#jwpm-custom-orders-root .jwpm-co-modal .jwpm-co-modal-dialog {
+	position: relative;
+	z-index: 1;
+	width: 100%;
+	max-width: 540px;
+	background: #ffffff;
+	border-radius: var(--jwpm-radius-lg, 12px);
+	box-shadow: var(--jwpm-shadow-md, 0 10px 25px rgba(15,23,42,0.12));
+	max-height: 90vh;
+	display: flex;
+	flex-direction: column;
+}
+
+/* Modal header/body/footer */
+#jwpm-custom-orders-root .jwpm-co-modal-header {
+	padding: 10px 14px;
+	border-bottom: 1px solid var(--jwpm-color-border, #d4d7e0);
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+#jwpm-custom-orders-root .jwpm-co-modal-header h2 {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--jwpm-color-text, #111827);
+}
+
+#jwpm-custom-orders-root .jwpm-co-modal-close {
+	border: none;
+	background: transparent;
+	font-size: 18px;
+	line-height: 1;
+	cursor: pointer;
+	color: var(--jwpm-color-muted, #6b7280);
+}
+
+#jwpm-custom-orders-root .jwpm-co-modal-close:hover {
+	color: var(--jwpm-color-text, #111827);
+}
+
+#jwpm-custom-orders-root .jwpm-co-modal-body {
+	padding: 10px 14px 14px;
+	font-size: 12px;
+	color: var(--jwpm-color-text, #111827);
+	overflow-y: auto;
+	max-height: calc(90vh - 110px);
+}
+
+#jwpm-custom-orders-root .jwpm-co-form-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+}
+
+#jwpm-custom-orders-root .jwpm-co-form-group {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+#jwpm-custom-orders-root .jwpm-co-form-group-full {
+	grid-column: 1 / -1;
+}
+
+#jwpm-custom-orders-root .jwpm-co-form-group label {
+	font-size: 11px;
+	color: var(--jwpm-color-muted, #6b7280);
+}
+
+#jwpm-custom-orders-root .jwpm-co-form-footer {
+	padding-top: 8px;
+	display: flex;
+	justify-content: flex-end;
+	gap: 6px;
+	border-top: 1px solid var(--jwpm-color-border, #d4d7e0);
+	margin-top: 8px;
+}
+
+/* Loading indicator + Toasts */
+#jwpm-custom-orders-root .jwpm-co-loading-indicator {
+	position: fixed;
+	right: 16px;
+	bottom: 16px;
+	z-index: 10000;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 10px;
+	border-radius: 999px;
+	background: rgba(15, 23, 42, 0.9);
+	color: #f9fafb;
+	font-size: 11px;
+	box-shadow: var(--jwpm-shadow-md, 0 10px 25px rgba(15,23,42,0.12));
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+	transform: translateY(8px);
+}
+
+#jwpm-custom-orders-root .jwpm-co-loading-indicator.is-active {
+	opacity: 1;
+	pointer-events: auto;
+	transform: translateY(0);
+}
+
+#jwpm-custom-orders-root .jwpm-co-toast {
+	position: fixed;
+	right: 16px;
+	bottom: 16px;
+	z-index: 10001;
+	min-width: 200px;
+	max-width: 320px;
+	padding: 8px 12px;
+	border-radius: var(--jwpm-radius-md, 8px);
+	font-size: 12px;
+	color: #ffffff;
+	box-shadow: var(--jwpm-shadow-md, 0 10px 25px rgba(15,23,42,0.12));
+	opacity: 0;
+	pointer-events: none;
+	transform: translateY(8px);
+	transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+}
+
+#jwpm-custom-orders-root .jwpm-co-toast.is-visible {
+	opacity: 1;
+	pointer-events: auto;
+	transform: translateY(0);
+}
+
+#jwpm-custom-orders-root .jwpm-co-toast-success {
+	background: var(--jwpm-color-success, #16a34a);
+}
+
+#jwpm-custom-orders-root .jwpm-co-toast-error {
+	background: var(--jwpm-color-danger, #dc2626);
+}
+
+/* Mobile tweaks for ہمارے jwpm-co layout */
+@media (max-width: 768px) {
+	#jwpm-custom-orders-root .jwpm-co-filters {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	#jwpm-custom-orders-root .jwpm-co-list-header {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 4px;
+	}
+
+	.jwpm-modal .jwpm-co-modal-dialog,
+	#jwpm-custom-orders-root .jwpm-co-modal .jwpm-co-modal-dialog {
+		max-width: 100%;
+		border-radius: 0;
+	}
+}
+
+/* RTL adjustments for jwpm-co */
+body.rtl #jwpm-custom-orders-root .jwpm-co-list-header,
+body[dir="rtl"] #jwpm-custom-orders-root .jwpm-co-list-header {
+	flex-direction: row-reverse;
+}
+
+body.rtl #jwpm-custom-orders-root .jwpm-co-toolbar,
+body[dir="rtl"] #jwpm-custom-orders-root .jwpm-co-toolbar {
+	direction: rtl;
+}
+
+/* 🔴 یہاں پر [JWPM Custom Orders Bridge] ختم ہو رہا ہے */
+/* ✅ Syntax verified block end */
 
