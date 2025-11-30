@@ -125,7 +125,7 @@ class JWPM_Ajax {
 		add_action( 'wp_ajax_jwpm_profit_loss_report', array( __CLASS__, 'reports_profit_loss' ) );
 		add_action( 'wp_ajax_jwpm_expense_report',     array( __CLASS__, 'reports_expense' ) );
 		add_action( 'wp_ajax_jwpm_cashflow_report',    array( __CLASS__, 'reports_cashflow' ) );
-	}
+	
 
 	/**
 	 * مشترکہ ہیلپر:
@@ -212,7 +212,8 @@ class JWPM_Ajax {
 		}
 	}
 
-	// 🔴 یہاں پر Core Helpers ختم ہو رہا ہے
+	
+	}	// 🔴 یہاں پر Core Helpers ختم ہو رہا ہے
 	// ✅ Syntax verified block end
 
 	/**
