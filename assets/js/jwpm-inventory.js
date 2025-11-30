@@ -1554,3 +1554,33 @@
 
 	// ✅ Syntax verified block end
 })(window, jQuery);
+/** Part X — Detail Panel Close / Safety Fix */
+// 🟢 یہاں سے [Inventory Detail Panel Fix] شروع ہو رہا ہے
+jQuery(document).ready(function ($) {
+	// Detail panel کو سیفٹی کے ساتھ hide کر دیں اگر غلطی سے نظر آ رہا ہو
+	var $panel = $('.js-jwpm-detail-panel');
+	if ($panel.length) {
+		$panel.attr('hidden', true); // شروع میں چھپا دیں
+	}
+
+	// Close button پر click → پینل hide
+	$(document).on('click', '.js-jwpm-detail-close', function (e) {
+		e.preventDefault();
+		var $p = $(this).closest('.js-jwpm-detail-panel');
+		if ($p.length) {
+			$p.attr('hidden', true);
+		}
+	});
+
+	// اگر کہیں کوڈ نے غلطی سے class کے ذریعے show کر رکھا ہو تو
+	// آپ اضافی سیفٹی بھی رکھ سکتے ہیں:
+	$(document).on('jwpm_inventory_hide_detail', function () {
+		var $p = $('.js-jwpm-detail-panel');
+		if ($p.length) {
+			$p.attr('hidden', true);
+		}
+	});
+});
+// 🔴 یہاں پر [Inventory Detail Panel Fix] ختم ہو رہا ہے
+
+// ✅ Syntax verified block end
