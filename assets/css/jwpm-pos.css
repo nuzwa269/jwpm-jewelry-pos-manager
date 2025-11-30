@@ -1,917 +1,482 @@
-/** Part 1 — POS Layout & Styling */
-/*
- * Bright 3-column POS Layout (English UI)
- * - Root namespace: .jwpm-pos
- * - Color tokens, spacing, radius, shadows
- * - Header, stats, columns, cart, customer, payment, old-gold, toasts
+/**
+ * jwpm-pos.css
+ *
+ * Summary:
+ * - 3-column POS layout
+ * - Header + stats row styling
+ * - Cart table styling
+ * - Right pane (customer + payment)
+ * - Basic modal + toast styles
  */
 
-/* 🟢 یہاں سے POS Tokens & Base Styles شروع ہو رہا ہے */
-.jwpm-pos {
-    --jwpm-pos-color-bg: #ffffff;
-    --jwpm-pos-color-surface: #f9fafb;
-    --jwpm-pos-color-surface-alt: #ffffff;
-    --jwpm-pos-color-border: #d1d5db;
-    --jwpm-pos-color-border-soft: #e5e7eb;
-    --jwpm-pos-color-primary: #2563eb;   /* blue */
-    --jwpm-pos-color-primary-soft: #dbeafe;
-    --jwpm-pos-color-success: #16a34a;   /* green */
-    --jwpm-pos-color-warning: #f97316;   /* orange */
-    --jwpm-pos-color-accent: #ec4899;    /* pink */
-    --jwpm-pos-color-danger: #dc2626;
-    --jwpm-pos-color-muted: #6b7280;
-    --jwpm-pos-color-text: #111827;
-
-    --jwpm-pos-radius-sm: 4px;
-    --jwpm-pos-radius-md: 8px;
-    --jwpm-pos-radius-lg: 12px;
-
-    --jwpm-pos-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
-    --jwpm-pos-shadow-md: 0 10px 25px rgba(15, 23, 42, 0.08);
-
-    --jwpm-pos-spacing-xs: 4px;
-    --jwpm-pos-spacing-sm: 8px;
-    --jwpm-pos-spacing-md: 12px;
-    --jwpm-pos-spacing-lg: 16px;
-    --jwpm-pos-spacing-xl: 24px;
-
-    --jwpm-pos-font-size-xs: 11px;
-    --jwpm-pos-font-size-sm: 12px;
-    --jwpm-pos-font-size-base: 13px;
-    --jwpm-pos-font-size-lg: 15px;
-    --jwpm-pos-font-size-xl: 18px;
-
-    --jwpm-pos-transition-fast: 150ms ease-out;
-    --jwpm-pos-transition: 200ms ease-out;
-
-    --jwpm-pos-ring-color: rgba(37, 99, 235, 0.35);
+.jwpm-pos-wrap {
+	margin-top: 10px;
 }
 
-#jwpm-pos-root.jwpm-pos {
-    box-sizing: border-box;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    color: var(--jwpm-pos-color-text);
-    background: var(--jwpm-pos-color-bg);
+.jwpm-hidden {
+	display: none;
 }
 
-/* Global reset for POS area */
-.jwpm-pos *,
-.jwpm-pos *::before,
-.jwpm-pos *::after {
-    box-sizing: border-box;
-}
+/* Header */
 
-/* Focus ring */
-.jwpm-pos :where(button, [type="button"], [type="submit"], input, select, textarea, a):focus-visible {
-    outline: 2px solid var(--jwpm-pos-ring-color);
-    outline-offset: 1px;
-}
-
-/* Scrollbars (subtle) */
-.jwpm-pos ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
-.jwpm-pos ::-webkit-scrollbar-track {
-    background: transparent;
-}
-.jwpm-pos ::-webkit-scrollbar-thumb {
-    background: rgba(148, 163, 184, 0.6);
-    border-radius: 999px;
-}
-
-/* 🟢 یہاں تک POS Tokens & Base Styles ختم ہو رہا ہے */
-
-/* 🟢 یہاں سے POS Header & Stats شروع ہو رہا ہے */
 .jwpm-pos-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--jwpm-pos-spacing-lg) var(--jwpm-pos-spacing-xl) var(--jwpm-pos-spacing-md);
-    border-bottom: 1px solid var(--jwpm-pos-color-border-soft);
-    background: linear-gradient(90deg, #eff6ff, #faf5ff);
-}
-
-.jwpm-pos-header-main {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 15px;
 }
 
 .jwpm-pos-title {
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    color: var(--jwpm-pos-color-primary);
+	font-size: 20px;
+	margin: 0;
 }
 
-.jwpm-pos-subtitle {
-    font-size: var(--jwpm-pos-font-size-sm);
-    color: var(--jwpm-pos-color-muted);
+.jwpm-title-urdu {
+	font-size: 16px;
+	color: #666;
 }
 
-.jwpm-pos-header-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--jwpm-pos-spacing-sm);
-    align-items: center;
+.jwpm-breadcrumb {
+	font-size: 12px;
+	color: #888;
+	margin-top: 4px;
 }
 
-.jwpm-pos-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 3px 8px;
-    border-radius: 999px;
-    font-size: var(--jwpm-pos-font-size-xs);
-    font-weight: 500;
-    background: rgba(255, 255, 255, 0.6);
-    border: 1px solid rgba(209, 213, 219, 0.8);
-    color: var(--jwpm-pos-color-muted);
+.jwpm-pos-header-right {
+	display: flex;
+	align-items: center;
+	gap: 10px;
 }
 
-.jwpm-pos-badge--live {
-    background: rgba(34, 197, 94, 0.1);
-    border-color: rgba(22, 163, 74, 0.35);
-    color: var(--jwpm-pos-color-success);
+.jwpm-branch-select {
+	min-width: 140px;
 }
 
-.jwpm-pos-badge-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 999px;
-    background: var(--jwpm-pos-color-success);
-    box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.3);
+.jwpm-gold-rate-box,
+.jwpm-datetime-box {
+	padding: 6px 10px;
+	background: #f5f5f5;
+	border-radius: 4px;
+	font-size: 13px;
 }
 
-/* Stats row */
-.jwpm-pos-stats {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--jwpm-pos-spacing-md);
-    padding: var(--jwpm-pos-spacing-md) var(--jwpm-pos-spacing-xl);
+/* Stats */
+
+.jwpm-pos-stats-row {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 10px;
+	margin-bottom: 15px;
 }
 
 .jwpm-pos-stat-card {
-    background: var(--jwpm-pos-color-surface);
-    border-radius: var(--jwpm-pos-radius-lg);
-    padding: var(--jwpm-pos-spacing-sm) var(--jwpm-pos-spacing-md);
-    border: 1px solid var(--jwpm-pos-color-border-soft);
-    box-shadow: var(--jwpm-pos-shadow-sm);
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+	padding: 10px;
+	border-radius: 6px;
+	color: #fff;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
 }
 
-.jwpm-pos-stat-label {
-    font-size: var(--jwpm-pos-font-size-xs);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--jwpm-pos-color-muted);
+.jwpm-pos-stat-blue { background: #2563eb; }
+.jwpm-pos-stat-green { background: #16a34a; }
+.jwpm-pos-stat-orange { background: #f97316; }
+.jwpm-pos-stat-pink { background: #ec4899; }
+
+.jwpm-stat-label {
+	font-size: 12px;
+	line-height: 1.4;
 }
 
-.jwpm-pos-stat-value {
-    font-size: var(--jwpm-pos-font-size-lg);
-    font-weight: 600;
+.jwpm-stat-value {
+	font-size: 20px;
+	font-weight: bold;
+	margin-top: 4px;
 }
 
-.jwpm-pos-stat-pill {
-    margin-top: 2px;
-    align-self: flex-start;
-    font-size: var(--jwpm-pos-font-size-xs);
-    padding: 2px 6px;
-    border-radius: 999px;
-    background: var(--jwpm-pos-color-primary-soft);
-    color: var(--jwpm-pos-color-primary);
+/* Columns */
+
+.jwpm-pos-columns {
+	display: grid;
+	grid-template-columns: 3fr 4fr 3fr;
+	gap: 15px;
+	align-items: flex-start;
 }
 
-/* 🟢 یہاں تک POS Header & Stats ختم ہو رہا ہے */
-
-/* 🟢 یہاں سے POS Layout Columns شروع ہو رہا ہے */
-.jwpm-pos-main {
-    padding: 0 var(--jwpm-pos-spacing-xl) var(--jwpm-pos-spacing-xl);
+.jwpm-pos-pane {
+	background: #fff;
+	border: 1px solid #e5e7eb;
+	border-radius: 6px;
+	padding: 0;
+	overflow: hidden;
 }
 
-.jwpm-pos-layout {
-    display: grid;
-    grid-template-columns: 1.2fr 1.7fr 1.2fr;
-    gap: var(--jwpm-pos-spacing-lg);
-    align-items: stretch;
+.jwpm-pane-header {
+	padding: 8px 10px;
+	font-weight: 600;
+	font-size: 14px;
+	color: #fff;
 }
 
-/* Panels */
-.jwpm-pos-panel {
-    background: var(--jwpm-pos-color-surface-alt);
-    border-radius: var(--jwpm-pos-radius-lg);
-    border: 1px solid var(--jwpm-pos-color-border-soft);
-    box-shadow: var(--jwpm-pos-shadow-sm);
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
+.jwpm-pane-blue { background: #1d4ed8; }
+.jwpm-pane-green { background: #15803d; }
+.jwpm-pane-orange { background: #ea580c; }
+.jwpm-pane-pink { background: #db2777; }
+
+.jwpm-pos-search-box,
+.jwpm-pos-cart-box,
+.jwpm-pos-customer,
+.jwpm-pos-payment {
+	padding: 10px;
 }
 
-.jwpm-pos-panel-header {
-    padding: var(--jwpm-pos-spacing-sm) var(--jwpm-pos-spacing-md);
-    border-bottom: 1px solid var(--jwpm-pos-color-border-soft);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--jwpm-pos-spacing-sm);
+/* Inputs */
+
+.jwpm-input,
+.jwpm-select,
+.jwpm-textarea,
+.jwpm-textarea textarea {
+	width: 100%;
+	border: 1px solid #d1d5db;
+	border-radius: 4px;
+	padding: 6px 8px;
+	font-size: 13px;
+	box-sizing: border-box;
 }
 
-.jwpm-pos-panel-title {
-    font-size: var(--jwpm-pos-font-size-sm);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--jwpm-pos-color-muted);
+.jwpm-textarea {
+	min-height: 70px;
+	resize: vertical;
 }
 
-.jwpm-pos-panel-body {
-    padding: var(--jwpm-pos-spacing-md);
-    display: flex;
-    flex-direction: column;
-    gap: var(--jwpm-pos-spacing-sm);
-    min-height: 0;
+.jwpm-input:focus,
+.jwpm-select:focus,
+.jwpm-textarea:focus {
+	outline: none;
+	border-color: #2563eb;
+	box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
 }
 
-.jwpm-pos-panel-footer {
-    padding: var(--jwpm-pos-spacing-sm) var(--jwpm-pos-spacing-md);
-    border-top: 1px solid var(--jwpm-pos-color-border-soft);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--jwpm-pos-spacing-sm);
+.jwpm-select {
+	height: 32px;
 }
 
-/* Column weights */
-.jwpm-pos-col-left,
-.jwpm-pos-col-center,
-.jwpm-pos-col-right {
-    min-height: 0;
+.jwpm-btn-icon,
+.jwpm-btn-primary,
+.jwpm-btn-secondary,
+.jwpm-pill-btn {
+	cursor: pointer;
+	border-radius: 4px;
+	border: none;
+	font-size: 13px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 }
 
-/* 🟢 یہاں تک POS Layout Columns ختم ہو رہا ہے */
-
-/* 🟢 یہاں سے POS Form Elements & Buttons شروع ہو رہا ہے */
-.jwpm-pos input[type="text"],
-.jwpm-pos input[type="number"],
-.jwpm-pos input[type="search"],
-.jwpm-pos input[type="date"],
-.jwpm-pos textarea,
-.jwpm-pos select {
-    width: 100%;
-    padding: 6px 8px;
-    border-radius: var(--jwpm-pos-radius-sm);
-    border: 1px solid var(--jwpm-pos-color-border);
-    font-size: var(--jwpm-pos-font-size-base);
-    color: var(--jwpm-pos-color-text);
-    background: #ffffff;
-    transition: border-color var(--jwpm-pos-transition-fast), box-shadow var(--jwpm-pos-transition-fast), background-color var(--jwpm-pos-transition-fast);
+.jwpm-btn-icon {
+	width: 32px;
+	height: 32px;
+	background: #f3f4f6;
 }
 
-.jwpm-pos input::placeholder,
-.jwpm-pos textarea::placeholder {
-    color: #9ca3af;
+.jwpm-btn-primary {
+	padding: 6px 10px;
+	background: #2563eb;
+	color: #fff;
 }
 
-.jwpm-pos input:focus-visible,
-.jwpm-pos textarea:focus-visible,
-.jwpm-pos select:focus-visible {
-    border-color: var(--jwpm-pos-color-primary);
-    box-shadow: 0 0 0 1px var(--jwpm-pos-color-primary-soft);
-    outline: none;
+.jwpm-btn-secondary {
+	padding: 6px 10px;
+	background: #f3f4f6;
+	color: #111827;
 }
 
-.jwpm-pos button,
-.jwpm-pos .button {
-    font-size: var(--jwpm-pos-font-size-base);
-    border-radius: var(--jwpm-pos-radius-md);
-    border: 1px solid transparent;
-    padding: 6px 12px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    white-space: nowrap;
-    background: #f9fafb;
-    color: var(--jwpm-pos-color-text);
-    transition: background-color var(--jwpm-pos-transition-fast), border-color var(--jwpm-pos-transition-fast), transform var(--jwpm-pos-transition-fast), box-shadow var(--jwpm-pos-transition-fast), opacity var(--jwpm-pos-transition-fast);
+.jwpm-btn-primary:hover {
+	background: #1d4ed8;
 }
 
-.jwpm-pos button:hover,
-.jwpm-pos .button:hover {
-    background: #e5e7eb;
+.jwpm-btn-secondary:hover {
+	background: #e5e7eb;
 }
 
-.jwpm-pos button:disabled,
-.jwpm-pos .button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+/* Search area */
+
+.jwpm-search-row {
+	display: grid;
+	grid-template-columns: 1.8fr 1.1fr 1.1fr auto;
+	gap: 6px;
+	margin-bottom: 8px;
 }
 
-/* Primary button (e.g. Complete Sale) */
-.jwpm-pos .jwpm-pos-btn-primary {
-    background: var(--jwpm-pos-color-primary);
-    color: #ffffff;
-    border-color: var(--jwpm-pos-color-primary);
-    box-shadow: var(--jwpm-pos-shadow-md);
+.jwpm-pos-search-results {
+	max-height: 350px;
+	overflow: auto;
+	border-radius: 4px;
+	border: 1px solid #e5e7eb;
+	background: #f9fafb;
+	padding: 4px;
 }
 
-.jwpm-pos .jwpm-pos-btn-primary:hover {
-    background: #1d4ed8;
-    border-color: #1d4ed8;
-    transform: translateY(-1px);
+.jwpm-pos-search-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 6px 8px;
+	border-radius: 4px;
+	background: #fff;
+	margin-bottom: 4px;
+	cursor: pointer;
 }
 
-/* Ghost / subtle button */
-.jwpm-pos .jwpm-pos-btn-ghost {
-    background: transparent;
-    border-color: transparent;
-    color: var(--jwpm-pos-color-muted);
-}
-.jwpm-pos .jwpm-pos-btn-ghost:hover {
-    background: rgba(148, 163, 184, 0.12);
+.jwpm-pos-search-row:hover {
+	background: #eff6ff;
 }
 
-/* Icon-only small buttons (e.g. remove row) */
-.jwpm-pos .jwpm-pos-btn-icon {
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    border-radius: 999px;
+.jwpm-pos-search-label {
+	font-size: 13px;
 }
 
-/* Loading state */
-.jwpm-pos .is-loading {
-    position: relative;
-    pointer-events: none;
-}
-.jwpm-pos .is-loading::after {
-    content: "";
-    width: 14px;
-    height: 14px;
-    border-radius: 999px;
-    border: 2px solid rgba(255, 255, 255, 0.7);
-    border-top-color: rgba(255, 255, 255, 0.2);
-    animation: jwpm-pos-spin 0.7s linear infinite;
-}
-.jwpm-pos .is-disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
+.jwpm-pos-search-price {
+	font-weight: 600;
+	font-size: 13px;
 }
 
-/* 🟢 یہاں تک POS Form Elements & Buttons ختم ہو رہا ہے */
-
-/* 🟢 یہاں سے POS Cart Table شروع ہو رہا ہے */
-#jwpm-pos-cart-body {
-    font-size: var(--jwpm-pos-font-size-base);
+.jwpm-pos-hint {
+	font-size: 12px;
+	color: #6b7280;
+	padding: 6px;
 }
+
+/* Cart */
 
 .jwpm-pos-cart-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 12px;
 }
 
-.jwpm-pos-cart-table thead th {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    background: #f3f4f6;
-    font-size: var(--jwpm-pos-font-size-xs);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--jwpm-pos-color-muted);
-    padding: 6px 6px;
-    border-bottom: 1px solid var(--jwpm-pos-color-border-soft);
-}
-
-.jwpm-pos-cart-table tbody tr {
-    transition: background-color var(--jwpm-pos-transition-fast);
-}
-
-.jwpm-pos-cart-table tbody tr:nth-child(odd) {
-    background: #f9fafb;
-}
-.jwpm-pos-cart-table tbody tr:nth-child(even) {
-    background: #ffffff;
-}
-.jwpm-pos-cart-table tbody tr:hover {
-    background: #e5f0ff;
-}
-
+.jwpm-pos-cart-table th,
 .jwpm-pos-cart-table td {
-    padding: 4px 6px;
-    border-bottom: 1px dashed var(--jwpm-pos-color-border-soft);
-    vertical-align: middle;
+	border-bottom: 1px solid #e5e7eb;
+	padding: 4px 6px;
+	text-align: left;
 }
 
-.jwpm-pos-cart-name {
-    font-weight: 500;
+.jwpm-pos-cart-table thead {
+	background: #f9fafb;
 }
-.jwpm-pos-cart-code {
-    font-size: var(--jwpm-pos-font-size-xs);
-    color: var(--jwpm-pos-color-muted);
-}
-
-.jwpm-pos-cart-qty,
-.jwpm-pos-cart-discount {
-    width: 70px;
-    text-align: right;
-    font-size: var(--jwpm-pos-font-size-base);
-}
-
-.jwpm-pos-cart-unit,
-.jwpm-pos-cart-total {
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-}
-
-.jwpm-pos-cart-total {
-    font-weight: 600;
-    color: var(--jwpm-pos-color-primary);
-}
-
-.jwpm-pos-cart-remove {
-    color: var(--jwpm-pos-color-danger);
-    border-radius: 999px;
-    padding: 0;
-    width: 26px;
-    height: 26px;
-}
-.jwpm-pos-cart-remove:hover {
-    background: rgba(248, 113, 113, 0.12);
-}
-
-/* Cart footer totals */
-.jwpm-pos-cart-totals {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-top: var(--jwpm-pos-spacing-sm);
-}
-
-.jwpm-pos-cart-total-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: var(--jwpm-pos-font-size-sm);
-    color: var(--jwpm-pos-color-muted);
-}
-
-.jwpm-pos-cart-total-row strong {
-    color: var(--jwpm-pos-color-text);
-}
-
-.jwpm-pos-cart-total-row--grand {
-    margin-top: 4px;
-    padding-top: 4px;
-    border-top: 1px solid var(--jwpm-pos-color-border-soft);
-    font-size: var(--jwpm-pos-font-size-lg);
-    font-weight: 700;
-    color: var(--jwpm-pos-color-primary);
-}
-
-/* 🟢 یہاں تک POS Cart Table ختم ہو رہا ہے */
-
-/* 🟢 یہاں سے POS Customer Search Panel شروع ہو رہا ہے */
-#jwpm-pos-customer-search-input {
-    padding-left: 30px;
-}
-
-.jwpm-pos-customer-search-wrapper {
-    position: relative;
-}
-
-.jwpm-pos-customer-search-icon {
-    position: absolute;
-    inset-inline-start: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 12px;
-    color: #9ca3af;
-}
-
-#jwpm-pos-customer-search-clear {
-    font-size: var(--jwpm-pos-font-size-xs);
-}
-
-/* Results list */
-#jwpm-pos-customer-results {
-    max-height: 260px;
-    overflow: auto;
-    margin-top: var(--jwpm-pos-spacing-sm);
-    border-radius: var(--jwpm-pos-radius-md);
-    border: 1px dashed var(--jwpm-pos-color-border-soft);
-    padding: 2px;
-    background: #f9fafb;
-}
-
-.jwpm-pos-customer-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--jwpm-pos-spacing-sm);
-    padding: 6px 8px;
-    border-radius: var(--jwpm-pos-radius-sm);
-    cursor: pointer;
-    transition: background-color var(--jwpm-pos-transition-fast), transform var(--jwpm-pos-transition-fast);
-}
-
-.jwpm-pos-customer-row-main {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-}
-
-.jwpm-pos-customer-row-name {
-    font-size: var(--jwpm-pos-font-size-sm);
-    font-weight: 500;
-}
-.jwpm-pos-customer-row-phone {
-    font-size: var(--jwpm-pos-font-size-xs);
-    color: var(--jwpm-pos-color-muted);
-}
-
-.jwpm-pos-customer-row:hover {
-    background: #e5f0ff;
-    transform: translateY(-1px);
-}
-
-.jwpm-pos-customer-row.is-selected {
-    background: var(--jwpm-pos-color-primary);
-    color: #ffffff;
-}
-.jwpm-pos-customer-row.is-selected .jwpm-pos-customer-row-phone {
-    color: rgba(255, 255, 255, 0.85);
-}
-
-/* No results / empty text */
-#jwpm-pos-customer-no-results,
-.jwpm-pos-customer-empty {
-    padding: 6px 8px;
-    font-size: var(--jwpm-pos-font-size-xs);
-    color: var(--jwpm-pos-color-muted);
-}
-
-/* Selected customer summary */
-#jwpm-pos-customer-selected-wrapper {
-    margin-top: var(--jwpm-pos-spacing-md);
-    padding: var(--jwpm-pos-spacing-sm) var(--jwpm-pos-spacing-md);
-    border-radius: var(--jwpm-pos-radius-md);
-    border: 1px dashed transparent;
-    background: #f9fafb;
-    display: grid;
-    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.4fr);
-    gap: var(--jwpm-pos-spacing-sm);
-    align-items: center;
-}
-
-#jwpm-pos-customer-selected-wrapper.has-customer {
-    border-color: rgba(34, 197, 94, 0.4);
-    background: linear-gradient(90deg, #ecfdf3, #f9fafb);
-}
-
-.jwpm-pos-customer-summary-main {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    font-size: var(--jwpm-pos-font-size-sm);
-}
-
-.jwpm-pos-customer-summary-main strong {
-    font-weight: 600;
-}
-
-.jwpm-pos-customer-summary-meta {
-    font-size: var(--jwpm-pos-font-size-xs);
-    color: var(--jwpm-pos-color-muted);
-}
-
-.jwpm-pos-customer-loyalty-badge {
-    justify-self: flex-end;
-    align-self: flex-start;
-    padding: 3px 8px;
-    border-radius: 999px;
-    font-size: var(--jwpm-pos-font-size-xs);
-    background: rgba(236, 72, 153, 0.08);
-    color: var(--jwpm-pos-color-accent);
-    border: 1px solid rgba(236, 72, 153, 0.45);
-}
 
-#jwpm-pos-customer-clear-selected {
-    font-size: var(--jwpm-pos-font-size-xs);
+.jwpm-photo-36 {
+	width: 36px;
+	height: 36px;
+	background: #e5e7eb;
+	border-radius: 50%;
 }
 
-/* 🟢 یہاں تک POS Customer Search Panel ختم ہو رہا ہے */
-
-/* 🟢 یہاں سے POS Payment Panel شروع ہو رہا ہے */
-.jwpm-pos-payment-methods {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.jwpm-pos-payment-methods label {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 8px;
-    border-radius: 999px;
-    border: 1px solid var(--jwpm-pos-color-border-soft);
-    background: #f9fafb;
-    font-size: var(--jwpm-pos-font-size-xs);
-    cursor: pointer;
-    transition: background-color var(--jwpm-pos-transition-fast), border-color var(--jwpm-pos-transition-fast), color var(--jwpm-pos-transition-fast), box-shadow var(--jwpm-pos-transition-fast);
-}
-
-.jwpm-pos-payment-methods input[type="radio"] {
-    display: none;
+.jwpm-cart-summary-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 10px;
+	margin-top: 8px;
 }
 
-.jwpm-pos-payment-methods label.is-active {
-    background: var(--jwpm-pos-color-primary);
-    color: #ffffff;
-    border-color: var(--jwpm-pos-color-primary);
-    box-shadow: var(--jwpm-pos-shadow-sm);
+.jwpm-cart-discount {
+	max-width: 200px;
 }
 
-/* Payment amounts grid */
-.jwpm-pos-payment-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--jwpm-pos-spacing-sm);
-}
+/* Pills */
 
-.jwpm-pos-payment-field {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    font-size: var(--jwpm-pos-font-size-xs);
+.jwpm-pos-pill-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
 }
 
-.jwpm-pos-payment-label {
-    color: var(--jwpm-pos-color-muted);
+.jwpm-pill {
+	font-size: 11px;
+	background: #eff6ff;
+	color: #1d4ed8;
+	padding: 4px 8px;
+	border-radius: 9999px;
 }
 
-.jwpm-pos-payment-label strong {
-    color: var(--jwpm-pos-color-text);
+.jwpm-pill-btn {
+	font-size: 12px;
+	padding: 4px 8px;
+	background: #f3f4f6;
+	color: #111827;
+	margin: 2px;
 }
 
-/* Totals chips */
-.jwpm-pos-payment-totals {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-top: var(--jwpm-pos-spacing-sm);
+.jwpm-pill-btn:hover {
+	background: #e5e7eb;
 }
 
-.jwpm-pos-payment-chip {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 4px 8px;
-    border-radius: 999px;
-    background: #f9fafb;
-    font-size: var(--jwpm-pos-font-size-xs);
-    color: var(--jwpm-pos-color-muted);
-}
+/* Right pane */
 
-.jwpm-pos-payment-chip strong {
-    font-size: var(--jwpm-pos-font-size-sm);
-    color: var(--jwpm-pos-color-text);
+.jwpm-pos-box {
+	margin-bottom: 10px;
+	border: 1px solid #e5e7eb;
+	border-radius: 6px;
+	overflow: hidden;
+	background: #fff;
 }
 
-.jwpm-pos-payment-chip--due strong {
-    color: var(--jwpm-pos-color-warning);
+.jwpm-pos-box .jwpm-pane-header {
+	border-radius: 6px 6px 0 0;
 }
-.jwpm-pos-payment-chip--total strong {
-    color: var(--jwpm-pos-color-primary);
-    font-weight: 700;
-}
 
-/* Installments */
-.jwpm-pos-installments-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: var(--jwpm-pos-spacing-sm);
-    font-size: var(--jwpm-pos-font-size-xs);
+.jwpm-pos-customer,
+.jwpm-pos-payment {
+	padding: 10px;
 }
 
-#jwpm-pos-installment-body {
-    font-size: var(--jwpm-pos-font-size-xs);
+.jwpm-customer-search {
+	display: flex;
+	gap: 6px;
+	margin-bottom: 8px;
 }
 
-.jwpm-pos-installment-row td {
-    padding: 3px 4px;
-    border-bottom: 1px dashed var(--jwpm-pos-color-border-soft);
+.jwpm-customer-fields label,
+.jwpm-pos-payment label {
+	font-size: 12px;
+	display: block;
+	margin-top: 6px;
+	margin-bottom: 2px;
 }
 
-#jwpm-pos-installment-per-amount {
-    margin-top: 4px;
-    font-size: var(--jwpm-pos-font-size-sm);
-    font-weight: 600;
-    color: var(--jwpm-pos-color-success);
+.jwpm-total-row {
+	display: flex;
+	justify-content: space-between;
+	font-size: 13px;
+	margin-bottom: 2px;
 }
 
-#jwpm-pos-payment-notice {
-    margin-top: 4px;
-    font-size: var(--jwpm-pos-font-size-xs);
-    color: var(--jwpm-pos-color-warning);
+.jwpm-grand-total {
+	margin-top: 8px;
+	padding: 8px 10px;
+	border-radius: 4px;
+	background: #111827;
+	color: #f9fafb;
+	display: flex;
+	justify-content: space-between;
+	font-weight: 600;
 }
 
-/* 🟢 یہاں تک POS Payment Panel ختم ہو رہا ہے */
+/* Installment box */
 
-/* 🟢 یہاں سے POS Complete Sale & Overlay شروع ہو رہا ہے */
-#jwpm-pos-complete-sale-error {
-    margin-top: 4px;
-    padding: 4px 8px;
-    border-radius: var(--jwpm-pos-radius-sm);
-    border: 1px solid rgba(248, 113, 113, 0.4);
-    background: rgba(254, 242, 242, 0.8);
-    color: var(--jwpm-pos-color-danger);
-    font-size: var(--jwpm-pos-font-size-xs);
-    display: none;
+.jwpm-installment-box {
+	margin-top: 6px;
+	padding: 6px;
+	border-radius: 4px;
+	background: #fef3c7;
 }
 
-#jwpm-pos-loading-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(15, 23, 42, 0.05);
-    backdrop-filter: blur(1px);
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity var(--jwpm-pos-transition-fast), visibility var(--jwpm-pos-transition-fast);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 20;
-}
+/* Modal */
 
-#jwpm-pos-loading-overlay.is-visible {
-    opacity: 1;
-    visibility: visible;
+.jwpm-modal {
+	position: fixed;
+	inset: 0;
+	z-index: 9999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
-#jwpm-pos-loading-overlay::before {
-    content: "";
-    width: 32px;
-    height: 32px;
-    border-radius: 999px;
-    border: 3px solid rgba(37, 99, 235, 0.3);
-    border-top-color: var(--jwpm-pos-color-primary);
-    animation: jwpm-pos-spin 0.7s linear infinite;
+.jwpm-modal-backdrop {
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.35);
 }
 
-/* 🟢 یہاں تک POS Complete Sale & Overlay ختم ہو رہا ہے */
-
-/* 🟢 یہاں سے POS Old Gold & Misc شروع ہو رہا ہے */
-/* Generic modal wrapper (if used for Old Gold) */
-.jwpm-pos-modal {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: var(--jwpm-pos-spacing-xl);
-    background: rgba(15, 23, 42, 0.45);
+.jwpm-modal-dialog {
+	position: relative;
+	background: #fff;
+	border-radius: 6px;
+	padding: 10px;
+	min-width: 280px;
+	max-width: 360px;
+	box-shadow: 0 10px 25px rgba(15, 23, 42, 0.25);
+	z-index: 1;
 }
 
-.jwpm-pos-modal-dialog {
-    width: 100%;
-    max-width: 640px;
-    background: #ffffff;
-    border-radius: var(--jwpm-pos-radius-lg);
-    box-shadow: var(--jwpm-pos-shadow-md);
-    overflow: hidden;
+.jwpm-modal-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 8px;
 }
 
-.jwpm-pos-modal-header,
-.jwpm-pos-modal-footer {
-    padding: var(--jwpm-pos-spacing-md) var(--jwpm-pos-spacing-lg);
-    border-bottom: 1px solid var(--jwpm-pos-color-border-soft);
-}
-.jwpm-pos-modal-footer {
-    border-top: 1px solid var(--jwpm-pos-color-border-soft);
-    border-bottom: none;
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--jwpm-pos-spacing-sm);
+.jwpm-modal-close {
+	background: none;
+	border: none;
+	font-size: 18px;
+	cursor: pointer;
 }
-.jwpm-pos-modal-body {
-    padding: var(--jwpm-pos-spacing-md) var(--jwpm-pos-spacing-lg);
-}
 
-.jwpm-pos-modal-title {
-    font-size: var(--jwpm-pos-font-size-lg);
-    font-weight: 600;
+.jwpm-modal-body label {
+	font-size: 12px;
+	display: block;
+	margin-top: 6px;
+	margin-bottom: 2px;
 }
 
-/* Toasts helper container (if JS uses it) */
-.jwpm-pos-toast-container {
-    position: fixed;
-    inset-inline-end: 20px;
-    inset-block-start: 70px;
-    z-index: 9999;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+.jwpm-modal-footer {
+	margin-top: 10px;
+	display: flex;
+	justify-content: flex-end;
+	gap: 6px;
 }
 
-/* 🟢 یہاں تک POS Old Gold & Misc ختم ہو رہا ہے */
-
-/* 🟢 یہاں سے RTL Support شروع ہو رہا ہے */
-.rtl #jwpm-pos-root.jwpm-pos {
-    direction: rtl;
-}
+/* Toast */
 
-.rtl .jwpm-pos-header,
-.rtl .jwpm-pos-stats,
-.rtl .jwpm-pos-layout,
-.rtl .jwpm-pos-panel,
-.rtl .jwpm-pos-panel-header,
-.rtl .jwpm-pos-panel-body,
-.rtl .jwpm-pos-panel-footer {
-    text-align: right;
+.jwpm-toast {
+	position: fixed;
+	right: 15px;
+	bottom: 15px;
+	background: #111827;
+	color: #f9fafb;
+	padding: 8px 12px;
+	font-size: 13px;
+	border-radius: 4px;
+	box-shadow: 0 4px 10px rgba(15, 23, 42, 0.4);
+	z-index: 10000;
 }
 
-.rtl #jwpm-pos-customer-search-input {
-    padding-left: 8px;
-    padding-right: 30px;
-}
+/* Utility */
 
-.rtl .jwpm-pos-customer-search-icon {
-    inset-inline-start: auto;
-    inset-inline-end: 8px;
+.jwpm-danger-text {
+	color: #b91c1c;
 }
-
-/* 🟢 یہاں تک RTL Support ختم ہو رہا ہے */
 
-/* 🟢 یہاں سے Responsive Breakpoints شروع ہو رہا ہے */
-@media (max-width: 1200px) {
-    .jwpm-pos-stats {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
+/* Responsive */
 
-    .jwpm-pos-layout {
-        grid-template-columns: 1.3fr 1.7fr;
-        grid-template-areas:
-            "left center"
-            "right right";
-    }
-    .jwpm-pos-col-left {
-        grid-area: left;
-    }
-    .jwpm-pos-col-center {
-        grid-area: center;
-    }
-    .jwpm-pos-col-right {
-        grid-area: right;
-    }
-}
+@media (max-width: 1100px) {
+	.jwpm-pos-columns {
+		grid-template-columns: 1fr 1fr;
+		grid-template-rows: auto auto;
+	}
 
-@media (max-width: 960px) {
-    .jwpm-pos-main {
-        padding-inline: var(--jwpm-pos-spacing-md);
-    }
-    .jwpm-pos-layout {
-        grid-template-columns: 1fr;
-        grid-template-areas:
-            "center"
-            "left"
-            "right";
-    }
+	.jwpm-pos-right {
+		grid-column: 1 / -1;
+	}
 }
 
-@media (max-width: 640px) {
-    .jwpm-pos-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--jwpm-pos-spacing-sm);
-    }
-    .jwpm-pos-stats {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        padding-inline: var(--jwpm-pos-spacing-md);
-    }
-    #jwpm-pos-customer-selected-wrapper {
-        grid-template-columns: 1fr;
-    }
-}
+@media (max-width: 768px) {
+	.jwpm-pos-columns {
+		grid-template-columns: 1fr;
+	}
 
-/* 🟢 یہاں تک Responsive Breakpoints ختم ہو رہا ہے */
+	.jwpm-pos-stats-row {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
 
-/* Animations */
-@keyframes jwpm-pos-spin {
-    to {
-        transform: rotate(360deg);
-    }
+	.jwpm-search-row {
+		grid-template-columns: 1fr 1fr;
+		grid-auto-rows: auto;
+	}
 }
-
-/* 🔴 یہاں پر POS Layout & Styling ختم ہو رہا ہے */
 
 /* ✅ Syntax verified block end */
-
