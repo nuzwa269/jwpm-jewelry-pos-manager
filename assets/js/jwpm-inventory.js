@@ -542,3 +542,1013 @@
 	});
 	// 🔴 یہاں پر [DOM Ready Init] ختم ہو رہا ہے
 })(jQuery);
+/** Part 3 — Template-based Inventory UI (Full Production Mode) */
+/**
+ * خلاصہ:
+ * - PHP میں دیے گئے تمام <template> استعمال کر کے UI رینڈر کرنا
+ * - Summary Cards، Filters، Tabs، Table، Detail Panel سب Active کرنا
+ * - Item CRUD (Save / Delete)، Demo Data، Import، Print کو AJAX کے ساتھ جوڑنا
+ * - کوئی dummy / placeholder UI نہیں، صرف حقیقی Inventory گرِڈ
+ */
+
+(function (window, $) {
+	"use strict";
+
+	// 🟢 یہاں سے [لوکل Toast Helper] شروع ہو رہا ہے
+	function notify(message) {
+		// مستقبل میں یہاں custom toast بھی لگا سکتے ہیں، فی الحال سادہ (alert)
+		window.alert(message);
+	}
+	// 🔴 یہاں پر [لوکل Toast Helper] ختم ہو رہا ہے
+
+	// 🟢 یہاں سے [InventoryTemplateUI آبجیکٹ] شروع ہو رہا ہے
+	var InventoryTemplateUI = {
+		root: null,
+		common: null,
+		state: {
+			page: 1,
+			per_page:
+				typeof window.jwpmInventoryData !== "undefined" &&
+				window.jwpmInventoryData.per_page
+					? window.jwpmInventoryData.per_page
+					: 50,
+			total: 0,
+			filters: {},
+		},
+		els: {},
+
+		init: function () {
+			// Root چیک کریں
+			this.root = document.getElementById("jwpm-inventory-root");
+			if (!this.root) {
+				return;
+			}
+
+			// لازمی ڈیٹا چیک
+			if (typeof window.jwpmInventoryData === "undefined") {
+				console.warn("jwpmInventoryData missing. Inventory UI init skipped.");
+				return;
+			}
+
+			this.common = window.jwpmCommon || {};
+
+			// UI Templates سے ماؤنٹ
+			this.mountFromTemplates();
+			this.cacheElements();
+			this.bindEvents();
+
+			// پہلی بار ڈیٹا لوڈ کریں
+			this.loadItems();
+		},
+
+		// 🟢 یہاں سے [Templates ماؤنٹ] شروع ہو رہا ہے
+		mountFromTemplates: function () {
+			var frag = document.createDocumentFragment();
+
+			// Summary
+			var summaryFrag =
+				this.common.cloneTemplate &&
+				this.common.cloneTemplate("jwpm-inventory-summary-template");
+			if (summaryFrag) {
+				frag.appendChild(summaryFrag);
+			}
+
+			// Filters
+			var filtersFrag =
+				this.common.cloneTemplate &&
+				this.common.cloneTemplate("jwpm-inventory-filters-template");
+			if (filtersFrag) {
+				frag.appendChild(filtersFrag);
+			}
+
+			// Main layout (tabs + table + pagination + detail panel)
+			var mainFrag =
+				this.common.cloneTemplate &&
+				this.common.cloneTemplate("jwpm-inventory-main-template");
+			if (mainFrag) {
+				frag.appendChild(mainFrag);
+			}
+
+			// Root صاف کر کے نیا UI ڈال دیں
+			this.root.innerHTML = "";
+			this.root.appendChild(frag);
+		},
+		// 🔴 یہاں پر [Templates ماؤنٹ] ختم ہو رہا ہے
+
+		// 🟢 یہاں سے [Elements Cache] شروع ہو رہا ہے
+		cacheElements: function () {
+			var root = this.root;
+
+			this.els.summaryCards = root.querySelectorAll(
+				".jwpm-inv-summary-card[data-metric]"
+			);
+			this.els.filterInputs = root.querySelectorAll(".js-jwpm-filter-input");
+			this.els.filterApply = root.querySelector(".js-jwpm-filter-apply");
+			this.els.filterReset = root.querySelector(".js-jwpm-filter-reset");
+
+			this.els.tabsWrapper = root.querySelector(".js-jwpm-tabs");
+			this.els.tabBodies = root.querySelectorAll(".js-jwpm-tab-body");
+
+			this.els.itemsTable = root.querySelector(".js-jwpm-items-table");
+			this.els.itemsTbody = root.querySelector(".js-jwpm-items-tbody");
+			this.els.pagination = root.querySelector(".js-jwpm-pagination");
+			this.els.pagePrev = root.querySelector(".js-jwpm-page-prev");
+			this.els.pageNext = root.querySelector(".js-jwpm-page-next");
+			this.els.pageInfo = root.querySelector(".js-jwpm-page-info");
+
+			this.els.btnNewItem = root.querySelector(".js-jwpm-open-item-modal");
+			this.els.btnImport = root.querySelector(".js-jwpm-open-import-modal");
+			this.els.btnPrint = root.querySelector(".js-jwpm-print-table");
+			this.els.btnDemo = root.querySelector(".js-jwpm-open-demo-modal");
+
+			this.els.detailPanel = root.querySelector(".js-jwpm-detail-panel");
+			this.els.detailClose = root.querySelector(".js-jwpm-detail-close");
+			this.els.detailContent = root.querySelector(".js-jwpm-detail-content");
+		},
+		// 🔴 یہاں پر [Elements Cache] ختم ہو رہا ہے
+
+		// 🟢 یہاں سے [Events Binding] شروع ہو رہا ہے
+		bindEvents: function () {
+			var self = this;
+
+			// Filters state update
+			if (this.els.filterInputs && this.els.filterInputs.length) {
+				this.els.filterInputs.forEach(function (el) {
+					var update = function () {
+						var key = el.getAttribute("data-filter-key");
+						if (!key) return;
+						var value = el.value;
+						if (value === "" || value === null) {
+							delete self.state.filters[key];
+						} else {
+							self.state.filters[key] = value;
+						}
+					};
+
+					el.addEventListener("change", update);
+					// Search کے لیے Enter پر apply
+					if (
+						el.tagName === "INPUT" &&
+						(el.type === "text" || el.type === "search")
+					) {
+						el.addEventListener("keyup", function (e) {
+							if (e.key === "Enter") {
+								update();
+								self.state.page = 1;
+								self.loadItems();
+							}
+						});
+					}
+				});
+			}
+
+			// Apply Filters
+			if (this.els.filterApply) {
+				this.els.filterApply.addEventListener("click", function () {
+					self.state.page = 1;
+					self.loadItems();
+				});
+			}
+
+			// Reset Filters
+			if (this.els.filterReset) {
+				this.els.filterReset.addEventListener("click", function () {
+					self.resetFilters();
+				});
+			}
+
+			// Tabs switching
+			if (this.els.tabsWrapper) {
+				this.els.tabsWrapper.addEventListener("click", function (e) {
+					var btn = e.target.closest("button[data-tab]");
+					if (!btn) return;
+					var tab = btn.getAttribute("data-tab");
+					self.switchTab(tab);
+				});
+			}
+
+			// New Item
+			if (this.els.btnNewItem) {
+				this.els.btnNewItem.addEventListener("click", function () {
+					self.openItemModal(null);
+				});
+			}
+
+			// Import
+			if (this.els.btnImport) {
+				this.els.btnImport.addEventListener("click", function () {
+					self.openImportModal();
+				});
+			}
+
+			// Print
+			if (this.els.btnPrint) {
+				this.els.btnPrint.addEventListener("click", function () {
+					self.printTable();
+				});
+			}
+
+			// Demo Data
+			if (this.els.btnDemo) {
+				this.els.btnDemo.addEventListener("click", function () {
+					self.openDemoModal();
+				});
+			}
+
+			// Detail Panel close
+			if (this.els.detailClose && this.els.detailPanel) {
+				this.els.detailClose.addEventListener("click", function () {
+					self.hideDetailPanel();
+				});
+			}
+
+			// Row actions (View / Edit / Adjust / Delete) + bulk select
+			if (this.els.itemsTbody) {
+				this.els.itemsTbody.addEventListener("click", function (e) {
+					var btn = e.target.closest("button");
+					if (!btn) return;
+
+					var row = e.target.closest("tr[data-item-id]");
+					if (!row) return;
+					var id = Number(row.getAttribute("data-item-id") || 0);
+					var itemJson = row.getAttribute("data-item-json");
+					var itemData = {};
+					if (itemJson) {
+						try {
+							itemData = JSON.parse(itemJson);
+						} catch (err) {
+							console.warn("Invalid item JSON on row:", err);
+						}
+					}
+
+					if (btn.classList.contains("js-jwpm-view-item")) {
+						self.showDetailPanel(itemData);
+					} else if (btn.classList.contains("js-jwpm-edit-item")) {
+						self.openItemModal(itemData);
+					} else if (btn.classList.contains("js-jwpm-adjust-stock")) {
+						// Future: Adjust stock modal
+						notify("Stock adjustment فیچر جلد آئے گا۔");
+					} else if (btn.classList.contains("js-jwpm-delete-item")) {
+						self.deleteItem(id);
+					}
+				});
+			}
+
+			// Pagination
+			if (this.els.pagePrev) {
+				this.els.pagePrev.addEventListener("click", function () {
+					if (self.state.page > 1) {
+						self.state.page--;
+						self.loadItems();
+					}
+				});
+			}
+			if (this.els.pageNext) {
+				this.els.pageNext.addEventListener("click", function () {
+					var totalPages = Math.max(
+						1,
+						Math.ceil(self.state.total / self.state.per_page)
+					);
+					if (self.state.page < totalPages) {
+						self.state.page++;
+						self.loadItems();
+					}
+				});
+			}
+		},
+		// 🔴 یہاں پر [Events Binding] ختم ہو رہا ہے
+
+		// 🟢 یہاں سے [Tabs Switching] شروع ہو رہا ہے
+		switchTab: function (tab) {
+			if (!tab) return;
+			// Buttons
+			if (this.els.tabsWrapper) {
+				this.els.tabsWrapper
+					.querySelectorAll("button[data-tab]")
+					.forEach(function (btn) {
+						var t = btn.getAttribute("data-tab");
+						if (t === tab) {
+							btn.classList.add("is-active");
+						} else {
+							btn.classList.remove("is-active");
+						}
+					});
+			}
+			// Bodies
+			if (this.els.tabBodies && this.els.tabBodies.length) {
+				this.els.tabBodies.forEach(function (body) {
+					var t = body.getAttribute("data-tab");
+					if (t === tab) {
+						body.removeAttribute("hidden");
+					} else {
+						body.setAttribute("hidden", "hidden");
+					}
+				});
+			}
+		},
+		// 🔴 یہاں پر [Tabs Switching] ختم ہو رہا ہے
+
+		// 🟢 یہاں سے [Filters Reset] شروع ہو رہا ہے
+		resetFilters: function () {
+			if (this.els.filterInputs && this.els.filterInputs.length) {
+				this.els.filterInputs.forEach(function (el) {
+					el.value = "";
+				});
+			}
+			this.state.filters = {};
+			this.state.page = 1;
+			this.loadItems();
+		},
+		// 🔴 یہاں پر [Filters Reset] ختم ہو رہا ہے
+
+		// 🟢 یہاں سے [Loading Indicator] شروع ہو رہا ہے
+		showLoading: function (state) {
+			var loader = this.root.querySelector(".jwpm-loading-state");
+			if (!loader) return;
+			loader.style.display = state ? "flex" : "none";
+		},
+		// 🔴 یہاں پر [Loading Indicator] ختم ہو رہا ہے
+
+		// 🟢 یہاں سے [Items Load via AJAX] شروع ہو رہا ہے
+		loadItems: function () {
+			var self = this;
+			var req = {
+				page: this.state.page,
+				per_page: this.state.per_page,
+			};
+
+			// Filters merge
+			for (var k in this.state.filters) {
+				if (Object.prototype.hasOwnProperty.call(this.state.filters, k)) {
+					req[k] = this.state.filters[k];
+				}
+			}
+
+			this.showLoading(true);
+
+			var action =
+				window.jwpmInventoryData.list_action ||
+				"jwpm_inventory_get_items";
+
+			if (!this.common.wpAjax) {
+				console.warn("jwpmCommon.wpAjax missing, fallback to window.jwpm_send_ajax_request");
+				if (typeof window.jwpm_send_ajax_request === "function") {
+					window.jwpm_send_ajax_request(
+						action,
+						req,
+						function (data) {
+							self.showLoading(false);
+							self.handleListResponse({ success: true, data: data });
+						},
+						function (data) {
+							self.showLoading(false);
+							self.handleListResponse({ success: false, data: data });
+						}
+					);
+					return;
+				}
+			}
+
+			// Promise based helper
+			this.common
+				.wpAjax(action, req)
+				.then(function (res) {
+					self.showLoading(false);
+					self.handleListResponse(res || { success: false });
+				});
+		},
+
+		handleListResponse: function (res) {
+			if (!res || !res.success) {
+				var msg =
+					res && res.data && res.data.message
+						? res.data.message
+						: "Unable to load inventory items.";
+				notify(msg);
+				this.renderTable([]);
+				this.updateSummary(null, []);
+				this.updatePagination();
+				return;
+			}
+
+			var data = res.data || {};
+			var items = data.items || [];
+			this.state.total = Number(data.total || items.length || 0);
+			// اگر سرور سے per_page آئے تو اپ ڈیٹ کر لیں
+			if (data.per_page) {
+				this.state.per_page = Number(data.per_page);
+			}
+			// Summary
+			this.updateSummary(data.summary || null, items);
+			// Filters options (اگر server سے آئے ہوں)
+			this.updateFiltersOptions(data);
+
+			// Table render + pagination
+			this.renderTable(items);
+			this.updatePagination();
+		},
+		// 🔴 یہاں پر [Items Load via AJAX] ختم ہو رہا ہے
+
+		// 🟢 یہاں سے [Summary Cards Update] شروع ہو رہا ہے
+		updateSummary: function (summary, items) {
+			var total_items = 0;
+			var total_weight = 0;
+			var low_stock = 0;
+			var dead_stock = 0;
+
+			if (summary) {
+				total_items = Number(summary.total_items || 0);
+				total_weight = Number(summary.total_weight || 0);
+				low_stock = Number(summary.low_stock || 0);
+				dead_stock = Number(summary.dead_stock || 0);
+			} else if (items && items.length) {
+				total_items = items.length;
+				items.forEach(function (itm) {
+					var gw = Number(itm.gross_weight || 0);
+					total_weight += gw;
+					if (itm.status === "low_stock") low_stock++;
+					if (itm.status === "dead_stock") dead_stock++;
+				});
+			}
+
+			if (!this.els.summaryCards || !this.els.summaryCards.length) return;
+
+			this.els.summaryCards.forEach(function (card) {
+				var metric = card.getAttribute("data-metric");
+				var span = card.querySelector(".js-jwpm-summary-value");
+				if (!span) return;
+				var val = 0;
+				if (metric === "total_items") val = total_items;
+				else if (metric === "total_weight") val = total_weight.toFixed(3);
+				else if (metric === "low_stock") val = low_stock;
+				else if (metric === "dead_stock") val = dead_stock;
+				span.textContent = val;
+			});
+		},
+		// 🔴 یہاں پر [Summary Cards Update] ختم ہو رہا ہے
+
+		// 🟢 یہاں سے [Filters Options Update] شروع ہو رہا ہے
+		/**
+		 * اگر سرور response میں categories / metals / branches وغیرہ آئیں
+		 * تو انہیں متعلقہ dropdowns میں inject کریں۔
+		 */
+		updateFiltersOptions: function (data) {
+			if (!data) return;
+
+			// Helper to fill <select>
+			function fillSelect(selectEl, list) {
+				if (!selectEl || !Array.isArray(list)) return;
+				// پہلی option (All ...) کو بچا کر باقی صاف کر دیں
+				var firstOption = selectEl.querySelector("option");
+				selectEl.innerHTML = "";
+				if (firstOption) {
+					selectEl.appendChild(firstOption);
+				}
+				list.forEach(function (item) {
+					var opt = document.createElement("option");
+					if (typeof item === "string") {
+						opt.value = item;
+						opt.textContent = item;
+					} else {
+						opt.value = item.value || item.id || "";
+						opt.textContent = item.label || item.name || item.value || "";
+					}
+					selectEl.appendChild(opt);
+				});
+			}
+
+			var catSelect = this.root.querySelector("#jwpm-inv-filter-category");
+			var metalSelect = this.root.querySelector("#jwpm-inv-filter-metal");
+			var branchSelect = this.root.querySelector("#jwpm-inv-filter-branch");
+
+			if (data.categories) fillSelect(catSelect, data.categories);
+			if (data.metals) fillSelect(metalSelect, data.metals);
+			if (data.branches) fillSelect(branchSelect, data.branches);
+		},
+		// 🔴 یہاں پر [Filters Options Update] ختم ہو رہا ہے
+
+		// 🟢 یہاں سے [Table Render] شروع ہو رہا ہے
+		renderTable: function (items) {
+			if (!this.els.itemsTbody) return;
+			var tbody = this.els.itemsTbody;
+			tbody.innerHTML = "";
+
+			if (!items || !items.length) {
+				var trEmpty = document.createElement("tr");
+				trEmpty.className = "jwpm-table-empty";
+				var td = document.createElement("td");
+				td.colSpan = 11;
+				td.textContent =
+					"No items found. Try adjusting filters or create a new item.";
+				trEmpty.appendChild(td);
+				tbody.appendChild(trEmpty);
+				return;
+			}
+
+			var self = this;
+
+			items.forEach(function (itm) {
+				var frag =
+					self.common.cloneTemplate &&
+					self.common.cloneTemplate("jwpm-inventory-row-template");
+				var tr;
+				if (frag) {
+					tr = frag.querySelector("tr");
+				}
+				if (!tr) {
+					// Fallback simple row (should rarely happen)
+					tr = document.createElement("tr");
+					tr.innerHTML =
+						"<td></td><td></td><td></td><td></td><td></td><td></td>" +
+						"<td></td><td></td><td></td><td></td><td></td>";
+				}
+
+				tr.setAttribute("data-item-id", itm.id || 0);
+				tr.setAttribute("data-item-json", JSON.stringify(itm));
+
+				var tagCell = tr.querySelector(".js-jwpm-tag");
+				var catCell = tr.querySelector(".js-jwpm-category");
+				var karatCell = tr.querySelector(".js-jwpm-karat");
+				var grossCell = tr.querySelector(".js-jwpm-gross");
+				var netCell = tr.querySelector(".js-jwpm-net");
+				var stonesCell = tr.querySelector(".js-jwpm-stones");
+				var branchCell = tr.querySelector(".js-jwpm-branch");
+				var statusBadge = tr.querySelector(".js-jwpm-status-badge");
+				var photoCell = tr.querySelector(".js-jwpm-photo");
+
+				if (tagCell) {
+					tagCell.textContent = itm.tag_serial || itm.sku || "-";
+				}
+				if (catCell) {
+					catCell.textContent = itm.category || "-";
+				}
+				if (karatCell) {
+					karatCell.textContent = itm.karat || "";
+				}
+				if (grossCell) {
+					grossCell.textContent = itm.gross_weight || "";
+				}
+				if (netCell) {
+					netCell.textContent = itm.net_weight || "";
+				}
+				if (stonesCell) {
+					var stonesText = "-";
+					if (itm.stone_type) {
+						stonesText = itm.stone_type;
+						if (itm.stone_carat) {
+							stonesText += " (" + itm.stone_carat + "ct)";
+						}
+						if (itm.stone_qty) {
+							stonesText += " x" + itm.stone_qty;
+						}
+					}
+					stonesCell.textContent = stonesText;
+				}
+				if (branchCell) {
+					branchCell.textContent = itm.branch_name || itm.branch_label || "";
+				}
+				if (statusBadge) {
+					var status = itm.status || "in_stock";
+					statusBadge.textContent = status.replace("_", " ");
+					statusBadge.className =
+						"jwpm-status-badge js-jwpm-status-badge jwpm-status-" + status;
+				}
+				if (photoCell) {
+					// Future: image thumb
+					photoCell.innerHTML = '<div class="jwpm-photo-placeholder"></div>';
+				}
+
+				tbody.appendChild(tr);
+			});
+		},
+		// 🔴 یہاں پر [Table Render] ختم ہو رہا ہے
+
+		// 🟢 یہاں سے [Pagination Update] شروع ہو رہا ہے
+		updatePagination: function () {
+			if (!this.els.pageInfo || !this.els.pagePrev || !this.els.pageNext) {
+				return;
+			}
+			var totalPages = Math.max(
+				1,
+				Math.ceil(this.state.total / this.state.per_page)
+			);
+
+			this.els.pageInfo.textContent =
+				"Page " +
+				this.state.page +
+				" of " +
+				totalPages +
+				" (Total: " +
+				this.state.total +
+				")";
+
+			this.els.pagePrev.disabled = this.state.page <= 1;
+			this.els.pageNext.disabled = this.state.page >= totalPages;
+		},
+		// 🔴 یہاں پر [Pagination Update] ختم ہو رہا ہے
+
+		// 🟢 یہاں سے [Detail Panel] شروع ہو رہا ہے
+		showDetailPanel: function (item) {
+			if (!this.els.detailPanel || !this.els.detailContent) return;
+			if (!item) {
+				this.els.detailContent.textContent = "No data.";
+			} else {
+				this.els.detailContent.innerHTML =
+					'<h2 style="margin-top:0;">' +
+					(item.tag_serial || item.sku || "Item") +
+					"</h2>" +
+					"<p><strong>Category:</strong> " +
+					(item.category || "-") +
+					"</p>" +
+					"<p><strong>Karat:</strong> " +
+					(item.karat || "") +
+					"</p>" +
+					"<p><strong>Gross / Net:</strong> " +
+					(item.gross_weight || "0") +
+					" / " +
+					(item.net_weight || "0") +
+					"</p>" +
+					"<p><strong>Status:</strong> " +
+					(item.status || "") +
+					"</p>" +
+					"<p><strong>Branch:</strong> " +
+					(item.branch_name || "") +
+					"</p>" +
+					"<p><strong>Notes:</strong> " +
+					(item.notes || "") +
+					"</p>";
+			}
+			this.els.detailPanel.removeAttribute("hidden");
+		},
+
+		hideDetailPanel: function () {
+			if (!this.els.detailPanel) return;
+			this.els.detailPanel.setAttribute("hidden", "hidden");
+		},
+		// 🔴 یہاں پر [Detail Panel] ختم ہو رہا ہے
+
+		// 🟢 یہاں سے [Item Modal] شروع ہو رہا ہے
+		openItemModal: function (item) {
+			var tpl =
+				this.common.cloneTemplate &&
+				this.common.cloneTemplate("jwpm-inventory-item-modal-template");
+			var modalRoot;
+			if (tpl) {
+				modalRoot = tpl.querySelector(".jwpm-modal");
+			}
+			if (!modalRoot) {
+				notify("Modal template not found.");
+				return;
+			}
+
+			// Clone کو body میں add کریں
+			document.body.appendChild(tpl);
+
+			var modal = document.body.querySelector(".jwpm-modal-item:last-of-type");
+			var form = modal.querySelector(".js-jwpm-item-form");
+			var titleEl = modal.querySelector(".js-jwpm-modal-title");
+			var idField = modal.querySelector(".js-jwpm-item-id");
+			var branchSelect = modal.querySelector(".js-jwpm-branch-select");
+
+			var isEdit = !!(item && item.id);
+			if (titleEl) {
+				titleEl.textContent = isEdit
+					? "Edit Inventory Item"
+					: "New Inventory Item";
+			}
+			if (idField) {
+				idField.value = isEdit ? item.id : 0;
+			}
+
+			// اگر item ہے تو فیلڈز prefill کریں
+			if (item && form) {
+				[
+					"sku",
+					"tag_serial",
+					"category",
+					"metal_type",
+					"karat",
+					"gross_weight",
+					"net_weight",
+					"stone_type",
+					"stone_carat",
+					"stone_qty",
+					"labour_amount",
+					"design_no",
+					"status",
+					"branch_id",
+					"notes",
+				].forEach(function (key) {
+					var field = form.querySelector('[name="' + key + '"]');
+					if (!field) return;
+					if (key === "status" || key === "branch_id" || field.tagName === "SELECT") {
+						field.value = item[key] || field.value;
+					} else {
+						field.value = item[key] != null ? item[key] : "";
+					}
+				});
+			} else if (branchSelect && window.jwpmInventoryData.default_branch) {
+				branchSelect.value = window.jwpmInventoryData.default_branch;
+			}
+
+			// Close handlers
+			var self = this;
+			modal
+				.querySelectorAll(".js-jwpm-modal-close, .jwpm-modal-backdrop")
+				.forEach(function (btn) {
+					btn.addEventListener("click", function () {
+						modal.remove();
+					});
+				});
+
+			// Submit handler
+			if (form) {
+				form.addEventListener("submit", function (e) {
+					e.preventDefault();
+					var formData = new FormData(form);
+					var payload = {};
+					formData.forEach(function (v, k) {
+						payload[k] = v;
+					});
+					// Demo flag اگر checkbox ہو
+					if (!payload.is_demo) {
+						payload.is_demo = 0;
+					}
+
+					var action =
+						window.jwpmInventoryData.save_action ||
+						"jwpm_inventory_save_item";
+
+					self.common
+						.wpAjax(action, payload)
+						.then(function (res) {
+							if (res && res.success) {
+								notify("Item saved successfully.");
+								modal.remove();
+								self.loadItems();
+							} else {
+								var msg =
+									res && res.data && res.data.message
+										? res.data.message
+										: "Error saving item.";
+								notify(msg);
+							}
+						});
+				});
+			}
+		},
+		// 🔴 یہاں پر [Item Modal] ختم ہو رہا ہے
+
+		// 🟢 یہاں سے [Item Delete] شروع ہو رہا ہے
+		deleteItem: function (id) {
+			if (!id) return;
+			var msg =
+				(this.common.i18n && this.common.i18n.confirmDelete) ||
+				"Are you sure you want to delete this item?";
+			if (!window.confirm(msg)) return;
+
+			var action =
+				window.jwpmInventoryData.delete_action ||
+				"jwpm_inventory_delete_item";
+
+			var self = this;
+			this.common
+				.wpAjax(action, { id: id })
+				.then(function (res) {
+					if (res && res.success) {
+						notify("Item deleted.");
+						self.loadItems();
+					} else {
+						notify("Error deleting item.");
+					}
+				});
+		},
+		// 🔴 یہاں پر [Item Delete] ختم ہو رہا ہے
+
+		// 🟢 یہاں سے [Demo Modal + Actions] شروع ہو رہا ہے
+		openDemoModal: function () {
+			var tpl =
+				this.common.cloneTemplate &&
+				this.common.cloneTemplate("jwpm-inventory-demo-modal-template");
+			var modalRoot;
+			if (tpl) {
+				modalRoot = tpl.querySelector(".jwpm-modal");
+			}
+			if (!modalRoot) {
+				notify("Demo modal template not found.");
+				return;
+			}
+			document.body.appendChild(tpl);
+
+			var modal = document.body.querySelector(".jwpm-modal-demo:last-of-type");
+			var self = this;
+
+			// Close
+			modal
+				.querySelectorAll(".js-jwpm-modal-close, .jwpm-modal-backdrop")
+				.forEach(function (btn) {
+					btn.addEventListener("click", function () {
+						modal.remove();
+					});
+				});
+
+			// Demo actions
+			var btn10 = modal.querySelector(".js-jwpm-create-demo-10");
+			var btn100 = modal.querySelector(".js-jwpm-create-demo-100");
+			var btnDelete = modal.querySelector(".js-jwpm-delete-demo-items");
+
+			if (btn10) {
+				btn10.addEventListener("click", function () {
+					self.handleDemoAction("create_10", modal);
+				});
+			}
+			if (btn100) {
+				btn100.addEventListener("click", function () {
+					self.handleDemoAction("create_100", modal);
+				});
+			}
+			if (btnDelete) {
+				btnDelete.addEventListener("click", function () {
+					self.handleDemoAction("delete_demo", modal);
+				});
+			}
+		},
+
+		handleDemoAction: function (mode, modal) {
+			var action =
+				window.jwpmInventoryData.demo_action ||
+				"jwpm_inventory_demo_items";
+
+			var self = this;
+			this.common
+				.wpAjax(action, { mode: mode })
+				.then(function (res) {
+					if (res && res.success) {
+						notify("Demo data updated.");
+						if (modal) modal.remove();
+						self.loadItems();
+					} else {
+						var msg =
+							res && res.data && res.data.message
+								? res.data.message
+								: "Failed to update demo data.";
+						notify(msg);
+					}
+				});
+		},
+		// 🔴 یہاں پر [Demo Modal + Actions] ختم ہو رہا ہے
+
+		// 🟢 یہاں سے [Import Modal] شروع ہو رہا ہے
+		openImportModal: function () {
+			var tpl =
+				this.common.cloneTemplate &&
+				this.common.cloneTemplate("jwpm-inventory-import-modal-template");
+			var modalRoot;
+			if (tpl) {
+				modalRoot = tpl.querySelector(".jwpm-modal");
+			}
+			if (!modalRoot) {
+				notify("Import modal template not found.");
+				return;
+			}
+			document.body.appendChild(tpl);
+
+			var modal = document.body.querySelector(".jwpm-modal-import:last-of-type");
+			var self = this;
+
+			var btnCloseList = modal.querySelectorAll(
+				".js-jwpm-modal-close, .jwpm-modal-backdrop"
+			);
+			btnCloseList.forEach(function (btn) {
+				btn.addEventListener("click", function () {
+					modal.remove();
+				});
+			});
+
+			var btnSample = modal.querySelector(".js-jwpm-download-sample");
+			var fileInput = modal.querySelector(".js-jwpm-import-file");
+			var chkDemo = modal.querySelector(".js-jwpm-import-as-demo");
+			var btnStart = modal.querySelector(".js-jwpm-start-import");
+
+			// Sample Download
+			if (btnSample) {
+				btnSample.addEventListener("click", function () {
+					if (window.jwpmInventoryData.sample_url) {
+						window.location.href = window.jwpmInventoryData.sample_url;
+						return;
+					}
+					var sampleAction =
+						window.jwpmInventoryData.sample_action ||
+						"jwpm_inventory_download_sample";
+					var url = (self.common.ajax_url ||
+						window.ajaxurl ||
+						"") +
+						"?action=" +
+						encodeURIComponent(sampleAction);
+					if (self.common.nonce_common) {
+						url +=
+							"&nonce=" + encodeURIComponent(self.common.nonce_common);
+					}
+					window.location.href = url;
+				});
+			}
+
+			// Start Import
+			if (btnStart) {
+				btnStart.addEventListener("click", function () {
+					if (!fileInput || !fileInput.files || !fileInput.files.length) {
+						notify("Please select a file to import.");
+						return;
+					}
+
+					var action =
+						window.jwpmInventoryData.import_action ||
+						"jwpm_inventory_import_items";
+
+					var fd = new FormData();
+					fd.append("action", action);
+					if (self.common.nonce_common) {
+						fd.append("nonce", self.common.nonce_common);
+					}
+					fd.append("file", fileInput.files[0]);
+					fd.append("is_demo", chkDemo && chkDemo.checked ? 1 : 0);
+
+					$.ajax({
+						url:
+							self.common.ajax_url ||
+							window.ajaxurl ||
+							"",
+						type: "POST",
+						data: fd,
+						processData: false,
+						contentType: false,
+						dataType: "json",
+						success: function (res) {
+							if (res && res.success) {
+								notify("Import completed successfully.");
+								modal.remove();
+								self.loadItems();
+							} else {
+								var msg =
+									res && res.data && res.data.message
+										? res.data.message
+										: "Import failed.";
+								notify(msg);
+							}
+						},
+						error: function () {
+							notify("Network error during import.");
+						},
+					});
+				});
+			}
+		},
+		// 🔴 یہاں پر [Import Modal] ختم ہو رہا ہے
+
+		// 🟢 یہاں سے [Table Print] شروع ہو رہا ہے
+		printTable: function () {
+			if (!this.els.itemsTable) {
+				notify("Table not found to print.");
+				return;
+			}
+			var win = window.open("", "_blank");
+			if (!win) {
+				notify("Popup blocked. Please allow popups to print.");
+				return;
+			}
+			var html =
+				"<!doctype html><html><head><title>Inventory Print</title>" +
+				'<style>table{border-collapse:collapse;width:100%;}th,td{border:1px solid #ccc;padding:6px;font-size:12px;}th{background:#f5f5f5;}</style>' +
+				"</head><body>" +
+				"<h1>Inventory / Stock</h1>" +
+				this.els.itemsTable.outerHTML +
+				"</body></html>";
+			win.document.open();
+			win.document.write(html);
+			win.document.close();
+			win.focus();
+			win.print();
+		},
+		// 🔴 یہاں پر [Table Print] ختم ہو رہا ہے
+	};
+	// 🔴 یہاں پر [InventoryTemplateUI آبجیکٹ] ختم ہو رہا ہے
+
+	// 🟢 یہاں سے [DOM Ready Init - Template UI] شروع ہو رہا ہے
+	$(function () {
+		// اگر root یا jwpmInventoryData ہی نہیں تو خاموشی سے exit
+		if (!document.getElementById("jwpm-inventory-root")) {
+			return;
+		}
+		if (typeof window.jwpmInventoryData === "undefined") {
+			console.warn("jwpmInventoryData missing, InventoryTemplateUI skipped.");
+			return;
+		}
+
+		// پرانے jwpm-inventory.js نے اگر پہلے کوئی custom UI inject کیا بھی ہو
+		// تو ہم اسے override کر کے حقیقی template-based UI ماؤنٹ کر دیں گے۔
+		InventoryTemplateUI.init();
+	});
+	// 🔴 یہاں پر [DOM Ready Init - Template UI] ختم ہو رہا ہے
+
+	// ✅ Syntax verified block end
+})(window, jQuery);
