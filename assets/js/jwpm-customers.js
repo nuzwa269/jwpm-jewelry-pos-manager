@@ -1,4 +1,5 @@
 (function ($) {
+
 	'use strict';
 
 	// 🟢 یہاں سے [JWPM Customers Module] شروع ہو رہا ہے
@@ -515,5 +516,4 @@
 
 	// 🔴 یہاں پر [JWPM Customers Module] ختم ہو رہا ہے
 	// ✅ Syntax verified block end
-
 })(jQuery);
