@@ -682,4 +682,14 @@
 /* 🔴 یہاں پر [RTL Support] ختم ہو رہا ہے */
 
 /* ✅ Syntax verified block end */
+/** Part X — Detail Panel Hidden Fix */
+/* 🟢 یہاں سے [Inventory Detail Panel Hidden Fix] شروع ہو رہا ہے */
+
+.jwpm-inv-detail-panel[hidden] {
+	display: none !important;
+}
+
+/* 🔴 یہاں پر [Inventory Detail Panel Hidden Fix] ختم ہو رہا ہے */
+
+/* ✅ Syntax verified block end */
 
