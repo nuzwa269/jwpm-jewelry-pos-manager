@@ -1,102 +1,47 @@
-/** Part 10 — JWPM Customers Page Script (UI + AJAX)
- * یہاں Customers Page کے تمام (JavaScript) behaviours، AJAX calls اور UI rendering ہیں۔
- */
 (function ($) {
 	'use strict';
 
 	// 🟢 یہاں سے [JWPM Customers Module] شروع ہو رہا ہے
 
 	/**
-	 * Safe config (jwpmCustomersData) اگر (PHP) سے نہ ملا ہو تو fallback
+	 * Configuration & Fallbacks
 	 */
 	var jwpmCustomersConfig = window.jwpmCustomersData || {
 		ajaxUrl: window.ajaxurl || '/wp-admin/admin-ajax.php',
 		mainNonce: '',
-		importNonce: '',
-		exportNonce: '',
-		demoNonce: '',
 		strings: {
-			loading: 'کسٹمرز لوڈ ہو رہے ہیں…',
-			saving: 'ڈیٹا محفوظ ہو رہا ہے…',
-			saveSuccess: 'کسٹمر کامیابی سے محفوظ ہو گیا۔',
-			saveError: 'محفوظ کرتے وقت مسئلہ آیا، دوبارہ کوشش کریں۔',
-			deleteConfirm: 'کیا آپ واقعی اس کسٹمر کو Inactive کرنا چاہتے ہیں؟',
-			deleteSuccess: 'کسٹمر کو Inactive کر دیا گیا۔',
-			demoCreateSuccess: 'Demo کسٹمرز بنا دیے گئے۔',
-			demoClearSuccess: 'Demo کسٹمرز حذف ہو گئے۔',
-			importSuccess: 'Import مکمل ہو گیا۔',
-			importError: 'Import کے دوران مسئلہ آیا۔',
-			noRecords: 'کوئی ریکارڈ نہیں ملا۔'
+			loading: 'Loading customers...',
+			saving: 'Saving customer...',
+			saveSuccess: 'Customer saved successfully.',
+			saveError: 'There was a problem while saving, please try again.',
+			deleteConfirm: 'Are you sure you want to deactivate this customer?',
+			deleteSuccess: 'Customer deactivated successfully.',
+			noRecords: 'No customers found.'
 		},
-		pagination: {
-			defaultPerPage: 20,
-			perPageOptions: [20, 50, 100]
-		},
-		capabilities: {
-			canManageCustomers: true
-		}
+		pagination: { defaultPerPage: 20 }
 	};
 
-	/**
-	 * Soft toast / اطلاع (اگر jwpmCommon موجود ہو تو اسی کا، ورنہ simple alert / console)
-	 */
-	function notifySuccess(message) {
-		if (window.jwpmCommon && typeof window.jwpmCommon.toastSuccess === 'function') {
-			window.jwpmCommon.toastSuccess(message);
-		} else {
-			window.console && console.log('[JWPM Customers] ' + message);
-		}
-	}
-
-	function notifyError(message) {
-		if (window.jwpmCommon && typeof window.jwpmCommon.toastError === 'function') {
-			window.jwpmCommon.toastError(message);
-		} else {
-			window.console && console.error('[JWPM Customers] ' + message);
-			alert(message);
-		}
-	}
-
-	function notifyInfo(message) {
-		if (window.jwpmCommon && typeof window.jwpmCommon.toastInfo === 'function') {
-			window.jwpmCommon.toastInfo(message);
-		} else {
-			window.console && console.log('[JWPM Customers] ' + message);
-		}
-	}
-
-	function confirmAction(message) {
-		if (window.jwpmCommon && typeof window.jwpmCommon.confirm === 'function') {
-			return window.jwpmCommon.confirm(message);
-		}
-		// simple confirm
-		return window.confirm(message);
-	}
-
-	/**
-	 * Common helper: AJAX via (jQuery)
-	 */
-	function ajaxRequest(action, data, options) {
-		options = options || {};
-
-		var payload = $.extend({}, data, { action: action });
-
+	function ajaxRequest(action, data) {
+		data = data || {};
+		data.action = action;
 		return $.ajax({
 			url: jwpmCustomersConfig.ajaxUrl,
-			type: options.type || 'POST',
-			data: payload,
-			dataType: options.dataType || 'json',
-			processData: options.processData !== false,
-			contentType: options.contentType !== false ? 'application/x-www-form-urlencoded; charset=UTF-8' : false
+			type: 'POST',
+			data: data,
+			dataType: 'json'
 		});
 	}
 
-	/**
-	 * Main Customers Page Controller
-	 */
 	var JWPMCustomersPage = (function () {
 		function JWPMCustomersPage($root) {
 			this.$root = $root;
+
+			// 🔑 Nonces from DOM (primary source)
+			this.mainNonce =
+				$root.data('jwpm-customers-main-nonce') ||
+				jwpmCustomersConfig.mainNonce ||
+				'';
+
 			this.state = {
 				items: [],
 				page: 1,
@@ -108,172 +53,159 @@
 					city: '',
 					customer_type: '',
 					status: ''
-				},
-				loading: false
-			};
-
-			this.$layout = null;
-			this.$tableBody = null;
-			this.$pagination = null;
-			this.$sidePanel = null;
-			this.$importModal = null;
-
-			this.templates = {
-				layout: document.getElementById('jwpm-customers-layout-template'),
-				row: document.getElementById('jwpm-customers-row-template'),
-				form: document.getElementById('jwpm-customers-form-template'),
-				importModal: document.getElementById('jwpm-customers-import-template')
+				}
 			};
 
 			this.init();
 		}
 
 		JWPMCustomersPage.prototype.init = function () {
-			if (!this.templates.layout) {
-				notifyError('Customers layout template نہیں ملا۔');
-				return;
-			}
-
 			this.renderLayout();
 			this.cacheElements();
 			this.bindEvents();
-
 			this.loadCustomers();
 		};
 
+		// 1. Render Main Layout (Direct HTML)
 		JWPMCustomersPage.prototype.renderLayout = function () {
-			var tmpl = this.templates.layout.content
-				? this.templates.layout.content.cloneNode(true)
-				: document.importNode(this.templates.layout, true);
+			this.$root.html(
+				'<div class="jwpm-page-customers jwpm-wrapper">' +
+					'<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #eee; padding-bottom:15px;">' +
+						'<h2 style="margin:0;">👥 Customers Management</h2>' +
+						'<div>' +
+							'<button class="button button-primary" data-jwpm-customers-action="add">+ Add Customer</button> ' +
+							'<button class="button" data-jwpm-customers-action="import">Import CSV</button> ' +
+							'<button class="button" data-jwpm-customers-action="demo-create">Demo Data</button>' +
+						'</div>' +
+					'</div>' +
 
-			this.$root.empty().append(tmpl);
+					'<div class="jwpm-card" style="padding:15px; margin-bottom:20px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">' +
+						'<input type="text" data-jwpm-customers-filter="search" placeholder="Search by name or phone..." style="padding:6px; width:220px;">' +
+						'<select data-jwpm-customers-filter="city" style="padding:6px;">' +
+							'<option value="">All cities</option>' +
+							'<option value="Lahore">Lahore</option>' +
+							'<option value="Karachi">Karachi</option>' +
+							'<option value="Islamabad">Islamabad</option>' +
+						'</select>' +
+						'<select data-jwpm-customers-filter="customer_type" style="padding:6px;">' +
+							'<option value="">All types</option>' +
+							'<option value="walkin">Walk-in</option>' +
+							'<option value="regular">Regular</option>' +
+							'<option value="wholesale">Wholesale</option>' +
+							'<option value="vip">VIP</option>' +
+						'</select>' +
+						'<select data-jwpm-customers-filter="status" style="padding:6px;">' +
+							'<option value="">All status</option>' +
+							'<option value="active">Active</option>' +
+							'<option value="inactive">Inactive</option>' +
+						'</select>' +
+
+						'<div style="margin-left:auto; font-weight:bold; color:#666;">' +
+							'Total: <span data-stat="total">0</span> | Active: <span data-stat="active">0</span>' +
+						'</div>' +
+					'</div>' +
+
+					'<table class="wp-list-table widefat fixed striped jwpm-table-customers">' +
+						'<thead>' +
+							'<tr>' +
+								'<th>Code</th>' +
+								'<th>Name</th>' +
+								'<th>Phone</th>' +
+								'<th>City</th>' +
+								'<th>Type</th>' +
+								'<th>Current Balance</th>' +
+								'<th>Status</th>' +
+								'<th>Actions</th>' +
+							'</tr>' +
+						'</thead>' +
+						'<tbody data-jwpm-customers-table-body>' +
+							'<tr><td colspan="8">Loading customers...</td></tr>' +
+						'</tbody>' +
+					'</table>' +
+
+					'<div class="tablenav bottom">' +
+						'<div class="tablenav-pages" data-jwpm-customers-pagination></div>' +
+					'</div>' +
+
+					'<div data-jwpm-customers-side-panel style="display:none; position:fixed; top:0; right:0; width:400px; height:100%; background:#fff; box-shadow:-2px 0 5px rgba(0,0,0,0.1); z-index:9999; padding:20px; overflow-y:auto;"></div>' +
+				'</div>'
+			);
 		};
 
 		JWPMCustomersPage.prototype.cacheElements = function () {
-			this.$layout = this.$root.find('.jwpm-page-customers').first();
-			this.$tableBody = this.$layout.find('[data-jwpm-customers-table-body]').first();
-			this.$pagination = this.$layout.find('[data-jwpm-customers-pagination]').first();
-			this.$sidePanel = this.$layout.find('[data-jwpm-customers-side-panel]').first();
+			this.$tableBody = this.$root.find('[data-jwpm-customers-table-body]');
+			this.$pagination = this.$root.find('[data-jwpm-customers-pagination]');
+			this.$sidePanel = this.$root.find('[data-jwpm-customers-side-panel]');
+			this.$totalStat = this.$root.find('[data-stat="total"]');
+			this.$activeStat = this.$root.find('[data-stat="active"]');
 		};
 
 		JWPMCustomersPage.prototype.bindEvents = function () {
 			var self = this;
 
 			// Filters
-			this.$layout.on('input', '[data-jwpm-customers-filter="search"]', function () {
-				self.state.filters.search = $(this).val();
+			this.$root.on('input change', '[data-jwpm-customers-filter]', function () {
+				var $el = $(this);
+				var type = $el.data('jwpm-customers-filter');
+
+				self.state.filters[type] = $el.val();
 				self.state.page = 1;
-				self.loadCustomers();
-			});
 
-			this.$layout.on('change', '[data-jwpm-customers-filter="city"]', function () {
-				self.state.filters.city = $(this).val();
-				self.state.page = 1;
-				self.loadCustomers();
-			});
-
-			this.$layout.on('change', '[data-jwpm-customers-filter="type"]', function () {
-				self.state.filters.customer_type = $(this).val();
-				self.state.page = 1;
-				self.loadCustomers();
-			});
-
-			this.$layout.on('change', '[data-jwpm-customers-filter="status"]', function () {
-				self.state.filters.status = $(this).val();
-				self.state.page = 1;
-				self.loadCustomers();
-			});
-
-			// Actions
-			this.$layout.on('click', '[data-jwpm-customers-action="add"]', this.onAddCustomer.bind(this));
-			this.$layout.on('click', '[data-jwpm-customers-action="import"]', this.openImportModal.bind(this));
-			this.$layout.on('click', '[data-jwpm-customers-action="export"]', this.exportCustomers.bind(this));
-			this.$layout.on('click', '[data-jwpm-customers-action="print"]', this.printCustomers.bind(this));
-			this.$layout.on('click', '[data-jwpm-customers-action="demo-create"]', this.createDemoCustomers.bind(this));
-			this.$layout.on('click', '[data-jwpm-customers-action="demo-clear"]', this.clearDemoCustomers.bind(this));
-
-			// Table actions
-			this.$layout.on('click', '[data-jwpm-customers-action="view"]', function (e) {
-				e.preventDefault();
-				var $row = $(this).closest('[data-jwpm-customer-row]');
-				var id = parseInt($row.data('id'), 10);
-				if (id) {
-					self.openCustomerForEdit(id);
-				}
-			});
-
-			this.$layout.on('click', '[data-jwpm-customers-action="quick-sale"]', function (e) {
-				e.preventDefault();
-				var $row = $(this).closest('[data-jwpm-customer-row]');
-				var id = parseInt($row.data('id'), 10);
-				if (id && window.jwpmCommon && typeof window.jwpmCommon.quickSaleWithCustomer === 'function') {
-					window.jwpmCommon.quickSaleWithCustomer(id);
+				if (type === 'search') {
+					clearTimeout(self.searchTimer);
+					self.searchTimer = setTimeout(function () {
+						self.loadCustomers();
+					}, 500);
 				} else {
-					notifyInfo('Quick Sale فیچر بعد میں POS کے ساتھ لنک کیا جائے گا۔');
-				}
-			});
-
-			this.$layout.on('click', '[data-jwpm-customers-action="delete"]', function (e) {
-				e.preventDefault();
-				var $row = $(this).closest('[data-jwpm-customer-row]');
-				var id = parseInt($row.data('id'), 10);
-				if (id) {
-					self.deleteCustomer(id);
-				}
-			});
-
-			// Status toggle (اگر badge پر click ہو)
-			this.$layout.on('click', '[data-jwpm-customer-field="status_badge"]', function () {
-				var $row = $(this).closest('[data-jwpm-customer-row]');
-				var id = parseInt($row.data('id'), 10);
-				if (id) {
-					self.toggleCustomerStatus(id);
-				}
-			});
-
-			// Pagination clicks
-			this.$pagination.on('click', '[data-jwpm-page]', function () {
-				var page = parseInt($(this).attr('data-jwpm-page'), 10);
-				if (!isNaN(page) && page >= 1 && page <= self.state.totalPages && page !== self.state.page) {
-					self.state.page = page;
 					self.loadCustomers();
 				}
 			});
 
-			this.$pagination.on('change', '[data-jwpm-per-page]', function () {
-				var per = parseInt($(this).val(), 10);
-				if (!isNaN(per) && per > 0) {
-					self.state.perPage = per;
-					self.state.page = 1;
-					self.loadCustomers();
+			// Buttons
+			this.$root.on('click', '[data-jwpm-customers-action="add"]', function () {
+				self.openForm();
+			});
+
+			this.$root.on('click', '[data-jwpm-customers-action="import"]', function () {
+				alert('Import feature will be available soon.');
+			});
+
+			this.$root.on('click', '[data-jwpm-customers-action="demo-create"]', function () {
+				if (confirm('Create demo customers?')) {
+					self.createDemoData();
 				}
+			});
+
+			// Row actions
+			this.$root.on('click', '[data-action="edit"]', function () {
+				var id = $(this).closest('tr').data('id');
+				self.openForm(id);
+			});
+
+			this.$root.on('click', '[data-action="delete"]', function () {
+				var id = $(this).closest('tr').data('id');
+				self.deleteCustomer(id);
+			});
+
+			// Pagination
+			this.$root.on('click', '.jwpm-page-btn', function () {
+				self.state.page = $(this).data('page');
+				self.loadCustomers();
 			});
 		};
 
-		JWPMCustomersPage.prototype.setLoading = function (loading) {
-			this.state.loading = loading;
-			if (loading) {
-				this.$root.addClass('jwpm-is-loading');
-			} else {
-				this.$root.removeClass('jwpm-is-loading');
-			}
-		};
-
+		// 2. Fetch list — action: jwpm_customers_fetch
 		JWPMCustomersPage.prototype.loadCustomers = function () {
 			var self = this;
 
-			this.setLoading(true);
-			this.$tableBody.empty().append(
-				$('<tr/>', { class: 'jwpm-loading-row' }).append(
-					$('<td/>', {
-						colspan: 10,
-						text: jwpmCustomersConfig.strings.loading || 'لوڈ ہو رہا ہے…'
-					})
-				)
+			this.$tableBody.html(
+				'<tr><td colspan="8" style="text-align:center;">' +
+					(jwpmCustomersConfig.strings.loading || 'Loading customers...') +
+				'</td></tr>'
 			);
 
-			ajaxRequest('jwpm_get_customers', {
-				nonce: jwpmCustomersConfig.mainNonce,
+			ajaxRequest('jwpm_customers_fetch', {
+				nonce: this.mainNonce,
 				search: this.state.filters.search,
 				city: this.state.filters.city,
 				customer_type: this.state.filters.customer_type,
@@ -281,1405 +213,300 @@
 				page: this.state.page,
 				per_page: this.state.perPage
 			})
-				.done(function (response) {
-					if (!response || !response.success) {
-						notifyError((response && response.data && response.data.message) || jwpmCustomersConfig.strings.saveError);
+				.done(function (res) {
+					if (!res || !res.success) {
+						console.error('Customers fetch error:', res);
+						self.$tableBody.html(
+							'<tr><td colspan="8" style="color:red; text-align:center;">Error loading customers.</td></tr>'
+						);
 						return;
 					}
 
-					var data = response.data;
+					var data = res.data || {};
 					self.state.items = data.items || [];
-					self.state.total = data.pagination ? parseInt(data.pagination.total, 10) || 0 : 0;
-					self.state.page = data.pagination ? parseInt(data.pagination.page, 10) || 1 : 1;
-					self.state.perPage = data.pagination ? parseInt(data.pagination.per_page, 10) || self.state.perPage : self.state.perPage;
-					self.state.totalPages = data.pagination ? parseInt(data.pagination.total_page, 10) || 1 : 1;
+					self.state.total = data.pagination ? data.pagination.total || 0 : 0;
+					self.state.totalPages = data.pagination ? data.pagination.total_page || 1 : 1;
 
 					self.renderTable();
-					self.renderStats();
 					self.renderPagination();
+					self.renderStats();
 				})
-				.fail(function () {
-					notifyError(jwpmCustomersConfig.strings.saveError || 'ڈیٹا لوڈ نہیں ہو سکا۔');
-				})
-				.always(function () {
-					self.setLoading(false);
+				.fail(function (xhr) {
+					console.error('Customers fetch AJAX failed:', xhr);
+					self.$tableBody.html(
+						'<tr><td colspan="8" style="color:red; text-align:center;">Error loading customers (AJAX failed).</td></tr>'
+					);
 				});
 		};
 
-		JWPMCustomersPage.prototype.renderStats = function () {
-			var total = this.state.total || 0;
-			var activeCount = 0;
-
-			this.state.items.forEach(function (item) {
-				if (item.status === 'active') {
-					activeCount++;
-				}
-			});
-
-			this.$layout
-				.find('[data-jwpm-customers-stat="total"] .jwpm-stat-value')
-				.text(total);
-			this.$layout
-				.find('[data-jwpm-customers-stat="active"] .jwpm-stat-value')
-				.text(activeCount);
-		};
-
+		// 3. Render list
 		JWPMCustomersPage.prototype.renderTable = function () {
 			var self = this;
+
 			this.$tableBody.empty();
 
-			if (!this.state.items || !this.state.items.length) {
+			if (!this.state.items.length) {
 				this.$tableBody.append(
-					$('<tr/>', { class: 'jwpm-empty-row' }).append(
-						$('<td/>', {
-							colspan: 10,
-							text: jwpmCustomersConfig.strings.noRecords || 'کوئی ریکارڈ نہیں ملا۔'
-						})
-					)
+					'<tr><td colspan="8" style="text-align:center;">' +
+						(jwpmCustomersConfig.strings.noRecords || 'No customers found.') +
+					'</td></tr>'
 				);
 				return;
 			}
 
-			if (!this.templates.row) {
-				notifyError('Customers row template نہیں ملا۔');
-				return;
-			}
-
 			this.state.items.forEach(function (item) {
-				var tr;
-				if (self.templates.row.content) {
-					tr = self.templates.row.content.cloneNode(true);
-					tr = $(tr).children('tr').first();
-				} else {
-					tr = $(document.importNode(self.templates.row, true));
-				}
+				var json = JSON.stringify(item).replace(/'/g, '&#39;');
+				var statusColor = item.status === 'active' ? 'green' : 'red';
 
-				tr.attr('data-jwpm-customer-row', '');
-				tr.attr('data-id', item.id);
+				var html =
+					'<tr data-id="' + (item.id || '') + '" data-json=\'' + json + '\'>' +
+						'<td>' + (item.customer_code || '-') + '</td>' +
+						'<td><strong>' + (item.name || '-') + '</strong></td>' +
+						'<td>' + (item.phone || '-') + '</td>' +
+						'<td>' + (item.city || '-') + '</td>' +
+						'<td>' + (item.customer_type || 'walkin') + '</td>' +
+						'<td>' + (item.current_balance || '0.000') + '</td>' +
+						'<td style="color:' + statusColor + '; font-weight:bold;">' + (item.status || '-') + '</td>' +
+						'<td>' +
+							'<button class="button button-small" data-action="edit">Edit</button> ' +
+							'<button class="button button-small" data-action="delete" style="color:#a00;">Delete</button>' +
+						'</td>' +
+					'</tr>';
 
-				tr.find('[data-jwpm-customer-field="customer_code"]').text(item.customer_code || '');
-				tr.find('[data-jwpm-customer-field="name"]').text(item.name || '');
-				tr.find('[data-jwpm-customer-field="phone"]').text(item.phone || '');
-				tr.find('[data-jwpm-customer-field="city"]').text(item.city || '');
-				tr.find('[data-jwpm-customer-field="customer_type"]').text(item.customer_type || '');
-
-				tr.find('[data-jwpm-customer-field="credit_limit"]').text(item.credit_limit || '0.000');
-				tr.find('[data-jwpm-customer-field="current_balance"]').text(item.current_balance || '0.000');
-
-				var lastPurchase = item.last_purchase || '';
-				tr.find('[data-jwpm-customer-field="last_purchase"]').text(lastPurchase);
-
-				var $statusCell = tr.find('[data-jwpm-customer-field="status_badge"]');
-				$statusCell
-					.text(item.status === 'inactive' ? 'Inactive' : 'Active')
-					.attr('data-status', item.status || 'active')
-					.addClass('jwpm-status-badge');
-
-				self.$tableBody.append(tr);
+				self.$tableBody.append(html);
 			});
+		};
+
+		JWPMCustomersPage.prototype.renderStats = function () {
+			this.$totalStat.text(this.state.total);
+			var active = 0;
+			this.state.items.forEach(function (item) {
+				if (item.status === 'active') {
+					active++;
+				}
+			});
+			this.$activeStat.text(active + ' (on page)');
 		};
 
 		JWPMCustomersPage.prototype.renderPagination = function () {
+			var html = '';
+
+			if (this.state.page > 1) {
+				html +=
+					'<button class="button jwpm-page-btn" data-page="' +
+					(this.state.page - 1) +
+					'">« Prev</button> ';
+			}
+
+			html +=
+				'<span class="description">Page ' +
+				this.state.page +
+				' of ' +
+				this.state.totalPages +
+				'</span> ';
+
+			if (this.state.page < this.state.totalPages) {
+				html +=
+					'<button class="button jwpm-page-btn" data-page="' +
+					(this.state.page + 1) +
+					'">Next »</button>';
+			}
+
+			this.$pagination.html(html);
+		};
+
+		// 4. Add/Edit side panel — action: jwpm_customers_save
+		JWPMCustomersPage.prototype.openForm = function (id) {
 			var self = this;
-			var page = this.state.page;
-			var totalPages = this.state.totalPages;
+			var item = {};
+			var title = 'Add new customer';
 
-			this.$pagination.empty();
-
-			if (!totalPages || totalPages <= 1) {
-				return;
-			}
-
-			var $wrapper = $('<div/>', { class: 'jwpm-pagination-inner' });
-
-			var $prev = $('<button/>', {
-				type: 'button',
-				class: 'button jwpm-page-prev',
-				text: '«'
-			}).attr('data-jwpm-page', page > 1 ? page - 1 : 1);
-
-			if (page <= 1) {
-				$prev.prop('disabled', true);
-			}
-
-			var $next = $('<button/>', {
-				type: 'button',
-				class: 'button jwpm-page-next',
-				text: '»'
-			}).attr('data-jwpm-page', page < totalPages ? page + 1 : totalPages);
-
-			if (page >= totalPages) {
-				$next.prop('disabled', true);
-			}
-
-			var $info = $('<span/>', {
-				class: 'jwpm-page-info',
-				text: 'Page ' + page + ' / ' + totalPages
-			});
-
-			var $perSelect = $('<select/>', { class: 'jwpm-select', 'data-jwpm-per-page': '1' });
-			(jwpmCustomersConfig.pagination.perPageOptions || [20, 50, 100]).forEach(function (val) {
-				var $opt = $('<option/>', {
-					value: val,
-					text: val + ' per page'
-				});
-				if (val === self.state.perPage) {
-					$opt.prop('selected', true);
+			if (id) {
+				var $row = this.$tableBody.find('tr[data-id="' + id + '"]');
+				try {
+					item = $row.data('json') || {};
+					title = 'Edit customer';
+				} catch (e) {
+					item = {};
 				}
-				$perSelect.append($opt);
-			});
-
-			$wrapper.append($prev, $info, $next, $perSelect);
-			this.$pagination.append($wrapper);
-		};
-
-		/**
-		 * Add / Edit Panel
-		 */
-		JWPMCustomersPage.prototype.openSidePanel = function () {
-			if (!this.templates.form) {
-				notifyError('Customer form template نہیں ملا۔');
-				return;
 			}
 
-			this.$sidePanel.empty();
-
-			var node;
-			if (this.templates.form.content) {
-				node = this.templates.form.content.cloneNode(true);
-			} else {
-				node = document.importNode(this.templates.form, true);
+			function val(k) {
+				return item[k] || '';
 			}
 
-			this.$sidePanel.append(node);
-			this.$sidePanel.prop('hidden', false);
-		};
+			var html =
+				'<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:10px;">' +
+					'<h2 style="margin:0;">' + title + '</h2>' +
+					'<button class="button" type="button" data-jwpm-customers-action="close-panel">Close ✕</button>' +
+				'</div>' +
 
-		JWPMCustomersPage.prototype.closeSidePanel = function () {
-			this.$sidePanel.prop('hidden', true).empty();
-		};
+				'<form id="jwpm-customer-form">' +
+					'<input type="hidden" name="id" value="' + val('id') + '">' +
 
-		JWPMCustomersPage.prototype.onAddCustomer = function () {
-			var self = this;
-			this.openSidePanel();
+					'<label>Name <span style="color:red">*</span></label>' +
+					'<input type="text" name="name" class="widefat" value="' + val('name') + '" required style="margin-bottom:10px;">' +
 
-			var $panel = this.$sidePanel;
-			var $form = $panel.find('[data-jwpm-customers-form]').first();
-			var $title = $panel.find('[data-jwpm-customers-form-title]').first();
+					'<label>Phone <span style="color:red">*</span></label>' +
+					'<input type="text" name="phone" class="widefat" value="' + val('phone') + '" required style="margin-bottom:10px;">' +
 
-			$title.text('Add New Customer');
-			$form[0].reset();
-			$form.find('[data-jwpm-customer-input="id"]').val('');
-			$form.find('[data-jwpm-customer-input="opening_balance"]').prop('disabled', false);
+					'<label>City</label>' +
+					'<input type="text" name="city" class="widefat" value="' + val('city') + '" style="margin-bottom:10px;">' +
 
-			// panel buttons
-			$panel.off('click.jwpmCustomersPanel');
-			$panel.on('click.jwpmCustomersPanel', '[data-jwpm-customers-action="close-panel"], [data-jwpm-customers-action="cancel"]', this.closeSidePanel.bind(this));
-			$panel.on('click.jwpmCustomersPanel', '[data-jwpm-customers-action="save"]', function (e) {
-				e.preventDefault();
-				self.saveCustomer($form);
-			});
-		};
+					'<label>Address</label>' +
+					'<textarea name="address" class="widefat" style="margin-bottom:10px;">' + val('address') + '</textarea>' +
 
-		JWPMCustomersPage.prototype.openCustomerForEdit = function (id) {
-			var self = this;
-			this.openSidePanel();
+					'<div style="display:flex; gap:10px; margin-bottom:10px;">' +
+						'<div style="flex:1;">' +
+							'<label>CNIC</label>' +
+							'<input type="text" name="cnic" class="widefat" value="' + val('cnic') + '">' +
+						'</div>' +
+						'<div style="flex:1;">' +
+							'<label>Opening balance</label>' +
+							'<input type="number" step="0.001" name="opening_balance" class="widefat" value="' + val('opening_balance') + '" ' +
+								(id ? 'disabled' : '') +
+							'>' +
+						'</div>' +
+					'</div>' +
 
-			var $panel = this.$sidePanel;
-			var $form = $panel.find('[data-jwpm-customers-form]').first();
-			var $title = $panel.find('[data-jwpm-customers-form-title]').first();
+					'<label>Status</label>' +
+					'<select name="status" class="widefat" style="margin-bottom:10px;">' +
+						'<option value="active" ' + (val('status') === 'active' ? 'selected' : '') + '>Active</option>' +
+						'<option value="inactive" ' + (val('status') === 'inactive' ? 'selected' : '') + '>Inactive</option>' +
+					'</select>' +
 
-			$title.text('Edit Customer');
+					'<label>Customer type</label>' +
+					'<select name="customer_type" class="widefat" style="margin-bottom:20px;">' +
+						'<option value="walkin" ' + (val('customer_type') === 'walkin' ? 'selected' : '') + '>Walk-in</option>' +
+						'<option value="regular" ' + (val('customer_type') === 'regular' ? 'selected' : '') + '>Regular</option>' +
+						'<option value="wholesale" ' + (val('customer_type') === 'wholesale' ? 'selected' : '') + '>Wholesale</option>' +
+						'<option value="vip" ' + (val('customer_type') === 'vip' ? 'selected' : '') + '>VIP</option>' +
+					'</select>' +
 
-			$panel.off('click.jwpmCustomersPanel');
-			$panel.on('click.jwpmCustomersPanel', '[data-jwpm-customers-action="close-panel"], [data-jwpm-customers-action="cancel"]', this.closeSidePanel.bind(this));
-			$panel.on('click.jwpmCustomersPanel', '[data-jwpm-customers-action="save"]', function (e) {
-				e.preventDefault();
-				self.saveCustomer($form);
-			});
+					'<button type="submit" class="button button-primary button-large" style="width:100%;">Save customer</button>' +
+				'</form>';
 
-			// Opening balance edit پر disable
-			$form.find('[data-jwpm-customer-input="opening_balance"]').prop('disabled', true);
+			this.$sidePanel.html(html).show();
 
-			ajaxRequest('jwpm_get_customer', {
-				nonce: jwpmCustomersConfig.mainNonce,
-				id: id
-			})
-				.done(function (response) {
-					if (!response || !response.success || !response.data || !response.data.item) {
-						notifyError((response && response.data && response.data.message) || 'کسٹمر نہیں ملا۔');
-						return;
-					}
-
-					var item = response.data.item;
-
-					$form.find('[data-jwpm-customer-input="id"]').val(item.id || '');
-					$form.find('[data-jwpm-customer-input="name"]').val(item.name || '');
-					$form.find('[data-jwpm-customer-input="phone"]').val(item.phone || '');
-					$form.find('[data-jwpm-customer-input="whatsapp"]').val(item.whatsapp || '');
-					$form.find('[data-jwpm-customer-input="email"]').val(item.email || '');
-					$form.find('[data-jwpm-customer-input="city"]').val(item.city || '');
-					$form.find('[data-jwpm-customer-input="area"]').val(item.area || '');
-					$form.find('[data-jwpm-customer-input="address"]').val(item.address || '');
-					$form.find('[data-jwpm-customer-input="cnic"]').val(item.cnic || '');
-					$form.find('[data-jwpm-customer-input="dob"]').val(item.dob || '');
-					$form.find('[data-jwpm-customer-input="gender"]').val(item.gender || '');
-					$form.find('[data-jwpm-customer-input="customer_type"]').val(item.customer_type || 'walkin');
-					$form.find('[data-jwpm-customer-input="status"]').val(item.status || 'active');
-					$form.find('[data-jwpm-customer-input="price_group"]').val(item.price_group || '');
-					$form.find('[data-jwpm-customer-input="tags"]').val(item.tags || '');
-					$form.find('[data-jwpm-customer-input="credit_limit"]').val(item.credit_limit || '');
-					$form.find('[data-jwpm-customer-input="opening_balance"]').val(item.opening_balance || '');
-					$form.find('[data-jwpm-customer-input="notes"]').val(item.notes || '');
-				})
-				.fail(function () {
-					notifyError('کسٹمر ڈیٹا لوڈ نہیں ہو سکا۔');
+			// Close panel
+			this.$sidePanel
+				.off('click.jwpmClosePanel')
+				.on('click.jwpmClosePanel', '[data-jwpm-customers-action="close-panel"]', function () {
+					self.$sidePanel.hide();
 				});
-		};
 
-		JWPMCustomersPage.prototype.serializeForm = function ($form) {
-			var data = {};
-			$.each($form.serializeArray(), function (_, field) {
-				data[field.name] = field.value;
-			});
-			return data;
-		};
+			// Submit → jwpm_customers_save
+			$('#jwpm-customer-form')
+				.off('submit')
+				.on('submit', function (e) {
+					e.preventDefault();
 
-		JWPMCustomersPage.prototype.saveCustomer = function ($form) {
-			var self = this;
+					var formDataArray = $(this).serializeArray();
+					var data = {};
 
-			if (!$form || !$form.length) {
-				return;
-			}
-
-			var data = this.serializeForm($form);
-
-			if (!data.name || !data.phone) {
-				notifyError('Name اور Phone لازمی فیلڈز ہیں۔');
-				return;
-			}
-
-			data.nonce = jwpmCustomersConfig.mainNonce;
-
-			this.setLoading(true);
-			notifyInfo(jwpmCustomersConfig.strings.saving || 'محفوظ ہو رہا ہے…');
-
-			ajaxRequest('jwpm_save_customer', data)
-				.done(function (response) {
-					if (!response || !response.success) {
-						notifyError((response && response.data && response.data.message) || jwpmCustomersConfig.strings.saveError);
-						return;
-					}
-					notifySuccess(jwpmCustomersConfig.strings.saveSuccess || 'کسٹمر محفوظ ہو گیا۔');
-					self.closeSidePanel();
-					self.loadCustomers();
-				})
-				.fail(function () {
-					notifyError(jwpmCustomersConfig.strings.saveError || 'محفوظ نہیں ہو سکا۔');
-				})
-				.always(function () {
-					self.setLoading(false);
-				});
-		};
-
-		JWPMCustomersPage.prototype.deleteCustomer = function (id) {
-			var self = this;
-			if (!confirmAction(jwpmCustomersConfig.strings.deleteConfirm || 'کیا آپ واقعی اس کسٹمر کو Inactive کرنا چاہتے ہیں؟')) {
-				return;
-			}
-
-			this.setLoading(true);
-
-			ajaxRequest('jwpm_delete_customer', {
-				nonce: jwpmCustomersConfig.mainNonce,
-				id: id
-			})
-				.done(function (response) {
-					if (!response || !response.success) {
-						notifyError((response && response.data && response.data.message) || 'کسٹمر کو Inactive نہیں کیا جا سکا۔');
-						return;
-					}
-					notifySuccess(jwpmCustomersConfig.strings.deleteSuccess || 'کسٹمر کو Inactive کر دیا گیا۔');
-					self.loadCustomers();
-				})
-				.fail(function () {
-					notifyError('کسٹمر کو Inactive نہیں کیا جا سکا۔');
-				})
-				.always(function () {
-					self.setLoading(false);
-				});
-		};
-
-		JWPMCustomersPage.prototype.toggleCustomerStatus = function (id) {
-			var self = this;
-
-			this.setLoading(true);
-
-			ajaxRequest('jwpm_toggle_customer_status', {
-				nonce: jwpmCustomersConfig.mainNonce,
-				id: id
-			})
-				.done(function (response) {
-					if (!response || !response.success) {
-						notifyError((response && response.data && response.data.message) || 'Status تبدیل نہیں ہو سکا۔');
-						return;
-					}
-					self.loadCustomers();
-				})
-				.fail(function () {
-					notifyError('Status تبدیل نہیں ہو سکا۔');
-				})
-				.always(function () {
-					self.setLoading(false);
-				});
-		};
-
-		/**
-		 * Import / Export / Demo / Print
-		 */
-		JWPMCustomersPage.prototype.openImportModal = function () {
-			var self = this;
-
-			if (!this.templates.importModal) {
-				notifyError('Import modal template نہیں ملا۔');
-				return;
-			}
-
-			if (this.$importModal && this.$importModal.length) {
-				this.$importModal.remove();
-				this.$importModal = null;
-			}
-
-			var node;
-			if (this.templates.importModal.content) {
-				node = this.templates.importModal.content.cloneNode(true);
-			} else {
-				node = document.importNode(this.templates.importModal, true);
-			}
-
-			this.$importModal = $(node);
-			$('body').append(this.$importModal);
-
-			var $modal = this.$importModal;
-			var $form = $modal.find('[data-jwpm-customers-import-form]').first();
-			var $result = $modal.find('[data-jwpm-customers-import-result]').first();
-
-			function closeModal() {
-				$modal.remove();
-				self.$importModal = null;
-			}
-
-			$modal.on('click', '[data-jwpm-customers-action="close-import"]', function (e) {
-				e.preventDefault();
-				closeModal();
-			});
-
-			$modal.on('click', '[data-jwpm-customers-action="do-import"]', function (e) {
-				e.preventDefault();
-
-				var fileInput = $form.find('input[type="file"]')[0];
-				if (!fileInput || !fileInput.files || !fileInput.files.length) {
-					notifyError('براہ کرم (CSV) فائل منتخب کریں۔');
-					return;
-				}
-
-				var formData = new FormData();
-				formData.append('action', 'jwpm_import_customers');
-				formData.append('nonce', jwpmCustomersConfig.importNonce);
-				formData.append('file', fileInput.files[0]);
-
-				var skipDup = $form.find('input[name="skip_duplicates"]').is(':checked') ? 1 : 0;
-				formData.append('skip_duplicates', skipDup);
-
-				$result.empty().text(jwpmCustomersConfig.strings.loading || 'Import ہو رہا ہے…');
-
-				$.ajax({
-					url: jwpmCustomersConfig.ajaxUrl,
-					type: 'POST',
-					data: formData,
-					processData: false,
-					contentType: false,
-					dataType: 'json'
-				})
-					.done(function (response) {
-						if (!response || !response.success) {
-							notifyError((response && response.data && response.data.message) || jwpmCustomersConfig.strings.importError || 'Import کے دوران مسئلہ آیا۔');
-							return;
-						}
-
-						var data = response.data || {};
-						var msg =
-							(jwpmCustomersConfig.strings.importSuccess || 'Import مکمل ہو گیا۔') +
-							' Total: ' +
-							(data.total || 0) +
-							', Inserted: ' +
-							(data.inserted || 0) +
-							', Skipped: ' +
-							(data.skipped || 0);
-
-						$result.text(msg);
-						notifySuccess(msg);
-						self.loadCustomers();
-					})
-					.fail(function () {
-						notifyError(jwpmCustomersConfig.strings.importError || 'Import کے دوران مسئلہ آیا۔');
+					formDataArray.forEach(function (field) {
+						data[field.name] = field.value;
 					});
-			});
-		};
 
-		JWPMCustomersPage.prototype.exportCustomers = function () {
-			// Export direct download via URL + nonce
-			var url =
-				jwpmCustomersConfig.ajaxUrl +
-				'?action=jwpm_export_customers&nonce=' +
-				encodeURIComponent(jwpmCustomersConfig.exportNonce);
+					// 🔑 force correct nonce name/value
+					data.nonce = self.mainNonce;
 
-			window.open(url, '_blank');
-		};
-
-		JWPMCustomersPage.prototype.createDemoCustomers = function () {
-			var self = this;
-
-			this.setLoading(true);
-
-			ajaxRequest('jwpm_customers_demo_create', {
-				nonce: jwpmCustomersConfig.demoNonce
-			})
-				.done(function (response) {
-					if (!response || !response.success) {
-						notifyError((response && response.data && response.data.message) || 'Demo کسٹمرز نہیں بن سکے۔');
-						return;
-					}
-					notifySuccess(jwpmCustomersConfig.strings.demoCreateSuccess || 'Demo کسٹمرز بنا دیے گئے۔');
-					self.loadCustomers();
-				})
-				.fail(function () {
-					notifyError('Demo کسٹمرز نہیں بن سکے۔');
-				})
-				.always(function () {
-					self.setLoading(false);
+					ajaxRequest('jwpm_customers_save', data)
+						.done(function (res) {
+							if (res && res.success) {
+								alert(jwpmCustomersConfig.strings.saveSuccess || 'Customer saved successfully.');
+								self.$sidePanel.hide();
+								self.loadCustomers();
+							} else {
+								console.error('Customer save error:', res);
+								var msg =
+									(res && res.data && res.data.message) ||
+									(jwpmCustomersConfig.strings.saveError ||
+										'There was a problem while saving, please try again.');
+								alert(msg);
+							}
+						})
+						.fail(function (xhr) {
+							console.error('Customer save AJAX failed:', xhr);
+							alert(
+								jwpmCustomersConfig.strings.saveError ||
+									'There was a problem while saving, please try again.'
+							);
+						});
 				});
 		};
 
-		JWPMCustomersPage.prototype.clearDemoCustomers = function () {
+		// 5. Delete → jwpm_customers_delete
+		JWPMCustomersPage.prototype.deleteCustomer = function (id) {
+			if (!id) {
+				return;
+			}
+
+			if (!confirm(jwpmCustomersConfig.strings.deleteConfirm || 'Are you sure?')) {
+				return;
+			}
+
 			var self = this;
 
-			this.setLoading(true);
-
-			ajaxRequest('jwpm_customers_demo_clear', {
-				nonce: jwpmCustomersConfig.demoNonce
+			ajaxRequest('jwpm_customers_delete', {
+				nonce: this.mainNonce,
+				id: id
 			})
-				.done(function (response) {
-					if (!response || !response.success) {
-						notifyError((response && response.data && response.data.message) || 'Demo کسٹمرز حذف نہیں ہو سکے۔');
-						return;
+				.done(function (res) {
+					if (res && res.success) {
+						alert(jwpmCustomersConfig.strings.deleteSuccess || 'Customer deleted.');
+						self.loadCustomers();
+					} else {
+						console.error('Customer delete error:', res);
+						alert('Failed to delete customer.');
 					}
-					notifySuccess(jwpmCustomersConfig.strings.demoClearSuccess || 'Demo کسٹمرز حذف ہو گئے۔');
-					self.loadCustomers();
 				})
-				.fail(function () {
-					notifyError('Demo کسٹمرز حذف نہیں ہو سکے۔');
-				})
-				.always(function () {
-					self.setLoading(false);
+				.fail(function (xhr) {
+					console.error('Customer delete AJAX failed:', xhr);
+					alert('Failed to delete customer (AJAX failed).');
 				});
 		};
 
-		JWPMCustomersPage.prototype.printCustomers = function () {
-			var $table = this.$layout.find('.jwpm-table-customers').first();
-			if (!$table.length) {
-				notifyError('پرنٹ کیلئے کوئی جدول نہیں ملا۔');
-				return;
-			}
+		// Demo data → jwpm_customers_demo (mode=create)
+		JWPMCustomersPage.prototype.createDemoData = function () {
+			var self = this;
 
-			var html = '<html><head><title>Customers List</title>';
-			html += '<style>body{font-family:system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;font-size:12px;color:#000;padding:16px;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid #ccc;padding:4px 6px;text-align:left;} th{background:#eee;} .jwpm-status-badge{font-weight:bold;}</style>';
-			html += '</head><body>';
-			html += '<h2>Customers List</h2>';
-			html += '<p>' + new Date().toLocaleString() + '</p>';
-			html += $table.prop('outerHTML');
-			html += '</body></html>';
-
-			var w = window.open('', '_blank');
-			if (!w) {
-				notifyError('پرنٹ ونڈو نہیں کھل سکی۔');
-				return;
-			}
-			w.document.open();
-			w.document.write(html);
-			w.document.close();
-			w.focus();
-			w.print();
+			ajaxRequest('jwpm_customers_demo', {
+				nonce: this.mainNonce,
+				mode: 'create'
+			})
+				.done(function (res) {
+					if (res && res.success) {
+						var msg = res.data && res.data.message ? res.data.message : 'Demo customers created.';
+						alert(msg);
+						self.loadCustomers();
+					} else {
+						console.error('Customers demo error:', res);
+						alert('Failed to create demo customers.');
+					}
+				})
+				.fail(function (xhr) {
+					console.error('Customers demo AJAX failed:', xhr);
+					alert('Failed to create demo customers (AJAX failed).');
+				});
 		};
 
 		return JWPMCustomersPage;
 	})();
 
-	/**
-	 * DOM Ready — Root element mount
-	 */
+	// Init on DOM Ready
 	$(function () {
-		var $root = $('#jwpm-customers-root').first();
+		var $root = $('#jwpm-customers-root');
 
 		if (!$root.length) {
-			if (window.console) {
-				console.warn('JWPM Customers: #jwpm-customers-root نہیں ملا، شاید یہ صحیح پیج نہیں۔');
-			}
+			console.warn('[JWPM Customers] Root element #jwpm-customers-root not found.');
 			return;
 		}
 
-		try {
-			new JWPMCustomersPage($root);
-		} catch (e) {
-			console.error('JWPM Customers init error:', e);
-			notifyError('Customers Page لوڈ کرتے وقت مسئلہ آیا۔');
-		}
+		new JWPMCustomersPage($root);
 	});
 
 	// 🔴 یہاں پر [JWPM Customers Module] ختم ہو رہا ہے
+	// ✅ Syntax verified block end
+
 })(jQuery);
-
-// ✅ Syntax verified block end
-/** Part 10 — JWPM Customers Page Script (UI + AJAX)
- * یہاں Customers Page کے تمام (JavaScript) behaviours، AJAX calls اور UI rendering ہیں۔
- */
-(function ($) {
-	'use strict';
-
-	// 🟢 یہاں سے [JWPM Customers Module] شروع ہو رہا ہے
-
-	/**
-	 * Safe config (jwpmCustomersData) اگر (PHP) سے نہ ملا ہو تو fallback
-	 */
-	var jwpmCustomersConfig = window.jwpmCustomersData || {
-		ajaxUrl: window.ajaxurl || '/wp-admin/admin-ajax.php',
-		mainNonce: '',
-		importNonce: '',
-		exportNonce: '',
-		demoNonce: '',
-		strings: {
-			loading: 'کسٹمرز لوڈ ہو رہے ہیں…',
-			saving: 'ڈیٹا محفوظ ہو رہا ہے…',
-			saveSuccess: 'کسٹمر کامیابی سے محفوظ ہو گیا۔',
-			saveError: 'محفوظ کرتے وقت مسئلہ آیا، دوبارہ کوشش کریں۔',
-			deleteConfirm: 'کیا آپ واقعی اس کسٹمر کو Inactive کرنا چاہتے ہیں؟',
-			deleteSuccess: 'کسٹمر کو Inactive کر دیا گیا۔',
-			demoCreateSuccess: 'Demo کسٹمرز بنا دیے گئے۔',
-			demoClearSuccess: 'Demo کسٹمرز حذف ہو گئے۔',
-			importSuccess: 'Import مکمل ہو گیا۔',
-			importError: 'Import کے دوران مسئلہ آیا۔',
-			noRecords: 'کوئی ریکارڈ نہیں ملا۔'
-		},
-		pagination: {
-			defaultPerPage: 20,
-			perPageOptions: [20, 50, 100]
-		},
-		capabilities: {
-			canManageCustomers: true
-		}
-	};
-
-	/**
-	 * Soft toast / اطلاع (اگر jwpmCommon موجود ہو تو اسی کا، ورنہ simple alert / console)
-	 */
-	function notifySuccess(message) {
-		if (window.jwpmCommon && typeof window.jwpmCommon.toastSuccess === 'function') {
-			window.jwpmCommon.toastSuccess(message);
-		} else {
-			window.console && console.log('[JWPM Customers] ' + message);
-		}
-	}
-
-	function notifyError(message) {
-		if (window.jwpmCommon && typeof window.jwpmCommon.toastError === 'function') {
-			window.jwpmCommon.toastError(message);
-		} else {
-			window.console && console.error('[JWPM Customers] ' + message);
-			alert(message);
-		}
-	}
-
-	function notifyInfo(message) {
-		if (window.jwpmCommon && typeof window.jwpmCommon.toastInfo === 'function') {
-			window.jwpmCommon.toastInfo(message);
-		} else {
-			window.console && console.log('[JWPM Customers] ' + message);
-		}
-	}
-
-	function confirmAction(message) {
-		if (window.jwpmCommon && typeof window.jwpmCommon.confirm === 'function') {
-			return window.jwpmCommon.confirm(message);
-		}
-		// simple confirm
-		return window.confirm(message);
-	}
-
-	/**
-	 * Common helper: AJAX via (jQuery)
-	 */
-	function ajaxRequest(action, data, options) {
-		options = options || {};
-
-		var payload = $.extend({}, data, { action: action });
-
-		return $.ajax({
-			url: jwpmCustomersConfig.ajaxUrl,
-			type: options.type || 'POST',
-			data: payload,
-			dataType: options.dataType || 'json',
-			processData: options.processData !== false,
-			contentType: options.contentType !== false ? 'application/x-www-form-urlencoded; charset=UTF-8' : false
-		});
-	}
-
-	/**
-	 * Main Customers Page Controller
-	 */
-	var JWPMCustomersPage = (function () {
-		function JWPMCustomersPage($root) {
-			this.$root = $root;
-			this.state = {
-				items: [],
-				page: 1,
-				perPage: jwpmCustomersConfig.pagination.defaultPerPage || 20,
-				total: 0,
-				totalPages: 1,
-				filters: {
-					search: '',
-					city: '',
-					customer_type: '',
-					status: ''
-				},
-				loading: false
-			};
-
-			this.$layout = null;
-			this.$tableBody = null;
-			this.$pagination = null;
-			this.$sidePanel = null;
-			this.$importModal = null;
-
-			this.templates = {
-				layout: document.getElementById('jwpm-customers-layout-template'),
-				row: document.getElementById('jwpm-customers-row-template'),
-				form: document.getElementById('jwpm-customers-form-template'),
-				importModal: document.getElementById('jwpm-customers-import-template')
-			};
-
-			this.init();
-		}
-
-		JWPMCustomersPage.prototype.init = function () {
-			if (!this.templates.layout) {
-				notifyError('Customers layout template نہیں ملا۔');
-				return;
-			}
-
-			this.renderLayout();
-			this.cacheElements();
-			this.bindEvents();
-
-			this.loadCustomers();
-		};
-
-		JWPMCustomersPage.prototype.renderLayout = function () {
-			var tmpl = this.templates.layout.content
-				? this.templates.layout.content.cloneNode(true)
-				: document.importNode(this.templates.layout, true);
-
-			this.$root.empty().append(tmpl);
-		};
-
-		JWPMCustomersPage.prototype.cacheElements = function () {
-			this.$layout = this.$root.find('.jwpm-page-customers').first();
-			this.$tableBody = this.$layout.find('[data-jwpm-customers-table-body]').first();
-			this.$pagination = this.$layout.find('[data-jwpm-customers-pagination]').first();
-			this.$sidePanel = this.$layout.find('[data-jwpm-customers-side-panel]').first();
-		};
-
-		JWPMCustomersPage.prototype.bindEvents = function () {
-			var self = this;
-
-			// Filters
-			this.$layout.on('input', '[data-jwpm-customers-filter="search"]', function () {
-				self.state.filters.search = $(this).val();
-				self.state.page = 1;
-				self.loadCustomers();
-			});
-
-			this.$layout.on('change', '[data-jwpm-customers-filter="city"]', function () {
-				self.state.filters.city = $(this).val();
-				self.state.page = 1;
-				self.loadCustomers();
-			});
-
-			this.$layout.on('change', '[data-jwpm-customers-filter="type"]', function () {
-				self.state.filters.customer_type = $(this).val();
-				self.state.page = 1;
-				self.loadCustomers();
-			});
-
-			this.$layout.on('change', '[data-jwpm-customers-filter="status"]', function () {
-				self.state.filters.status = $(this).val();
-				self.state.page = 1;
-				self.loadCustomers();
-			});
-
-			// Actions
-			this.$layout.on('click', '[data-jwpm-customers-action="add"]', this.onAddCustomer.bind(this));
-			this.$layout.on('click', '[data-jwpm-customers-action="import"]', this.openImportModal.bind(this));
-			this.$layout.on('click', '[data-jwpm-customers-action="export"]', this.exportCustomers.bind(this));
-			this.$layout.on('click', '[data-jwpm-customers-action="print"]', this.printCustomers.bind(this));
-			this.$layout.on('click', '[data-jwpm-customers-action="demo-create"]', this.createDemoCustomers.bind(this));
-			this.$layout.on('click', '[data-jwpm-customers-action="demo-clear"]', this.clearDemoCustomers.bind(this));
-
-			// Table actions
-			this.$layout.on('click', '[data-jwpm-customers-action="view"]', function (e) {
-				e.preventDefault();
-				var $row = $(this).closest('[data-jwpm-customer-row]');
-				var id = parseInt($row.data('id'), 10);
-				if (id) {
-					self.openCustomerForEdit(id);
-				}
-			});
-
-			this.$layout.on('click', '[data-jwpm-customers-action="quick-sale"]', function (e) {
-				e.preventDefault();
-				var $row = $(this).closest('[data-jwpm-customer-row]');
-				var id = parseInt($row.data('id'), 10);
-				if (id && window.jwpmCommon && typeof window.jwpmCommon.quickSaleWithCustomer === 'function') {
-					window.jwpmCommon.quickSaleWithCustomer(id);
-				} else {
-					notifyInfo('Quick Sale فیچر بعد میں POS کے ساتھ لنک کیا جائے گا۔');
-				}
-			});
-
-			this.$layout.on('click', '[data-jwpm-customers-action="delete"]', function (e) {
-				e.preventDefault();
-				var $row = $(this).closest('[data-jwpm-customer-row]');
-				var id = parseInt($row.data('id'), 10);
-				if (id) {
-					self.deleteCustomer(id);
-				}
-			});
-
-			// Status toggle (اگر badge پر click ہو)
-			this.$layout.on('click', '[data-jwpm-customer-field="status_badge"]', function () {
-				var $row = $(this).closest('[data-jwpm-customer-row]');
-				var id = parseInt($row.data('id'), 10);
-				if (id) {
-					self.toggleCustomerStatus(id);
-				}
-			});
-
-			// Pagination clicks
-			this.$pagination.on('click', '[data-jwpm-page]', function () {
-				var page = parseInt($(this).attr('data-jwpm-page'), 10);
-				if (!isNaN(page) && page >= 1 && page <= self.state.totalPages && page !== self.state.page) {
-					self.state.page = page;
-					self.loadCustomers();
-				}
-			});
-
-			this.$pagination.on('change', '[data-jwpm-per-page]', function () {
-				var per = parseInt($(this).val(), 10);
-				if (!isNaN(per) && per > 0) {
-					self.state.perPage = per;
-					self.state.page = 1;
-					self.loadCustomers();
-				}
-			});
-		};
-
-		JWPMCustomersPage.prototype.setLoading = function (loading) {
-			this.state.loading = loading;
-			if (loading) {
-				this.$root.addClass('jwpm-is-loading');
-			} else {
-				this.$root.removeClass('jwpm-is-loading');
-			}
-		};
-
-		JWPMCustomersPage.prototype.loadCustomers = function () {
-			var self = this;
-
-			this.setLoading(true);
-			this.$tableBody.empty().append(
-				$('<tr/>', { class: 'jwpm-loading-row' }).append(
-					$('<td/>', {
-						colspan: 10,
-						text: jwpmCustomersConfig.strings.loading || 'لوڈ ہو رہا ہے…'
-					})
-				)
-			);
-
-			ajaxRequest('jwpm_get_customers', {
-				nonce: jwpmCustomersConfig.mainNonce,
-				search: this.state.filters.search,
-				city: this.state.filters.city,
-				customer_type: this.state.filters.customer_type,
-				status: this.state.filters.status,
-				page: this.state.page,
-				per_page: this.state.perPage
-			})
-				.done(function (response) {
-					if (!response || !response.success) {
-						notifyError((response && response.data && response.data.message) || jwpmCustomersConfig.strings.saveError);
-						return;
-					}
-
-					var data = response.data;
-					self.state.items = data.items || [];
-					self.state.total = data.pagination ? parseInt(data.pagination.total, 10) || 0 : 0;
-					self.state.page = data.pagination ? parseInt(data.pagination.page, 10) || 1 : 1;
-					self.state.perPage = data.pagination ? parseInt(data.pagination.per_page, 10) || self.state.perPage : self.state.perPage;
-					self.state.totalPages = data.pagination ? parseInt(data.pagination.total_page, 10) || 1 : 1;
-
-					self.renderTable();
-					self.renderStats();
-					self.renderPagination();
-				})
-				.fail(function () {
-					notifyError(jwpmCustomersConfig.strings.saveError || 'ڈیٹا لوڈ نہیں ہو سکا۔');
-				})
-				.always(function () {
-					self.setLoading(false);
-				});
-		};
-
-		JWPMCustomersPage.prototype.renderStats = function () {
-			var total = this.state.total || 0;
-			var activeCount = 0;
-
-			this.state.items.forEach(function (item) {
-				if (item.status === 'active') {
-					activeCount++;
-				}
-			});
-
-			this.$layout
-				.find('[data-jwpm-customers-stat="total"] .jwpm-stat-value')
-				.text(total);
-			this.$layout
-				.find('[data-jwpm-customers-stat="active"] .jwpm-stat-value')
-				.text(activeCount);
-		};
-
-		JWPMCustomersPage.prototype.renderTable = function () {
-			var self = this;
-			this.$tableBody.empty();
-
-			if (!this.state.items || !this.state.items.length) {
-				this.$tableBody.append(
-					$('<tr/>', { class: 'jwpm-empty-row' }).append(
-						$('<td/>', {
-							colspan: 10,
-							text: jwpmCustomersConfig.strings.noRecords || 'کوئی ریکارڈ نہیں ملا۔'
-						})
-					)
-				);
-				return;
-			}
-
-			if (!this.templates.row) {
-				notifyError('Customers row template نہیں ملا۔');
-				return;
-			}
-
-			this.state.items.forEach(function (item) {
-				var tr;
-				if (self.templates.row.content) {
-					tr = self.templates.row.content.cloneNode(true);
-					tr = $(tr).children('tr').first();
-				} else {
-					tr = $(document.importNode(self.templates.row, true));
-				}
-
-				tr.attr('data-jwpm-customer-row', '');
-				tr.attr('data-id', item.id);
-
-				tr.find('[data-jwpm-customer-field="customer_code"]').text(item.customer_code || '');
-				tr.find('[data-jwpm-customer-field="name"]').text(item.name || '');
-				tr.find('[data-jwpm-customer-field="phone"]').text(item.phone || '');
-				tr.find('[data-jwpm-customer-field="city"]').text(item.city || '');
-				tr.find('[data-jwpm-customer-field="customer_type"]').text(item.customer_type || '');
-
-				tr.find('[data-jwpm-customer-field="credit_limit"]').text(item.credit_limit || '0.000');
-				tr.find('[data-jwpm-customer-field="current_balance"]').text(item.current_balance || '0.000');
-
-				var lastPurchase = item.last_purchase || '';
-				tr.find('[data-jwpm-customer-field="last_purchase"]').text(lastPurchase);
-
-				var $statusCell = tr.find('[data-jwpm-customer-field="status_badge"]');
-				$statusCell
-					.text(item.status === 'inactive' ? 'Inactive' : 'Active')
-					.attr('data-status', item.status || 'active')
-					.addClass('jwpm-status-badge');
-
-				self.$tableBody.append(tr);
-			});
-		};
-
-		JWPMCustomersPage.prototype.renderPagination = function () {
-			var self = this;
-			var page = this.state.page;
-			var totalPages = this.state.totalPages;
-
-			this.$pagination.empty();
-
-			if (!totalPages || totalPages <= 1) {
-				return;
-			}
-
-			var $wrapper = $('<div/>', { class: 'jwpm-pagination-inner' });
-
-			var $prev = $('<button/>', {
-				type: 'button',
-				class: 'button jwpm-page-prev',
-				text: '«'
-			}).attr('data-jwpm-page', page > 1 ? page - 1 : 1);
-
-			if (page <= 1) {
-				$prev.prop('disabled', true);
-			}
-
-			var $next = $('<button/>', {
-				type: 'button',
-				class: 'button jwpm-page-next',
-				text: '»'
-			}).attr('data-jwpm-page', page < totalPages ? page + 1 : totalPages);
-
-			if (page >= totalPages) {
-				$next.prop('disabled', true);
-			}
-
-			var $info = $('<span/>', {
-				class: 'jwpm-page-info',
-				text: 'Page ' + page + ' / ' + totalPages
-			});
-
-			var $perSelect = $('<select/>', { class: 'jwpm-select', 'data-jwpm-per-page': '1' });
-			(jwpmCustomersConfig.pagination.perPageOptions || [20, 50, 100]).forEach(function (val) {
-				var $opt = $('<option/>', {
-					value: val,
-					text: val + ' per page'
-				});
-				if (val === self.state.perPage) {
-					$opt.prop('selected', true);
-				}
-				$perSelect.append($opt);
-			});
-
-			$wrapper.append($prev, $info, $next, $perSelect);
-			this.$pagination.append($wrapper);
-		};
-
-		/**
-		 * Add / Edit Panel
-		 */
-		JWPMCustomersPage.prototype.openSidePanel = function () {
-			if (!this.templates.form) {
-				notifyError('Customer form template نہیں ملا۔');
-				return;
-			}
-
-			this.$sidePanel.empty();
-
-			var node;
-			if (this.templates.form.content) {
-				node = this.templates.form.content.cloneNode(true);
-			} else {
-				node = document.importNode(this.templates.form, true);
-			}
-
-			this.$sidePanel.append(node);
-			this.$sidePanel.prop('hidden', false);
-		};
-
-		JWPMCustomersPage.prototype.closeSidePanel = function () {
-			this.$sidePanel.prop('hidden', true).empty();
-		};
-
-		JWPMCustomersPage.prototype.onAddCustomer = function () {
-			var self = this;
-			this.openSidePanel();
-
-			var $panel = this.$sidePanel;
-			var $form = $panel.find('[data-jwpm-customers-form]').first();
-			var $title = $panel.find('[data-jwpm-customers-form-title]').first();
-
-			$title.text('Add New Customer');
-			$form[0].reset();
-			$form.find('[data-jwpm-customer-input="id"]').val('');
-			$form.find('[data-jwpm-customer-input="opening_balance"]').prop('disabled', false);
-
-			// panel buttons
-			$panel.off('click.jwpmCustomersPanel');
-			$panel.on('click.jwpmCustomersPanel', '[data-jwpm-customers-action="close-panel"], [data-jwpm-customers-action="cancel"]', this.closeSidePanel.bind(this));
-			$panel.on('click.jwpmCustomersPanel', '[data-jwpm-customers-action="save"]', function (e) {
-				e.preventDefault();
-				self.saveCustomer($form);
-			});
-		};
-
-		JWPMCustomersPage.prototype.openCustomerForEdit = function (id) {
-			var self = this;
-			this.openSidePanel();
-
-			var $panel = this.$sidePanel;
-			var $form = $panel.find('[data-jwpm-customers-form]').first();
-			var $title = $panel.find('[data-jwpm-customers-form-title]').first();
-
-			$title.text('Edit Customer');
-
-			$panel.off('click.jwpmCustomersPanel');
-			$panel.on('click.jwpmCustomersPanel', '[data-jwpm-customers-action="close-panel"], [data-jwpm-customers-action="cancel"]', this.closeSidePanel.bind(this));
-			$panel.on('click.jwpmCustomersPanel', '[data-jwpm-customers-action="save"]', function (e) {
-				e.preventDefault();
-				self.saveCustomer($form);
-			});
-
-			// Opening balance edit پر disable
-			$form.find('[data-jwpm-customer-input="opening_balance"]').prop('disabled', true);
-
-			ajaxRequest('jwpm_get_customer', {
-				nonce: jwpmCustomersConfig.mainNonce,
-				id: id
-			})
-				.done(function (response) {
-					if (!response || !response.success || !response.data || !response.data.item) {
-						notifyError((response && response.data && response.data.message) || 'کسٹمر نہیں ملا۔');
-						return;
-					}
-
-					var item = response.data.item;
-
-					$form.find('[data-jwpm-customer-input="id"]').val(item.id || '');
-					$form.find('[data-jwpm-customer-input="name"]').val(item.name || '');
-					$form.find('[data-jwpm-customer-input="phone"]').val(item.phone || '');
-					$form.find('[data-jwpm-customer-input="whatsapp"]').val(item.whatsapp || '');
-					$form.find('[data-jwpm-customer-input="email"]').val(item.email || '');
-					$form.find('[data-jwpm-customer-input="city"]').val(item.city || '');
-					$form.find('[data-jwpm-customer-input="area"]').val(item.area || '');
-					$form.find('[data-jwpm-customer-input="address"]').val(item.address || '');
-					$form.find('[data-jwpm-customer-input="cnic"]').val(item.cnic || '');
-					$form.find('[data-jwpm-customer-input="dob"]').val(item.dob || '');
-					$form.find('[data-jwpm-customer-input="gender"]').val(item.gender || '');
-					$form.find('[data-jwpm-customer-input="customer_type"]').val(item.customer_type || 'walkin');
-					$form.find('[data-jwpm-customer-input="status"]').val(item.status || 'active');
-					$form.find('[data-jwpm-customer-input="price_group"]').val(item.price_group || '');
-					$form.find('[data-jwpm-customer-input="tags"]').val(item.tags || '');
-					$form.find('[data-jwpm-customer-input="credit_limit"]').val(item.credit_limit || '');
-					$form.find('[data-jwpm-customer-input="opening_balance"]').val(item.opening_balance || '');
-					$form.find('[data-jwpm-customer-input="notes"]').val(item.notes || '');
-				})
-				.fail(function () {
-					notifyError('کسٹمر ڈیٹا لوڈ نہیں ہو سکا۔');
-				});
-		};
-
-		JWPMCustomersPage.prototype.serializeForm = function ($form) {
-			var data = {};
-			$.each($form.serializeArray(), function (_, field) {
-				data[field.name] = field.value;
-			});
-			return data;
-		};
-
-		JWPMCustomersPage.prototype.saveCustomer = function ($form) {
-			var self = this;
-
-			if (!$form || !$form.length) {
-				return;
-			}
-
-			var data = this.serializeForm($form);
-
-			if (!data.name || !data.phone) {
-				notifyError('Name اور Phone لازمی فیلڈز ہیں۔');
-				return;
-			}
-
-			data.nonce = jwpmCustomersConfig.mainNonce;
-
-			this.setLoading(true);
-			notifyInfo(jwpmCustomersConfig.strings.saving || 'محفوظ ہو رہا ہے…');
-
-			ajaxRequest('jwpm_save_customer', data)
-				.done(function (response) {
-					if (!response || !response.success) {
-						notifyError((response && response.data && response.data.message) || jwpmCustomersConfig.strings.saveError);
-						return;
-					}
-					notifySuccess(jwpmCustomersConfig.strings.saveSuccess || 'کسٹمر محفوظ ہو گیا۔');
-					self.closeSidePanel();
-					self.loadCustomers();
-				})
-				.fail(function () {
-					notifyError(jwpmCustomersConfig.strings.saveError || 'محفوظ نہیں ہو سکا۔');
-				})
-				.always(function () {
-					self.setLoading(false);
-				});
-		};
-
-		JWPMCustomersPage.prototype.deleteCustomer = function (id) {
-			var self = this;
-			if (!confirmAction(jwpmCustomersConfig.strings.deleteConfirm || 'کیا آپ واقعی اس کسٹمر کو Inactive کرنا چاہتے ہیں؟')) {
-				return;
-			}
-
-			this.setLoading(true);
-
-			ajaxRequest('jwpm_delete_customer', {
-				nonce: jwpmCustomersConfig.mainNonce,
-				id: id
-			})
-				.done(function (response) {
-					if (!response || !response.success) {
-						notifyError((response && response.data && response.data.message) || 'کسٹمر کو Inactive نہیں کیا جا سکا۔');
-						return;
-					}
-					notifySuccess(jwpmCustomersConfig.strings.deleteSuccess || 'کسٹمر کو Inactive کر دیا گیا۔');
-					self.loadCustomers();
-				})
-				.fail(function () {
-					notifyError('کسٹمر کو Inactive نہیں کیا جا سکا۔');
-				})
-				.always(function () {
-					self.setLoading(false);
-				});
-		};
-
-		JWPMCustomersPage.prototype.toggleCustomerStatus = function (id) {
-			var self = this;
-
-			this.setLoading(true);
-
-			ajaxRequest('jwpm_toggle_customer_status', {
-				nonce: jwpmCustomersConfig.mainNonce,
-				id: id
-			})
-				.done(function (response) {
-					if (!response || !response.success) {
-						notifyError((response && response.data && response.data.message) || 'Status تبدیل نہیں ہو سکا۔');
-						return;
-					}
-					self.loadCustomers();
-				})
-				.fail(function () {
-					notifyError('Status تبدیل نہیں ہو سکا۔');
-				})
-				.always(function () {
-					self.setLoading(false);
-				});
-		};
-
-		/**
-		 * Import / Export / Demo / Print
-		 */
-		JWPMCustomersPage.prototype.openImportModal = function () {
-			var self = this;
-
-			if (!this.templates.importModal) {
-				notifyError('Import modal template نہیں ملا۔');
-				return;
-			}
-
-			if (this.$importModal && this.$importModal.length) {
-				this.$importModal.remove();
-				this.$importModal = null;
-			}
-
-			var node;
-			if (this.templates.importModal.content) {
-				node = this.templates.importModal.content.cloneNode(true);
-			} else {
-				node = document.importNode(this.templates.importModal, true);
-			}
-
-			this.$importModal = $(node);
-			$('body').append(this.$importModal);
-
-			var $modal = this.$importModal;
-			var $form = $modal.find('[data-jwpm-customers-import-form]').first();
-			var $result = $modal.find('[data-jwpm-customers-import-result]').first();
-
-			function closeModal() {
-				$modal.remove();
-				self.$importModal = null;
-			}
-
-			$modal.on('click', '[data-jwpm-customers-action="close-import"]', function (e) {
-				e.preventDefault();
-				closeModal();
-			});
-
-			$modal.on('click', '[data-jwpm-customers-action="do-import"]', function (e) {
-				e.preventDefault();
-
-				var fileInput = $form.find('input[type="file"]')[0];
-				if (!fileInput || !fileInput.files || !fileInput.files.length) {
-					notifyError('براہ کرم (CSV) فائل منتخب کریں۔');
-					return;
-				}
-
-				var formData = new FormData();
-				formData.append('action', 'jwpm_import_customers');
-				formData.append('nonce', jwpmCustomersConfig.importNonce);
-				formData.append('file', fileInput.files[0]);
-
-				var skipDup = $form.find('input[name="skip_duplicates"]').is(':checked') ? 1 : 0;
-				formData.append('skip_duplicates', skipDup);
-
-				$result.empty().text(jwpmCustomersConfig.strings.loading || 'Import ہو رہا ہے…');
-
-				$.ajax({
-					url: jwpmCustomersConfig.ajaxUrl,
-					type: 'POST',
-					data: formData,
-					processData: false,
-					contentType: false,
-					dataType: 'json'
-				})
-					.done(function (response) {
-						if (!response || !response.success) {
-							notifyError((response && response.data && response.data.message) || jwpmCustomersConfig.strings.importError || 'Import کے دوران مسئلہ آیا۔');
-							return;
-						}
-
-						var data = response.data || {};
-						var msg =
-							(jwpmCustomersConfig.strings.importSuccess || 'Import مکمل ہو گیا۔') +
-							' Total: ' +
-							(data.total || 0) +
-							', Inserted: ' +
-							(data.inserted || 0) +
-							', Skipped: ' +
-							(data.skipped || 0);
-
-						$result.text(msg);
-						notifySuccess(msg);
-						self.loadCustomers();
-					})
-					.fail(function () {
-						notifyError(jwpmCustomersConfig.strings.importError || 'Import کے دوران مسئلہ آیا۔');
-					});
-			});
-		};
-
-		JWPMCustomersPage.prototype.exportCustomers = function () {
-			// Export direct download via URL + nonce
-			var url =
-				jwpmCustomersConfig.ajaxUrl +
-				'?action=jwpm_export_customers&nonce=' +
-				encodeURIComponent(jwpmCustomersConfig.exportNonce);
-
-			window.open(url, '_blank');
-		};
-
-		JWPMCustomersPage.prototype.createDemoCustomers = function () {
-			var self = this;
-
-			this.setLoading(true);
-
-			ajaxRequest('jwpm_customers_demo_create', {
-				nonce: jwpmCustomersConfig.demoNonce
-			})
-				.done(function (response) {
-					if (!response || !response.success) {
-						notifyError((response && response.data && response.data.message) || 'Demo کسٹمرز نہیں بن سکے۔');
-						return;
-					}
-					notifySuccess(jwpmCustomersConfig.strings.demoCreateSuccess || 'Demo کسٹمرز بنا دیے گئے۔');
-					self.loadCustomers();
-				})
-				.fail(function () {
-					notifyError('Demo کسٹمرز نہیں بن سکے۔');
-				})
-				.always(function () {
-					self.setLoading(false);
-				});
-		};
-
-		JWPMCustomersPage.prototype.clearDemoCustomers = function () {
-			var self = this;
-
-			this.setLoading(true);
-
-			ajaxRequest('jwpm_customers_demo_clear', {
-				nonce: jwpmCustomersConfig.demoNonce
-			})
-				.done(function (response) {
-					if (!response || !response.success) {
-						notifyError((response && response.data && response.data.message) || 'Demo کسٹمرز حذف نہیں ہو سکے۔');
-						return;
-					}
-					notifySuccess(jwpmCustomersConfig.strings.demoClearSuccess || 'Demo کسٹمرز حذف ہو گئے۔');
-					self.loadCustomers();
-				})
-				.fail(function () {
-					notifyError('Demo کسٹمرز حذف نہیں ہو سکے۔');
-				})
-				.always(function () {
-					self.setLoading(false);
-				});
-		};
-
-		JWPMCustomersPage.prototype.printCustomers = function () {
-			var $table = this.$layout.find('.jwpm-table-customers').first();
-			if (!$table.length) {
-				notifyError('پرنٹ کیلئے کوئی جدول نہیں ملا۔');
-				return;
-			}
-
-			var html = '<html><head><title>Customers List</title>';
-			html += '<style>body{font-family:system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;font-size:12px;color:#000;padding:16px;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid #ccc;padding:4px 6px;text-align:left;} th{background:#eee;} .jwpm-status-badge{font-weight:bold;}</style>';
-			html += '</head><body>';
-			html += '<h2>Customers List</h2>';
-			html += '<p>' + new Date().toLocaleString() + '</p>';
-			html += $table.prop('outerHTML');
-			html += '</body></html>';
-
-			var w = window.open('', '_blank');
-			if (!w) {
-				notifyError('پرنٹ ونڈو نہیں کھل سکی۔');
-				return;
-			}
-			w.document.open();
-			w.document.write(html);
-			w.document.close();
-			w.focus();
-			w.print();
-		};
-
-		return JWPMCustomersPage;
-	})();
-
-	/**
-	 * DOM Ready — Root element mount
-	 */
-	$(function () {
-		var $root = $('#jwpm-customers-root').first();
-
-		if (!$root.length) {
-			if (window.console) {
-				console.warn('JWPM Customers: #jwpm-customers-root نہیں ملا، شاید یہ صحیح پیج نہیں۔');
-			}
-			return;
-		}
-
-		try {
-			new JWPMCustomersPage($root);
-		} catch (e) {
-			console.error('JWPM Customers init error:', e);
-			notifyError('Customers Page لوڈ کرتے وقت مسئلہ آیا۔');
-		}
-	});
-
-	// 🔴 یہاں پر [JWPM Customers Module] ختم ہو رہا ہے
-})(jQuery);
-
-// ✅ Syntax verified block end
-
