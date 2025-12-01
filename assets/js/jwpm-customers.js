@@ -49,6 +49,13 @@
 	var JWPMCustomersPage = (function () {
 		function JWPMCustomersPage($root) {
 			this.$root = $root;
+
+			// 🔑 Nonce اصل root DIV سے لیں، fallback config پر
+			this.mainNonce =
+				$root.data('jwpm-customers-main-nonce') ||
+				jwpmCustomersConfig.mainNonce ||
+				'';
+
 			this.state = {
 				items: [],
 				page: 1,
@@ -214,7 +221,7 @@
 			);
 
 			ajaxRequest('jwpm_customers_fetch', {
-				nonce: jwpmCustomersConfig.mainNonce || '',
+				nonce: this.mainNonce,
 				search: this.state.filters.search,
 				city: this.state.filters.city,
 				customer_type: this.state.filters.customer_type,
@@ -351,7 +358,7 @@
 
 				'<form id="jwpm-customer-form">' +
 					'<input type="hidden" name="id" value="' + val('id') + '">' +
-					'<input type="hidden" name="nonce" value="' + (jwpmCustomersConfig.mainNonce || '') + '">' +
+					'<input type="hidden" name="nonce" value="' + this.mainNonce + '">' +
 
 					'<label>Name <span style="color:red">*</span></label>' +
 					'<input type="text" name="name" class="widefat" value="' + val('name') + '" required style="margin-bottom:10px;">' +
@@ -419,7 +426,8 @@
 						data[field.name] = field.value;
 					});
 
-					data.nonce = data.nonce || (jwpmCustomersConfig.mainNonce || '');
+					// 🔑 ہمیشہ صحیح nonce
+					data.nonce = self.mainNonce;
 
 					ajaxRequest('jwpm_customers_save', data)
 						.done(function (res) {
@@ -453,7 +461,7 @@
 			var self = this;
 
 			ajaxRequest('jwpm_customers_delete', {
-				nonce: jwpmCustomersConfig.mainNonce || '',
+				nonce: this.mainNonce,
 				id: id
 			})
 				.done(function (res) {
@@ -474,7 +482,7 @@
 			var self = this;
 
 			ajaxRequest('jwpm_customers_demo', {
-				nonce: jwpmCustomersConfig.mainNonce || '',
+				nonce: this.mainNonce,
 				mode: 'create'
 			})
 				.done(function (res) {
@@ -498,7 +506,7 @@
 		var $root = $('#jwpm-customers-root');
 
 		if (!$root.length) {
-			console.warn('[JWPM Customers] Root element #jwpm-customers-root نہیں ملا۔');
+			console.warn('[JWPM Customers] Root element #jwpm-customers-root not found.');
 			return;
 		}
 
