@@ -83,8 +83,8 @@ class JWPM_Ajax {
 		// ---------------------------------------------------------------------
 		// 5. Repair Jobs Module
 		// ---------------------------------------------------------------------
-		add_action( 'wp_ajax_jwpm_repair_fetch',  array( __CLASS__, 'repair_fetch' ) );
-		add_action( 'wp_ajax_jwpm_repair_save',   array( __CLASS__, 'repair_save' ) );
+		add_action( 'wp_ajax_jwpm_repair_fetch',  array( __CLASS__, 'repair_fetch' ) );
+		add_action( 'wp_ajax_jwpm_repair_save',   array( __CLASS__, 'repair_save' ) );
 		add_action( 'wp_ajax_jwpm_repair_delete', array( __CLASS__, 'repair_delete' ) );
 		add_action( 'wp_ajax_jwpm_repair_import', array( __CLASS__, 'repair_import' ) );
 		add_action( 'wp_ajax_jwpm_repair_export', array( __CLASS__, 'repair_export' ) );
@@ -96,25 +96,25 @@ class JWPM_Ajax {
 		// ---------------------------------------------------------------------
 		// 6. Accounts Module
 		// ---------------------------------------------------------------------
-		add_action( 'wp_ajax_jwpm_cashbook_fetch',   array( __CLASS__, 'accounts_cashbook_fetch' ) );
-		add_action( 'wp_ajax_jwpm_cashbook_save',    array( __CLASS__, 'accounts_cashbook_save' ) );
-		add_action( 'wp_ajax_jwpm_cashbook_delete',  array( __CLASS__, 'accounts_cashbook_delete' ) );
-		add_action( 'wp_ajax_jwpm_expenses_fetch',   array( __CLASS__, 'accounts_expenses_fetch' ) );
-		add_action( 'wp_ajax_jwpm_expenses_save',    array( __CLASS__, 'accounts_expenses_save' ) );
-		add_action( 'wp_ajax_jwpm_expenses_delete',  array( __CLASS__, 'accounts_expenses_delete' ) );
-		add_action( 'wp_ajax_jwpm_ledger_fetch',     array( __CLASS__, 'accounts_ledger_fetch' ) );
+		add_action( 'wp_ajax_jwpm_cashbook_fetch',   array( __CLASS__, 'accounts_cashbook_fetch' ) );
+		add_action( 'wp_ajax_jwpm_cashbook_save',    array( __CLASS__, 'accounts_cashbook_save' ) );
+		add_action( 'wp_ajax_jwpm_cashbook_delete',  array( __CLASS__, 'accounts_cashbook_delete' ) );
+		add_action( 'wp_ajax_jwpm_expenses_fetch',   array( __CLASS__, 'accounts_expenses_fetch' ) );
+		add_action( 'wp_ajax_jwpm_expenses_save',    array( __CLASS__, 'accounts_expenses_save' ) );
+		add_action( 'wp_ajax_jwpm_expenses_delete',  array( __CLASS__, 'accounts_expenses_delete' ) );
+		add_action( 'wp_ajax_jwpm_ledger_fetch',     array( __CLASS__, 'accounts_ledger_fetch' ) );
 
 		// ---------------------------------------------------------------------
 		// 7. Dashboard APIs
 		// ---------------------------------------------------------------------
-		add_action( 'wp_ajax_jwpm_dashboard_get_stats',           array( __CLASS__, 'dashboard_get_stats' ) );
+			add_action( 'wp_ajax_jwpm_dashboard_get_stats',           array( __CLASS__, 'dashboard_get_stats' ) );
 		add_action( 'wp_ajax_jwpm_dashboard_get_recent_activity', array( __CLASS__, 'dashboard_get_recent_activity' ) );
 
 		// ---------------------------------------------------------------------
 		// 8. Reports APIs
 		// ---------------------------------------------------------------------
 		// Sales Reports
-		add_action( 'wp_ajax_jwpm_sales_report_daily',   array( __CLASS__, 'reports_sales_daily' ) );
+		add_action( 'wp_ajax_jwpm_sales_report_daily',   array( __CLASS__, 'reports_sales_daily' ) );
 		add_action( 'wp_ajax_jwpm_sales_report_monthly', array( __CLASS__, 'reports_sales_monthly' ) );
 		add_action( 'wp_ajax_jwpm_sales_report_custom',  array( __CLASS__, 'reports_sales_custom' ) );
 
