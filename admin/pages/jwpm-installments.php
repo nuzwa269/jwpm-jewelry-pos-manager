@@ -1,3 +1,4 @@
+<?php
 /** Part 40 — Installments Page Root + Templates */
 // 🟢 یہاں سے [Installments Page Templates] شروع ہو رہا ہے
 
