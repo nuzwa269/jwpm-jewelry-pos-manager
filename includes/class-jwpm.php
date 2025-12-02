@@ -100,10 +100,10 @@ class JWPM {
 		// 1. Admin Menu Creation
 		$this->loader->add_action( 'admin_menu', $plugin_admin, 'add_menu_items' );
 
-		// 2. AJAX Hooks Registration
-		if ( class_exists( 'JWPM_Ajax' ) ) {
+	// 2. AJAX Hooks Registration
+if ( class_exists( 'JWPM_Ajax' ) ) {
     $ajax_instance = new JWPM_Ajax();
-    $this->loader->add_action( 'init', array( 'JWPM_Ajax', 'register_ajax_hooks' ) );
+    $this->loader->add_action( 'init', $ajax_instance, 'register_ajax_hooks' );
 }
 	}
 
