@@ -512,9 +512,9 @@ class JWPM_Ajax {
 				'net_weight'    => isset( $row['net_weight'] ) ? (float) $row['net_weight'] : 0,
 				'stone_type'    => isset( $row['stone_type'] ) ? sanitize_text_field( $row['stone_type'] ) : '',
 				'labour_amount' => isset( $row['labour_amount'] ) ? (float) $row['labour_amount'] : 0,
-				'design_no'     => isset( $row['design_no'] ) ? sanitize_text_field( $row['design_no'] ) : '',
-				'status'        => isset( $row['status'] ) ? sanitize_text_field( wp_unslash( $row['status'] ) ) : 'in_stock',
-				'is_demo'       => isset( $row['is_demo'] ) ? (int) $row['is_demo'] : 0,
+					'design_no'     => isset( $row['design_no'] ) ? sanitize_text_field( $row['design_no'] ) : '',
+				'status'        => isset( $row['status'] ) ? sanitize_text_field( wp_unslash( $row['status'] ) ) : 'in_stock',
+				'is_demo'       => isset( $row['is_demo'] ) ? (int) $row['is_demo'] : 0,
 			);
 
 			$existing_id = (int) $wpdb->get_var(
@@ -538,8 +538,8 @@ class JWPM_Ajax {
 		wp_send_json_success(
 			array(
 				'inserted' => $inserted,
-				'updated'  => $updated,
-				'message'  => __( 'Inventory import completed.', 'jwpm-jewelry-pos-manager' ),
+					'updated'  => $updated,
+				'message'  => __( 'Inventory import completed.', 'jwpm-jewelry-pos-manager' ),
 			)
 		);
 	}
@@ -554,20 +554,20 @@ class JWPM_Ajax {
 		$table = self::get_table( 'items', 'jwpm_items' );
 
 		$status = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
-		$where  = 'WHERE 1=1';
+			$where  = 'WHERE 1=1';
 		$params = array();
 
 		if ( '' !== $status ) {
-			$where   .= ' AND status = %s';
+			$where   .= ' AND status = %s';
 			$params[] = $status;
 		}
 
-		$sql  = "SELECT * FROM {$table} {$where} ORDER BY created_at DESC LIMIT 5000";
+		$sql  = "SELECT * FROM {$table} {$where} ORDER BY created_at DESC LIMIT 5000";
 		$rows = empty( $params ) ? $wpdb->get_results( $sql, ARRAY_A ) : $wpdb->get_results( $wpdb->prepare( $sql, $params ), ARRAY_A );
 
 		wp_send_json_success(
 			array(
-				'rows'    => $rows,
+				'rows'    => $rows,
 				'message' => __( 'Inventory export data ready.', 'jwpm-jewelry-pos-manager' ),
 			)
 		);
@@ -581,7 +581,7 @@ class JWPM_Ajax {
 		global $wpdb;
 
 		$table = self::get_table( 'items', 'jwpm_items' );
-		$mode  = isset( $_POST['mode'] ) ? sanitize_text_field( wp_unslash( $_POST['mode'] ) ) : 'create';
+		$mode  = isset( $_POST['mode'] ) ? sanitize_text_field( wp_unslash( $_POST['mode'] ) ) : 'create';
 
 		if ( 'delete' === $mode ) {
 			$wpdb->delete( $table, array( 'is_demo' => 1 ), array( '%d' ) );
@@ -604,36 +604,36 @@ class JWPM_Ajax {
 
 		$demo_rows = array(
 			array(
-				'sku'           => 'DEMO-RING-001',
-				'category'      => 'Ring',
-				'metal_type'    => 'Gold',
-				'karat'         => '22K',
-				'gross_weight'  => 5.200,
-				'net_weight'    => 4.850,
+				'sku'           => 'DEMO-RING-001',
+				'category'      => 'Ring',
+				'metal_type'    => 'Gold',
+				'karat'         => '22K',
+				'gross_weight'  => 5.200,
+				'net_weight'    => 4.850,
 				'labour_amount' => 1500,
-				'design_no'     => 'R-1001',
+				'design_no'     => 'R-1001',
 			),
 			array(
-				'sku'           => 'DEMO-SET-001',
-				'category'      => 'Set',
-				'metal_type'    => 'Gold',
-				'karat'         => '21K',
-				'gross_weight'  => 25.500,
-				'net_weight'    => 24.900,
+				'sku'           => 'DEMO-SET-001',
+				'category'      => 'Set',
+				'metal_type'    => 'Gold',
+				'karat'         => '21K',
+				'gross_weight'  => 25.500,
+				'net_weight'    => 24.900,
 				'labour_amount' => 4500,
-				'design_no'     => 'S-2001',
+				'design_no'     => 'S-2001',
 			),
 		);
 
 		foreach ( $demo_rows as $row ) {
-			$row['branch_id']     = 0;
-			$row['status']        = 'in_stock';
-			$row['is_demo']       = 1;
-			$row['created_at']    = current_time( 'mysql' );
-			$row['tag_serial']    = '';
-			$row['stone_type']    = '';
-			$row['stone_carat']   = 0;
-			$row['stone_qty']     = 0;
+			$row['branch_id']     = 0;
+			$row['status']        = 'in_stock';
+			$row['is_demo']       = 1;
+			$row['created_at']    = current_time( 'mysql' );
+			$row['tag_serial']    = '';
+			$row['stone_type']    = '';
+			$row['stone_carat']   = 0;
+			$row['stone_qty']     = 0;
 			$wpdb->insert( $table, $row );
 		}
 
@@ -660,36 +660,36 @@ class JWPM_Ajax {
 
 		$table = self::get_table( 'items', 'jwpm_items' );
 
-		$keyword   = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
-		$category  = isset( $_POST['category'] ) ? sanitize_text_field( wp_unslash( $_POST['category'] ) ) : '';
-		$karat     = isset( $_POST['karat'] ) ? sanitize_text_field( wp_unslash( $_POST['karat'] ) ) : '';
+	    $keyword   = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
+		$category  = isset( $_POST['category'] ) ? sanitize_text_field( wp_unslash( $_POST['category'] ) ) : '';
+		$karat     = isset( $_POST['karat'] ) ? sanitize_text_field( wp_unslash( $_POST['karat'] ) ) : '';
 		$branch_id = isset( $_POST['branch_id'] ) ? (int) $_POST['branch_id'] : 0;
 
-		$where  = "WHERE status != %s";
+		$where  = "WHERE status != %s";
 		$params = array( 'scrap' );
 
 		if ( $branch_id > 0 ) {
-			$where     .= ' AND branch_id = %d';
-			$params[]   = $branch_id;
+			$where     .= ' AND branch_id = %d';
+			$params[]   = $branch_id;
 		}
 		if ( '' !== $keyword ) {
-			$like       = '%' . $wpdb->esc_like( $keyword ) . '%';
-			$where     .= ' AND (sku LIKE %s OR tag_serial LIKE %s OR category LIKE %s OR design_no LIKE %s)';
-			$params[]   = $like;
-			$params[]   = $like;
-			$params[]   = $like;
-			$params[]   = $like;
+			$like       = '%' . $wpdb->esc_like( $keyword ) . '%';
+			$where     .= ' AND (sku LIKE %s OR tag_serial LIKE %s OR category LIKE %s OR design_no LIKE %s)';
+			$params[]   = $like;
+			$params[]   = $like;
+			$params[]   = $like;
+			$params[]   = $like;
 		}
 		if ( '' !== $category ) {
-			$where     .= ' AND category = %s';
-			$params[]   = $category;
+				$where     .= ' AND category = %s';
+			$params[]   = $category;
 		}
 		if ( '' !== $karat ) {
-			$where     .= ' AND karat = %s';
-			$params[]   = $karat;
+			$where     .= ' AND karat = %s';
+			$params[]   = $karat;
 		}
 
-		$sql  = "SELECT id, branch_id, sku, tag_serial, category, metal_type, karat, gross_weight, net_weight, stone_type, status FROM {$table} {$where} ORDER BY created_at DESC LIMIT 30";
+				$sql  = "SELECT id, branch_id, sku, tag_serial, category, metal_type, karat, gross_weight, net_weight, stone_type, status FROM {$table} {$where} ORDER BY created_at DESC LIMIT 30";
 		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $params ), ARRAY_A );
 
 		wp_send_json_success(
@@ -704,7 +704,7 @@ class JWPM_Ajax {
 		global $wpdb;
 
 		$settings_table = self::get_table( 'settings', 'jwpm_settings' );
-		$val            = $wpdb->get_var(
+			$val            = $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT option_value FROM {$settings_table} WHERE option_name = %s LIMIT 1",
 				'gold_rate_24k'
@@ -732,7 +732,7 @@ class JWPM_Ajax {
 		self::verify_request( 'jwpm_pos_nonce', array( 'manage_jwpm_sales', 'manage_jwpm_customers', 'manage_options' ) );
 		global $wpdb;
 
-		$table   = self::get_table( 'customers', 'jwpm_customers' );
+		$table   = self::get_table( 'customers', 'jwpm_customers' );
 		$keyword = isset( $_POST['keyword'] ) ? sanitize_text_field( wp_unslash( $_POST['keyword'] ) ) : '';
 
 		if ( '' === $keyword ) {
@@ -744,7 +744,7 @@ class JWPM_Ajax {
 		}
 
 		$like = '%' . $wpdb->esc_like( $keyword ) . '%';
-		$sql  = "SELECT id, name, phone, email, loyalty_points FROM {$table} WHERE phone LIKE %s OR name LIKE %s ORDER BY created_at DESC LIMIT 20";
+		$sql  = "SELECT id, name, phone, email, loyalty_points FROM {$table} WHERE phone LIKE %s OR name LIKE %s ORDER BY created_at DESC LIMIT 20";
 		$rows = $wpdb->get_results( $wpdb->prepare( $sql, array( $like, $like ) ), ARRAY_A );
 
 		wp_send_json_success(
@@ -761,7 +761,7 @@ class JWPM_Ajax {
 		self::verify_request( 'jwpm_pos_nonce', array( 'manage_jwpm_sales', 'manage_options' ) );
 
 		$payload_raw = isset( $_POST['sale'] ) ? wp_unslash( $_POST['sale'] ) : '';
-		$payload     = is_array( $payload_raw ) ? $payload_raw : json_decode( $payload_raw, true );
+			$payload     = is_array( $payload_raw ) ? $payload_raw : json_decode( $payload_raw, true );
 
 		if ( ! is_array( $payload ) ) {
 			wp_send_json_error(
@@ -784,7 +784,8 @@ class JWPM_Ajax {
 		}
 
 		$customer_id = isset( $payload['customer_id'] ) ? (int) $payload['customer_id'] : 0;
-		$total       = isset( $payload['total_amount'] ) ? (float) $payload['total_amount'] : 0;
+		$total       = isset( $payload['total_amount'] ) ? (float) $payload['total_amount'] : 0;
+
 
 		if ( $total <= 0 ) {
 			wp_send_json_error(
@@ -823,14 +824,13 @@ class JWPM_Ajax {
 			$stats = JWPM_DB::get_today_pos_stats();
 			wp_send_json_success( $stats );
 		}
-
-		// Safe default empty stats
+     // Safe default empty stats
 		wp_send_json_success(
 			array(
-				'sales_count'   => 0,
-				'sales_amount'  => 0,
-				'items_sold'    => 0,
-				'message'       => __( 'POS stats provider not implemented yet.', 'jwpm-jewelry-pos-manager' ),
+					'sales_count'   => 0,
+				'sales_amount'  => 0,
+				'items_sold'    => 0,
+				'message'       => __( 'POS stats provider not implemented yet.', 'jwpm-jewelry-pos-manager' ),
 			)
 		);
 	}
@@ -852,50 +852,50 @@ class JWPM_Ajax {
 		$table = self::get_table( 'customers', 'jwpm_customers' );
 
 		$search = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '';
-		$city   = isset( $_POST['city'] ) ? sanitize_text_field( wp_unslash( $_POST['city'] ) ) : '';
-		$type   = isset( $_POST['customer_type'] ) ? sanitize_text_field( wp_unslash( $_POST['customer_type'] ) ) : '';
+		$city   = isset( $_POST['city'] ) ? sanitize_text_field( wp_unslash( $_POST['city'] ) ) : '';
+		$type   = isset( $_POST['customer_type'] ) ? sanitize_text_field( wp_unslash( $_POST['customer_type'] ) ) : '';
 		$status = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
-		$page   = isset( $_POST['page'] ) ? max( 1, (int) $_POST['page'] ) : 1;
-		$per    = isset( $_POST['per_page'] ) ? max( 1, (int) $_POST['per_page'] ) : 20;
+			$page   = isset( $_POST['page'] ) ? max( 1, (int) $_POST['page'] ) : 1;
+		$per    = isset( $_POST['per_page'] ) ? max( 1, (int) $_POST['per_page'] ) : 20;
 
-		$where  = 'WHERE 1=1';
+		$where  = 'WHERE 1=1';
 		$params = array();
 
 		if ( $search ) {
-			$like     = '%' . $wpdb->esc_like( $search ) . '%';
-			$where   .= ' AND (name LIKE %s OR phone LIKE %s)';
+			$like     = '%' . $wpdb->esc_like( $search ) . '%';
+			$where   .= ' AND (name LIKE %s OR phone LIKE %s)';
 			$params[] = $like;
 			$params[] = $like;
 		}
 		if ( $city ) {
-			$where   .= ' AND city = %s';
+			$where   .= ' AND city = %s';
 			$params[] = $city;
 		}
 		if ( $type ) {
-			$where   .= ' AND customer_type = %s';
+				$where   .= ' AND customer_type = %s';
 			$params[] = $type;
 		}
 		if ( $status ) {
-			$where   .= ' AND status = %s';
+				$where   .= ' AND status = %s';
 			$params[] = $status;
 		}
 
 		$total_sql = "SELECT COUNT(*) FROM {$table} {$where}";
-		$total     = (int) $wpdb->get_var( $wpdb->prepare( $total_sql, $params ) );
+			$total     = (int) $wpdb->get_var( $wpdb->prepare( $total_sql, $params ) );
 
-		$offset       = ( $page - 1 ) * $per;
+		$offset       = ( $page - 1 ) * $per;
 		$params_items = array_merge( $params, array( $per, $offset ) );
 
 		$list_sql = "SELECT * FROM {$table} {$where} ORDER BY created_at DESC LIMIT %d OFFSET %d";
-		$rows     = $wpdb->get_results( $wpdb->prepare( $list_sql, $params_items ), ARRAY_A );
+		$rows     = $wpdb->get_results( $wpdb->prepare( $list_sql, $params_items ), ARRAY_A );
 
 		wp_send_json_success(
 			array(
-				'items'      => $rows,
+				'items'      => $rows,
 				'pagination' => array(
-					'total'      => $total,
-					'page'       => $page,
-					'per_page'   => $per,
+						'total'      => $total,
+					'page'       => $page,
+					'per_page'   => $per,
 					'total_page' => $per > 0 ? (int) ceil( $total / $per ) : 1,
 				),
 			)
@@ -908,8 +908,8 @@ class JWPM_Ajax {
 
 		$table = self::get_table( 'customers', 'jwpm_customers' );
 
-		$id    = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
-		$name  = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
+		$id    = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
+		$name  = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
 		$phone = isset( $_POST['phone'] ) ? sanitize_text_field( wp_unslash( $_POST['phone'] ) ) : '';
 
 		if ( '' === $name || '' === $phone ) {
@@ -922,22 +922,22 @@ class JWPM_Ajax {
 		}
 
 		$data = array(
-			'name'          => $name,
-			'phone'         => $phone,
-			'whatsapp'      => isset( $_POST['whatsapp'] ) ? sanitize_text_field( wp_unslash( $_POST['whatsapp'] ) ) : '',
-			'email'         => isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '',
-			'city'          => isset( $_POST['city'] ) ? sanitize_text_field( wp_unslash( $_POST['city'] ) ) : '',
-			'area'          => isset( $_POST['area'] ) ? sanitize_text_field( wp_unslash( $_POST['area'] ) ) : '',
-			'address'       => isset( $_POST['address'] ) ? sanitize_textarea_field( wp_unslash( $_POST['address'] ) ) : '',
-			'cnic'          => isset( $_POST['cnic'] ) ? sanitize_text_field( wp_unslash( $_POST['cnic'] ) ) : '',
-			'dob'           => isset( $_POST['dob'] ) ? sanitize_text_field( wp_unslash( $_POST['dob'] ) ) : '',
-			'gender'        => isset( $_POST['gender'] ) ? sanitize_text_field( wp_unslash( $_POST['gender'] ) ) : '',
+				'name'          => $name,
+			'phone'         => $phone,
+			'whatsapp'      => isset( $_POST['whatsapp'] ) ? sanitize_text_field( wp_unslash( $_POST['whatsapp'] ) ) : '',
+			'email'         => isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '',
+			'city'          => isset( $_POST['city'] ) ? sanitize_text_field( wp_unslash( $_POST['city'] ) ) : '',
+			'area'          => isset( $_POST['area'] ) ? sanitize_text_field( wp_unslash( $_POST['area'] ) ) : '',
+			'address'       => isset( $_POST['address'] ) ? sanitize_textarea_field( wp_unslash( $_POST['address'] ) ) : '',
+			'cnic'          => isset( $_POST['cnic'] ) ? sanitize_text_field( wp_unslash( $_POST['cnic'] ) ) : '',
+			'dob'           => isset( $_POST['dob'] ) ? sanitize_text_field( wp_unslash( $_POST['dob'] ) ) : '',
+			'gender'        => isset( $_POST['gender'] ) ? sanitize_text_field( wp_unslash( $_POST['gender'] ) ) : 
 			'customer_type' => isset( $_POST['customer_type'] ) ? sanitize_text_field( wp_unslash( $_POST['customer_type'] ) ) : 'walkin',
-			'status'        => isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : 'active',
-			'price_group'   => isset( $_POST['price_group'] ) ? sanitize_text_field( wp_unslash( $_POST['price_group'] ) ) : '',
-			'tags'          => isset( $_POST['tags'] ) ? sanitize_textarea_field( wp_unslash( $_POST['tags'] ) ) : '',
-			'notes'         => isset( $_POST['notes'] ) ? sanitize_textarea_field( wp_unslash( $_POST['notes'] ) ) : '',
-			'credit_limit'  => self::sanitize_decimal( isset( $_POST['credit_limit'] ) ? wp_unslash( $_POST['credit_limit'] ) : '0' ),
+				'status'        => isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : 'active',
+			'price_group'   => isset( $_POST['price_group'] ) ? sanitize_text_field( wp_unslash( $_POST['price_group'] ) ) : '',
+			'tags'          => isset( $_POST['tags'] ) ? sanitize_textarea_field( wp_unslash( $_POST['tags'] ) ) : '',
+			'notes'         => isset( $_POST['notes'] ) ? sanitize_textarea_field( wp_unslash( $_POST['notes'] ) ) : '',
+			'credit_limit'  => self::sanitize_decimal( isset( $_POST['credit_limit'] ) ? wp_unslash( $_POST['credit_limit'] ) : '0' ),
 		);
 
 		if ( $id > 0 ) {
@@ -945,15 +945,15 @@ class JWPM_Ajax {
 			$wpdb->update( $table, $data, array( 'id' => $id ), null, array( '%d' ) );
 		} else {
 			// CREATE CUSTOMER
-			$data['opening_balance']  = self::sanitize_decimal( isset( $_POST['opening_balance'] ) ? wp_unslash( $_POST['opening_balance'] ) : '0' );
-			$data['current_balance']  = $data['opening_balance'];
-			$data['created_by']       = get_current_user_id();
-			$data['is_demo']          = 0;
+				$data['opening_balance']  = self::sanitize_decimal( isset( $_POST['opening_balance'] ) ? wp_unslash( $_POST['opening_balance'] ) : '0' );
+			$data['current_balance']  = $data['opening_balance'];
+			$data['created_by']       = get_current_user_id();
+			$data['is_demo']          = 0;
 			
 			// Customer Code Logic
-			$max_id                   = (int) $wpdb->get_var( "SELECT MAX(id) FROM {$table}" );
-			$data['customer_code']    = sprintf( 'CUST-%04d', $max_id + 1 );
-			$data['created_at']       = current_time( 'mysql' );
+				$max_id                   = (int) $wpdb->get_var( "SELECT MAX(id) FROM {$table}" );
+			$data['customer_code']    = sprintf( 'CUST-%04d', $max_id + 1 );
+			$data['created_at']       = current_time( 'mysql' );
 
 			$inserted = $wpdb->insert( $table, $data );
 			
@@ -975,7 +975,7 @@ class JWPM_Ajax {
 		wp_send_json_success(
 			array(
 				'message' => __( 'Saved successfully.', 'jwpm-jewelry-pos-manager' ),
-				'item'    => $row,
+				'item'    => $row,
 			)
 		);
 	}
@@ -985,7 +985,7 @@ class JWPM_Ajax {
 		global $wpdb;
 
 		$table = self::get_table( 'customers', 'jwpm_customers' );
-		$id    = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
+		$id    = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
 
 		if ( $id <= 0 ) {
 			wp_send_json_error(
@@ -999,7 +999,7 @@ class JWPM_Ajax {
 		$wpdb->update(
 			$table,
 			array(
-				'status'     => 'inactive',
+				'status'     => 'inactive',
 				'updated_by' => get_current_user_id(),
 			),
 			array( 'id' => $id ),
@@ -1019,7 +1019,7 @@ class JWPM_Ajax {
 		global $wpdb;
 
 		$table = self::get_table( 'customers', 'jwpm_customers' );
-		$id    = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
+			$id    = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
 
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $id ), ARRAY_A );
 		if ( ! $row ) {
