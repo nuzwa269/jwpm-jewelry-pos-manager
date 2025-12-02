@@ -18,11 +18,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // 2. Constants Definition
+// === پلگ ان کے لیے Constants (ثوابت) تعریف کریں ===
 define( 'JWPM_VERSION', '1.0.0' );
+define( 'JWPM_DB_VERSION', '1.0.0' ); // 👈 DB ورژن بھی شامل کیا گیا
 define( 'JWPM_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'JWPM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'JWPM_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
-
 
 // 3. Require Core Files (ترتیب بہت اہم ہے)
 // ہم تمام فائلز کو includes فولڈر سے اٹھا رہے ہیں۔
