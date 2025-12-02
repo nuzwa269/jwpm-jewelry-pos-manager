@@ -367,9 +367,9 @@ class JWPM_Ajax {
 			'stone_carat'   => isset( $_POST['stone_carat'] ) ? (float) $_POST['stone_carat'] : 0,
 			'stone_qty'     => isset( $_POST['stone_qty'] ) ? (int) $_POST['stone_qty'] : 0,
 			'labour_amount' => isset( $_POST['labour_amount'] ) ? (float) $_POST['labour_amount'] : 0,
-			'design_no'     => isset( $_POST['design_no'] ) ? sanitize_text_field( wp_unslash( $_POST['design_no'] ) ) : '',
-			'status'        => isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : 'in_stock',
-			'is_demo'       => isset( $_POST['is_demo'] ) ? (int) $_POST['is_demo'] : 0,
+			'design_no'     => isset( $_POST['design_no'] ) ? sanitize_text_field( wp_unslash( $_POST['design_no'] ) ) : '',
+			'status'        => isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : 'in_stock',
+			'is_demo'       => isset( $_POST['is_demo'] ) ? (int) $_POST['is_demo'] : 0,
 		);
 
 		$format = array(
@@ -392,7 +392,7 @@ class JWPM_Ajax {
 
 		if ( $id > 0 ) {
 			$data['updated_at'] = current_time( 'mysql' );
-			$format[]           = '%s';
+				$format[]           = '%s';
 
 			$updated = $wpdb->update( $table, $data, array( 'id' => $id ), $format, array( '%d' ) );
 			if ( false === $updated ) {
@@ -406,7 +406,7 @@ class JWPM_Ajax {
 			self::log_activity( get_current_user_id(), 'inventory_update', 'item', $id, $data );
 		} else {
 			$data['created_at'] = current_time( 'mysql' );
-			$format[]           = '%s';
+				$format[]           = '%s';
 
 			$inserted = $wpdb->insert( $table, $data, $format );
 			if ( ! $inserted ) {
@@ -423,7 +423,7 @@ class JWPM_Ajax {
 
 		wp_send_json_success(
 			array(
-				'id'      => $id,
+				'id'      => $id,
 				'message' => __( 'Item saved successfully.', 'jwpm-jewelry-pos-manager' ),
 			)
 		);
@@ -434,7 +434,7 @@ class JWPM_Ajax {
 		global $wpdb;
 
 		$table = self::get_table( 'items', 'jwpm_items' );
-		$id    = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
+		$id    = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
 
 		if ( $id <= 0 ) {
 			wp_send_json_error(
@@ -493,7 +493,7 @@ class JWPM_Ajax {
 		}
 
 		$inserted = 0;
-		$updated  = 0;
+		$updated  = 0;
 
 		foreach ( $items as $row ) {
 			$sku = isset( $row['sku'] ) ? sanitize_text_field( $row['sku'] ) : '';
@@ -502,15 +502,15 @@ class JWPM_Ajax {
 			}
 
 			$data = array(
-				'branch_id'     => isset( $row['branch_id'] ) ? (int) $row['branch_id'] : 0,
-				'sku'           => $sku,
-				'tag_serial'    => isset( $row['tag_serial'] ) ? sanitize_text_field( $row['tag_serial'] ) : '',
-				'category'      => isset( $row['category'] ) ? sanitize_text_field( $row['category'] ) : '',
-				'metal_type'    => isset( $row['metal_type'] ) ? sanitize_text_field( $row['metal_type'] ) : '',
-				'karat'         => isset( $row['karat'] ) ? sanitize_text_field( $row['karat'] ) : '',
-				'gross_weight'  => isset( $row['gross_weight'] ) ? (float) $row['gross_weight'] : 0,
-				'net_weight'    => isset( $row['net_weight'] ) ? (float) $row['net_weight'] : 0,
-				'stone_type'    => isset( $row['stone_type'] ) ? sanitize_text_field( $row['stone_type'] ) : '',
+					'branch_id'     => isset( $row['branch_id'] ) ? (int) $row['branch_id'] : 0,
+				'sku'           => $sku,
+				'tag_serial'    => isset( $row['tag_serial'] ) ? sanitize_text_field( $row['tag_serial'] ) : '',
+				'category'      => isset( $row['category'] ) ? sanitize_text_field( $row['category'] ) : '',
+				'metal_type'    => isset( $row['metal_type'] ) ? sanitize_text_field( $row['metal_type'] ) : '',
+				'karat'         => isset( $row['karat'] ) ? sanitize_text_field( $row['karat'] ) : '',
+				'gross_weight'  => isset( $row['gross_weight'] ) ? (float) $row['gross_weight'] : 0,
+				'net_weight'    => isset( $row['net_weight'] ) ? (float) $row['net_weight'] : 0,
+				'stone_type'    => isset( $row['stone_type'] ) ? sanitize_text_field( $row['stone_type'] ) : '',
 				'labour_amount' => isset( $row['labour_amount'] ) ? (float) $row['labour_amount'] : 0,
 				'design_no'     => isset( $row['design_no'] ) ? sanitize_text_field( $row['design_no'] ) : '',
 				'status'        => isset( $row['status'] ) ? sanitize_text_field( wp_unslash( $row['status'] ) ) : 'in_stock',
