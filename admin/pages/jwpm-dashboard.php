@@ -15,23 +15,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Register Dashboard under main menu
  */
-function jwpm_register_dashboard_page() {
-
-    $parent_slug = 'jwpm-pos-manager';
-
-    add_submenu_page(
-        $parent_slug,
-        __( 'Dashboard', 'jwpm' ),
-        __( 'Dashboard', 'jwpm' ),
-        'jwpm_salesperson', 
-        'jwpm-dashboard',
-        'jwpm_render_dashboard_page',
-        1
-    );
-}
-add_action( 'admin_menu', 'jwpm_register_dashboard_page' );
-
-
 
 /**
  * Render Dashboard Page
