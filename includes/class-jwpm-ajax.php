@@ -267,48 +267,48 @@ class JWPM_Ajax {
 		global $wpdb;
 		$table = self::get_table( 'items', 'jwpm_items' );
 
-		$where  = 'WHERE 1=1';
+		$where  = 'WHERE 1=1';
 		$params = array();
 
 		if ( $filters['branch_id'] > 0 ) {
-			$where     .= ' AND branch_id = %d';
-			$params[]   = $filters['branch_id'];
+			$where     .= ' AND branch_id = %d';
+			$params[]   = $filters['branch_id'];
 		}
 
 		if ( '' !== $filters['search'] ) {
-			$like       = '%' . $wpdb->esc_like( $filters['search'] ) . '%';
-			$where     .= ' AND (sku LIKE %s OR tag_serial LIKE %s OR category LIKE %s OR design_no LIKE %s)';
-			$params[]   = $like;
-			$params[]   = $like;
-			$params[]   = $like;
-			$params[]   = $like;
+			$like       = '%' . $wpdb->esc_like( $filters['search'] ) . '%';
+			$where     .= ' AND (sku LIKE %s OR tag_serial LIKE %s OR category LIKE %s OR design_no LIKE %s)';
+			$params[]   = $like;
+			$params[]   = $like;
+			$params[]   = $like;
+			$params[]   = $like;
 		}
 
 		if ( '' !== $filters['category'] ) {
-			$where     .= ' AND category = %s';
-			$params[]   = $filters['category'];
+				$where     .= ' AND category = %s';
+			$params[]   = $filters['category'];
 		}
 		if ( '' !== $filters['metal'] ) {
-			$where     .= ' AND metal_type = %s';
-			$params[]   = $filters['metal'];
+			$where     .= ' AND metal_type = %s';
+			$params[]   = $filters['metal'];
 		}
 		if ( '' !== $filters['karat'] ) {
-			$where     .= ' AND karat = %s';
-			$params[]   = $filters['karat'];
+			$where     .= ' AND karat = %s';
+			$params[]   = $filters['karat'];
 		}
 		if ( '' !== $filters['status'] ) {
-			$where     .= ' AND status = %s';
-			$params[]   = $filters['status'];
+			$where     .= ' AND status = %s';
+			$params[]   = $filters['status'];
 		}
 
-		$sql_base  = "FROM {$table} {$where}";
+		$sql_base  = "FROM {$table} {$where}";
 		$count_sql = "SELECT COUNT(*) {$sql_base}";
-		$total     = (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) );
+		$total     = (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) );
 
-		$offset   = ( $filters['page'] - 1 ) * $filters['per_page'];
+			$offset   = ( $filters['page'] - 1 ) * $filters['per_page'];
 		$list_sql = "SELECT * {$sql_base} ORDER BY created_at DESC LIMIT %d OFFSET %d";
 		$params_l = array_merge( $params, array( $filters['per_page'], $offset ) );
-		$rows     = $wpdb->get_results( $wpdb->prepare( $list_sql, $params_l ), ARRAY_A );
+		$rows     = $wpdb->get_results( $wpdb->prepare( $list_sql, $params_l ), ARRAY_A );
 
 		$items = array();
 
