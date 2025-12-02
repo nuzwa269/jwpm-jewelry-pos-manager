@@ -26,7 +26,7 @@ class JWPM_Activator {
 		// 2. ڈیٹا بیس ٹیبلز بنائیں
 		if ( class_exists( 'JWPM_DB' ) && method_exists( 'JWPM_DB', 'create_tables' ) ) {
 			JWPM_DB::create_tables();
-			}  
+		}
 
 		// 3. ورژن محفوظ کریں
 		if ( defined( 'JWPM_VERSION' ) ) {
@@ -39,7 +39,7 @@ class JWPM_Activator {
 			// Fallback اگر DB version define نہ ہو
 			update_option( 'jwpm_db_version', JWPM_VERSION );
 		}
-		
+
 		// 4. Rewrite rules کو فلش کریں (ضروری اگر آپ Admin Menu بنا رہے ہوں)
 		flush_rewrite_rules();
 	}
@@ -72,7 +72,7 @@ class JWPM_Activator {
 			// آپشنز ڈیلیٹ کریں
 			delete_option( 'jwpm_version' );
 			delete_option( 'jwpm_db_version' );
-			
+
 			// رولز کو بھی ہٹانا ایک اچھی پریکٹس ہے (مستقبل میں شامل کیا جا سکتا ہے)
 		}
 	}
