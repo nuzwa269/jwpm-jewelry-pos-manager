@@ -2012,4 +2012,610 @@ class JWPM_Ajax {
 
 	// 🔴 یہاں پر Reports APIs ختم ہو رہا ہے
 	// ✅ Syntax verified block end
+	/**
+	 * ==========================================================================
+	 * 9. CUSTOM ORDERS MODULE
+	 * ==========================================================================
+	 */
+	// 🟢 یہاں سے Custom Orders Module شروع ہو رہا ہے
+
+	/**
+	 * Custom Orders کے لیے common access check
+	 *
+	 * @param string $nonce_action
+	 * @param string $capability
+	 */
+	protected static function custom_orders_check_access( $nonce_action = 'jwpm_custom_orders_main_nonce', $capability = 'manage_jwpm_inventory' ) {
+		// JS کی ajaxPost() 'security' میں nonce بھیج رہی ہے
+		$field = 'security';
+
+		if ( isset( $_REQUEST['nonce'] ) ) {
+			$field = 'nonce';
+		}
+
+		check_ajax_referer( $nonce_action, $field );
+
+		if ( ! current_user_can( $capability ) && ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'آپ کے پاس Custom Orders مینیج کرنے کی اجازت نہیں ہے۔', 'jwpm-jewelry-pos-manager' ),
+				),
+				403
+			);
+		}
+	}
+
+	/**
+	 * Custom Orders لسٹ (فلٹر + پیجینیشن کے ساتھ)
+	 *
+	 * AJAX Action: jwpm_custom_orders_fetch
+	 */
+	public static function custom_orders_fetch() {
+		self::custom_orders_check_access( 'jwpm_custom_orders_main_nonce', 'manage_jwpm_inventory' );
+
+		global $wpdb;
+
+		if ( ! class_exists( 'JWPM_DB' ) ) {
+			wp_send_json_error(
+				array(
+					'message' => 'DB Helper (JWPM_DB) موجود نہیں۔',
+				),
+				500
+			);
+		}
+
+		$tables     = JWPM_DB::get_table_names();
+		$orders_tbl = self::get_table( 'custom_orders', 'jwpm_custom_orders' );
+		$customers  = self::get_table( 'customers', 'jwpm_customers' );
+
+		$page     = isset( $_POST['page'] ) ? max( 1, (int) $_POST['page'] ) : 1;
+		$per_page = isset( $_POST['per_page'] ) ? max( 1, (int) $_POST['per_page'] ) : 20;
+		$offset   = ( $page - 1 ) * $per_page;
+
+		$search    = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '';
+		$status    = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+		$branch_id = isset( $_POST['branch_id'] ) ? (int) $_POST['branch_id'] : 0;
+		$date_from = isset( $_POST['date_from'] ) ? sanitize_text_field( wp_unslash( $_POST['date_from'] ) ) : '';
+		$date_to   = isset( $_POST['date_to'] ) ? sanitize_text_field( wp_unslash( $_POST['date_to'] ) ) : '';
+
+		$where  = 'WHERE 1=1';
+		$params = array();
+
+		if ( $branch_id > 0 ) {
+			$where     .= ' AND o.branch_id = %d';
+			$params[]   = $branch_id;
+		}
+
+		if ( '' !== $search ) {
+			$like       = '%' . $wpdb->esc_like( $search ) . '%';
+			$where     .= ' AND (c.name LIKE %s OR c.phone LIKE %s OR o.design_reference LIKE %s OR o.id LIKE %s)';
+			$params[]   = $like;
+			$params[]   = $like;
+			$params[]   = $like;
+			$params[]   = $like;
+		}
+
+		if ( '' !== $status ) {
+			$where     .= ' AND o.status = %s';
+			$params[]   = $status;
+		}
+
+		if ( '' !== $date_from ) {
+			$where     .= ' AND o.due_date >= %s';
+			$params[]   = $date_from;
+		}
+
+		if ( '' !== $date_to ) {
+			$where     .= ' AND o.due_date <= %s';
+			$params[]   = $date_to;
+		}
+
+		$sql_base  = "FROM {$orders_tbl} o LEFT JOIN {$customers} c ON o.customer_id = c.id {$where}";
+		$count_sql = "SELECT COUNT(*) {$sql_base}";
+		$total     = (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) );
+
+		$list_sql = "
+			SELECT
+				o.id,
+				o.branch_id,
+				o.customer_id,
+				o.design_reference,
+				o.estimate_weight,
+				o.estimate_amount,
+				o.advance_amount,
+				o.status,
+				o.due_date,
+				o.created_at,
+				COALESCE(c.name, '')  AS customer_name,
+				COALESCE(c.phone, '') AS customer_phone
+			{$sql_base}
+			ORDER BY o.created_at DESC
+			LIMIT %d OFFSET %d
+		";
+
+		$params_list = array_merge( $params, array( $per_page, $offset ) );
+		$rows        = $wpdb->get_results( $wpdb->prepare( $list_sql, $params_list ), ARRAY_A );
+
+		$items = array();
+
+		if ( ! empty( $rows ) ) {
+			foreach ( $rows as $row ) {
+				$id = (int) $row['id'];
+
+				$items[] = array(
+					'id'               => $id,
+					'order_code'       => sprintf( 'CO-%04d', $id ),
+					'branch_id'        => (int) $row['branch_id'],
+					'customer_id'      => (int) $row['customer_id'],
+					'customer_name'    => $row['customer_name'],
+					'customer_phone'   => $row['customer_phone'],
+					'design_reference' => $row['design_reference'],
+					'estimate_weight'  => isset( $row['estimate_weight'] ) ? (float) $row['estimate_weight'] : 0,
+					'estimate_amount'  => isset( $row['estimate_amount'] ) ? (float) $row['estimate_amount'] : 0,
+					'advance_amount'   => isset( $row['advance_amount'] ) ? (float) $row['advance_amount'] : 0,
+					'status'           => $row['status'],
+					'due_date'         => $row['due_date'],
+					'created_at'       => $row['created_at'],
+				);
+			}
+		}
+
+		wp_send_json_success(
+			array(
+				'items'      => $items,
+				'pagination' => array(
+					'total'       => $total,
+					'page'        => $page,
+					'per_page'    => $per_page,
+					'total_pages' => ( $per_page > 0 ) ? max( 1, (int) ceil( $total / $per_page ) ) : 1,
+				),
+			)
+		);
+	}
+
+	/**
+	 * Custom Order محفوظ / اپڈیٹ
+	 *
+	 * AJAX Action: jwpm_custom_orders_save
+	 */
+	public static function custom_orders_save() {
+		self::custom_orders_check_access( 'jwpm_custom_orders_main_nonce', 'manage_jwpm_inventory' );
+
+		global $wpdb;
+
+		if ( ! class_exists( 'JWPM_DB' ) ) {
+			wp_send_json_error(
+				array(
+					'message' => 'DB Helper (JWPM_DB) موجود نہیں۔',
+				),
+				500
+			);
+		}
+
+		$tables     = JWPM_DB::get_table_names();
+		$orders_tbl = self::get_table( 'custom_orders', 'jwpm_custom_orders' );
+		$customers  = self::get_table( 'customers', 'jwpm_customers' );
+
+		$id = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
+
+		$customer_name  = isset( $_POST['customer_name'] ) ? sanitize_text_field( wp_unslash( $_POST['customer_name'] ) ) : '';
+		$customer_phone = isset( $_POST['customer_phone'] ) ? sanitize_text_field( wp_unslash( $_POST['customer_phone'] ) ) : '';
+
+		if ( '' === $customer_name || '' === $customer_phone ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'کسٹمر نام اور فون نمبر لازمی ہیں۔', 'jwpm-jewelry-pos-manager' ),
+				),
+				400
+			);
+		}
+
+		// Branch مستقبل میں Settings سے آئے، فی الحال 0
+		$branch_id = isset( $_POST['branch_id'] ) ? (int) $_POST['branch_id'] : 0;
+
+		$design_reference = isset( $_POST['design_reference'] ) ? sanitize_text_field( wp_unslash( $_POST['design_reference'] ) ) : '';
+		$estimate_weight  = isset( $_POST['estimate_weight'] ) ? (float) $_POST['estimate_weight'] : 0;
+		$estimate_amount  = isset( $_POST['estimate_amount'] ) ? (float) $_POST['estimate_amount'] : 0;
+		$advance_amount   = isset( $_POST['advance_amount'] ) ? (float) $_POST['advance_amount'] : 0;
+		$status           = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : 'designing';
+		$due_date         = isset( $_POST['due_date'] ) ? sanitize_text_field( wp_unslash( $_POST['due_date'] ) ) : '';
+		// نوٹس کو فی الحال DB میں محفوظ نہیں کر رہے، جب تک custom_orders table میں 'notes' کالم add نہ ہو
+
+		// 1) کسٹمر تلاش کریں (phone کی بنیاد پر)، نہ ہو تو create
+		$customer_id = 0;
+
+		$customer_id = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT id FROM {$customers} WHERE phone = %s LIMIT 1",
+				$customer_phone
+			)
+		);
+
+		if ( $customer_id <= 0 ) {
+			$wpdb->insert(
+				$customers,
+				array(
+					// Note: customers table میں branch_id, total_sales, balance_due, email, address, is_demo fields لازمی ہیں
+					// لیکن چونکہ DB schema اس میں کئی fields (جیسے total_sales, balance_due) کو support نہیں کر رہا تھا،
+					// ہم صرف وہ fields insert کریں گے جو JWPM_DB میں ڈیفائن کیے گئے تھے (customers table merge میں)۔
+					'name'          => $customer_name,
+					'phone'         => $customer_phone,
+					'customer_code' => sprintf( 'CUST-%04d', (int) $wpdb->get_var( "SELECT MAX(id) FROM {$customers}" ) + 1 ),
+					'created_at'    => current_time( 'mysql' ),
+					'is_demo'       => 0,
+				),
+				array(
+					'%s',
+					'%s',
+					'%s',
+					'%s',
+					'%d',
+				)
+			);
+
+			$customer_id = (int) $wpdb->insert_id;
+		}
+
+		if ( $customer_id <= 0 ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'کسٹمر سیو نہیں ہو سکا، بعد میں دوبارہ کوشش کریں۔', 'jwpm-jewelry-pos-manager' ),
+				),
+				500
+			);
+		}
+
+		$data = array(
+			'customer_id'      => $customer_id,
+			'branch_id'        => $branch_id,
+			'design_reference' => $design_reference,
+			'estimate_weight'  => $estimate_weight,
+			'estimate_amount'  => $estimate_amount,
+			'advance_amount'   => $advance_amount,
+			'status'           => $status,
+			'due_date'         => $due_date,
+		);
+
+		$formats = array( '%d', '%d', '%s', '%f', '%f', '%f', '%s', '%s' );
+
+		if ( $id > 0 ) {
+			$data['updated_at'] = current_time( 'mysql' );
+			$formats[]          = '%s';
+
+			$updated = $wpdb->update(
+				$orders_tbl,
+				$data,
+				array( 'id' => $id ),
+				$formats,
+				array( '%d' )
+			);
+
+			if ( false === $updated ) {
+				wp_send_json_error(
+					array(
+						'message' => __( 'Custom Order اپڈیٹ نہیں ہو سکا۔', 'jwpm-jewelry-pos-manager' ),
+					),
+					500
+				);
+			}
+
+			if ( method_exists( 'JWPM_DB', 'log_activity' ) ) {
+				JWPM_DB::log_activity(
+					get_current_user_id(),
+					'custom_order_update',
+					'custom_order',
+					$id,
+					$data
+				);
+			}
+		} else {
+			$data['created_at'] = current_time( 'mysql' );
+			$formats[]          = '%s';
+
+			$inserted = $wpdb->insert(
+				$orders_tbl,
+				$data,
+				$formats
+			);
+
+			if ( ! $inserted ) {
+				wp_send_json_error(
+					array(
+						'message' => __( 'Custom Order بن نہیں سکا۔', 'jwpm-jewelry-pos-manager' ),
+					),
+					500
+				);
+			}
+
+			$id = (int) $wpdb->insert_id;
+
+			if ( method_exists( 'JWPM_DB', 'log_activity' ) ) {
+				JWPM_DB::log_activity(
+					get_current_user_id(),
+					'custom_order_create',
+					'custom_order',
+					$id,
+					$data
+				);
+			}
+		}
+
+		// تازہ ریکارڈ واپس بھیج دیں (UI کے لیے)
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT o.*, c.name AS customer_name, c.phone AS customer_phone
+				 FROM {$orders_tbl} o
+				 LEFT JOIN {$customers} c ON o.customer_id = c.id
+				 WHERE o.id = %d",
+				$id
+			),
+			ARRAY_A
+		);
+
+		if ( ! $row ) {
+			wp_send_json_success(
+				array(
+					'message' => __( 'Custom Order محفوظ ہو گیا، لیکن detail لوڈ نہیں ہو سکی۔', 'jwpm-jewelry-pos-manager' ),
+					'id'      => $id,
+				)
+			);
+		}
+
+		$item = array(
+			'id'               => (int) $row['id'],
+			'order_code'       => sprintf( 'CO-%04d', (int) $row['id'] ),
+			'branch_id'        => (int) $row['branch_id'],
+			'customer_id'      => (int) $row['customer_id'],
+			'customer_name'    => $row['customer_name'],
+			'customer_phone'   => $row['customer_phone'],
+			'design_reference' => $row['design_reference'],
+			'estimate_weight'  => isset( $row['estimate_weight'] ) ? (float) $row['estimate_weight'] : 0,
+			'estimate_amount'  => isset( $row['estimate_amount'] ) ? (float) $row['estimate_amount'] : 0,
+			'advance_amount'   => isset( $row['advance_amount'] ) ? (float) $row['advance_amount'] : 0,
+			'status'           => $row['status'],
+			'due_date'         => $row['due_date'],
+			'created_at'       => $row['created_at'],
+		);
+
+		wp_send_json_success(
+			array(
+				'message' => __( 'Custom Order کامیابی سے محفوظ ہو گیا۔', 'jwpm-jewelry-pos-manager' ),
+				'item'    => $item,
+			)
+		);
+	}
+
+	/**
+	 * Custom Order حذف (hard delete)
+	 *
+	 * AJAX Action: jwpm_custom_orders_delete
+	 */
+	public static function custom_orders_delete() {
+		self::custom_orders_check_access( 'jwpm_custom_orders_main_nonce', 'manage_jwpm_inventory' );
+
+		global $wpdb;
+
+		if ( ! class_exists( 'JWPM_DB' ) ) {
+			wp_send_json_error(
+				array(
+					'message' => 'DB Helper (JWPM_DB) موجود نہیں۔',
+				),
+				500
+			);
+		}
+
+		$tables     = JWPM_DB::get_table_names();
+		$orders_tbl = self::get_table( 'custom_orders', 'jwpm_custom_orders' );
+
+		$id = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
+
+		if ( $id <= 0 ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'غلط ID موصول ہوئی ہے۔', 'jwpm-jewelry-pos-manager' ),
+				),
+				400
+			);
+		}
+
+		$deleted = $wpdb->delete(
+			$orders_tbl,
+			array( 'id' => $id ),
+			array( '%d' )
+		);
+
+		if ( ! $deleted ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'Custom Order حذف نہیں ہو سکا۔', 'jwpm-jewelry-pos-manager' ),
+				),
+				// $wpdb->last_error یہاں شامل کیا جا سکتا ہے اگر debugging کرنی ہو
+				500
+			);
+		}
+
+		if ( method_exists( 'JWPM_DB', 'log_activity' ) ) {
+			JWPM_DB::log_activity(
+				get_current_user_id(),
+				'custom_order_delete',
+				'custom_order',
+				$id
+			);
+		}
+
+		wp_send_json_success(
+			array(
+				'message' => __( 'Custom Order حذف کر دیا گیا۔', 'jwpm-jewelry-pos-manager' ),
+			)
+		);
+	}
+
+	/**
+	 * Custom Orders Import (فائل سے)
+	 *
+	 * AJAX Action: jwpm_custom_orders_import
+	 *
+	 * نوٹ: فی الحال placeholder – صرف API available ہے،
+	 * اصل Excel/CSV parsing بعد میں implement کی جائے گی۔
+	 */
+	public static function custom_orders_import() {
+		// JS FormData 'nonce' میں import nonce بھیج رہا ہے
+		check_ajax_referer( 'jwpm_custom_orders_import_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_jwpm_inventory' ) && ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'آپ کے پاس Import کی اجازت نہیں ہے۔', 'jwpm-jewelry-pos-manager' ),
+				),
+				403
+			);
+		}
+
+		// ابھی کے لیے صرف placeholder response:
+		wp_send_json_error(
+			array(
+				'message' => __( 'Custom Orders Import فی الحال implement نہیں ہوا۔', 'jwpm-jewelry-pos-manager' ),
+			),
+			501
+		);
+	}
+
+	/**
+	 * Custom Orders Export / Excel Download
+	 *
+	 * AJAX Action: jwpm_custom_orders_export
+	 *
+	 * JS:  window.location.href = admin-ajax.php?action=jwpm_custom_orders_export&nonce=...
+	 */
+	public static function custom_orders_export() {
+		// GET/REQUEST میں 'nonce' آ رہا ہے
+		$nonce = isset( $_REQUEST['nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ) : '';
+		if ( ! wp_verify_nonce( $nonce, 'jwpm_custom_orders_export_nonce' ) ) {
+			wp_die( __( 'Security check failed.', 'jwpm-jewelry-pos-manager' ), 403 );
+		}
+
+		if ( ! current_user_can( 'manage_jwpm_inventory' ) && ! current_user_can( 'manage_options' ) ) {
+			wp_die( __( 'آپ کے پاس Export کی اجازت نہیں ہے۔', 'jwpm-jewelry-pos-manager' ), 403 );
+		}
+
+		global $wpdb;
+
+		if ( ! class_exists( 'JWPM_DB' ) ) {
+			wp_die( 'DB Helper (JWPM_DB) موجود نہیں۔', 500 );
+		}
+
+		$tables     = JWPM_DB::get_table_names();
+		$orders_tbl = self::get_table( 'custom_orders', 'jwpm_custom_orders' );
+		$customers  = self::get_table( 'customers', 'jwpm_customers' );
+
+		// سادہ CSV Export – مستقبل میں filters بھی add ہو سکتے ہیں
+		$sql = "
+			SELECT
+				o.id,
+				o.branch_id,
+				o.customer_id,
+				o.design_reference,
+				o.estimate_weight,
+				o.estimate_amount,
+				o.advance_amount,
+				o.status,
+				o.due_date,
+				o.created_at,
+				COALESCE(c.name, '')  AS customer_name,
+				COALESCE(c.phone, '') AS customer_phone
+			FROM {$orders_tbl} o
+			LEFT JOIN {$customers} c ON o.customer_id = c.id
+			ORDER BY o.created_at DESC
+			LIMIT 1000
+		";
+
+		$rows = $wpdb->get_results( $sql, ARRAY_A );
+
+		// $is_excel = isset( $_GET['format'] ) && 'excel' === $_GET['format']; // Not implemented
+
+		$filename = 'jwpm-custom-orders-' . gmdate( 'Ymd-His' ) . '.csv';
+
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+
+		$fh = fopen( 'php://output', 'w' );
+
+		// Header row
+		fputcsv(
+			$fh,
+			array(
+				'Order ID',
+				'Order Code',
+				'Branch ID',
+				'Customer ID',
+				'Customer Name',
+				'Customer Phone',
+				'Design Reference',
+				'Estimate Weight',
+				'Estimate Amount',
+				'Advance Amount',
+				'Status',
+				'Due Date',
+				'Created At',
+			)
+		);
+
+		if ( ! empty( $rows ) ) {
+			foreach ( $rows as $row ) {
+				$id = (int) $row['id'];
+
+				fputcsv(
+					$fh,
+					array(
+						$id,
+						sprintf( 'CO-%04d', $id ),
+						$row['branch_id'],
+						$row['customer_id'],
+						$row['customer_name'],
+						$row['customer_phone'],
+						$row['design_reference'],
+						$row['estimate_weight'],
+						$row['estimate_amount'],
+						$row['advance_amount'],
+						$row['status'],
+						$row['due_date'],
+						$row['created_at'],
+					)
+				);
+			}
+		}
+
+		fclose( $fh );
+		// CSV output کے بعد execution ختم
+		exit;
+	}
+
+	/**
+	 * Custom Orders Demo Data (Placeholder)
+	 *
+	 * AJAX Action: jwpm_custom_orders_demo
+	 */
+	public static function custom_orders_demo() {
+		self::custom_orders_check_access( 'jwpm_custom_orders_main_nonce', 'manage_jwpm_inventory' );
+
+		$mode = isset( $_POST['mode'] ) ? sanitize_text_field( wp_unslash( $_POST['mode'] ) ) : 'create';
+
+		// فی الحال حقیقت میں demo rows نہیں ڈال رہے،
+		// صرف API موجود ہے، بعد میں db structure کے مطابق implement کریں گے۔
+		$message = ( 'delete' === $mode )
+			? __( 'Demo data delete handler placeholder.', 'jwpm-jewelry-pos-manager' )
+			: __( 'Demo data create handler placeholder.', 'jwpm-jewelry-pos-manager' );
+
+		wp_send_json_success(
+			array(
+				'mode'    => $mode,
+				'message' => $message,
+			)
+		);
+	}
+	// 🔴 یہاں پر Custom Orders Module ختم ہو رہا ہے
+	// ✅ Syntax verified block end
+}
+
+// ✅ Syntax verified block end (JWPM_Ajax کلاس)
 
