@@ -1,11 +1,11 @@
 <?php
 /**
- * Fired during plugin activation.
+ * JWPM_Activator
  *
  * یہ کلاس پلگ ان کی ایکٹیویشن لاجک کو ہینڈل کرتی ہے۔
  * اس میں رولز، صلاحیتیں (Capabilities) اور ڈیٹا بیس ٹیبلز بنانے کا عمل شامل ہے۔
  *
- * @package    JWPM
+ * @package    JWPM
  * @subpackage JWPM/includes
  */
 
@@ -17,10 +17,6 @@ class JWPM_Activator {
 
 	/**
 	 * پلگ ان ایکٹیویشن پر چلنے والا فنکشن
-	 *
-	 * - کسٹم رولز (Roles) اور صلاحیتیں (Capabilities) ایڈ کرے گا۔
-	 * - تمام ڈیٹا بیس ٹیبلز بنائے گا (JWPM_DB کلاس کے ذریعے)۔
-	 * - ورژن آپشنز کو اپ ڈیٹ کرے گا۔
 	 */
 	public static function activate() {
 
@@ -28,44 +24,41 @@ class JWPM_Activator {
 		self::add_roles();
 
 		// 2. ڈیٹا بیس ٹیبلز بنائیں
-		// چونکہ ہم نے تمام ٹیبلز (Repairs, Accounts etc) کو JWPM_DB میں ضم کر دیا ہے،
-		// لہذا صرف create_tables کو کال کرنا کافی ہے۔
 		if ( class_exists( 'JWPM_DB' ) && method_exists( 'JWPM_DB', 'create_tables' ) ) {
 			JWPM_DB::create_tables();
-		} 
+		} 
 
 		// 3. ورژن محفوظ کریں
 		if ( defined( 'JWPM_VERSION' ) ) {
 			update_option( 'jwpm_version', JWPM_VERSION );
 		}
 		if ( defined( 'JWPM_DB_VERSION' ) ) {
-			// نوٹ: بہتر ہے کہ DB Version الگ define کیا جائے، ورنہ پلگ ان ورژن استعمال کریں۔
+			// DB ورژن کو maybe_upgrade() کے بغیر یہاں سیٹ کرنا ضروری ہے
+			update_option( 'jwpm_db_version', JWPM_DB_VERSION );
+		} else {
+			// Fallback اگر DB version define نہ ہو
 			update_option( 'jwpm_db_version', JWPM_VERSION );
 		}
+		
+		// 4. Rewrite rules کو فلش کریں (ضروری اگر آپ Admin Menu بنا رہے ہوں)
+		flush_rewrite_rules();
 	}
 
 	/**
 	 * پلگ ان ڈی ایکٹیویشن (Deactivation)
-	 *
-	 * فی الحال یہاں کوئی خاص لاجک نہیں ہے، لیکن یہ فنکشن ہکس کے لیے ضروری ہے۔
-	 * مستقبل میں یہاں Cron Jobs کو صاف کیا جا سکتا ہے۔
 	 */
 	public static function deactivate() {
-		// Rewrite rules کو فلش کریں (اگر آپ Custom Post Types استعمال کر رہے ہوں)
+		// Rewrite rules کو فلش کریں
 		flush_rewrite_rules();
 	}
 
 	/**
 	 * پلگ ان اَن انسٹال (Uninstall)
-	 *
-	 * - اگر فلٹر `jwpm_hard_delete_on_uninstall` TRUE ہو تو تمام ڈیٹا حذف ہو جائے گا۔
-	 * - ورنہ ڈیٹا محفوظ رہے گا (Soft Uninstall)۔
 	 */
 	public static function uninstall() {
 
 		/**
 		 * فلٹر: کیا ان انسٹال پر تمام ڈیٹا ڈیلیٹ کرنا ہے؟
-		 * Default: false (ڈیٹا محفوظ رہے گا)
 		 */
 		$hard_delete = apply_filters( 'jwpm_hard_delete_on_uninstall', false );
 
@@ -79,80 +72,87 @@ class JWPM_Activator {
 			// آپشنز ڈیلیٹ کریں
 			delete_option( 'jwpm_version' );
 			delete_option( 'jwpm_db_version' );
+			
+			// رولز کو بھی ہٹانا ایک اچھی پریکٹس ہے (مستقبل میں شامل کیا جا سکتا ہے)
 		}
 	}
 
 	/**
 	 * کسٹم رولز (Roles) اور صلاحیتیں (Capabilities) شامل کریں۔
 	 *
-	 * یہ فنکشن درج ذیل رولز بناتا ہے:
-	 * - JWPM Owner (مکمل کنٹرول)
-	 * - JWPM Manager
-	 * - JWPM Salesperson
-	 * - JWPM Accountant
-	 * - JWPM Karigar
+	 * Note: یہ لاجک check کرتی ہے کہ رول پہلے سے موجود نہ ہو تاکہ ایرر سے بچا جا سکے۔
 	 */
 	public static function add_roles() {
 
 		// 1. مالکانہ رول (Owner)
-		add_role(
-			'jwpm_owner',
-			'JWPM Owner',
-			array(
-				'read'            => true,
-				'manage_options'  => true, // WordPress Core Capability
-				'manage_jwpm_all' => true, // Full JWPM Access
-			)
-		);
+		if ( null === get_role( 'jwpm_owner' ) ) {
+			add_role(
+				'jwpm_owner',
+				'JWPM Owner',
+				array(
+					'read'            => true,
+					'manage_options'  => true, // WordPress Core Capability
+					'manage_jwpm_all' => true, // Full JWPM Access
+				)
+			);
+		}
 
 		// 2. منیجر (Manager)
-		add_role(
-			'jwpm_manager',
-			'JWPM Manager',
-			array(
-				'read'                  => true,
-				'manage_jwpm_sales'     => true,
-				'manage_jwpm_inventory' => true,
-				'manage_jwpm_accounts'  => true,
-				'manage_jwpm_reports'   => true,
-				'manage_jwpm_customers' => true,
-				'manage_jwpm_orders'    => true,
-				'manage_jwpm_repairs'   => true,
-			)
-		);
+		if ( null === get_role( 'jwpm_manager' ) ) {
+			add_role(
+				'jwpm_manager',
+				'JWPM Manager',
+				array(
+					'read'                  => true,
+					'manage_jwpm_sales'     => true,
+					'manage_jwpm_inventory' => true,
+					'manage_jwpm_accounts'  => true,
+					'manage_jwpm_reports'   => true,
+					'manage_jwpm_customers' => true,
+					'manage_jwpm_orders'    => true,
+					'manage_jwpm_repairs'   => true,
+				)
+			);
+		}
 
 		// 3. سیلز پرسن (Salesperson)
-		add_role(
-			'jwpm_salesperson',
-			'JWPM Salesperson',
-			array(
-				'read'                  => true,
-				'manage_jwpm_sales'     => true,
-				'manage_jwpm_customers' => true,
-				'manage_jwpm_orders'    => true,
-			)
-		);
+		if ( null === get_role( 'jwpm_salesperson' ) ) {
+			add_role(
+				'jwpm_salesperson',
+				'JWPM Salesperson',
+				array(
+					'read'                  => true,
+					'manage_jwpm_sales'     => true,
+					'manage_jwpm_customers' => true,
+					'manage_jwpm_orders'    => true,
+				)
+			);
+		}
 
 		// 4. اکاؤنٹنٹ (Accountant)
-		add_role(
-			'jwpm_accountant',
-			'JWPM Accountant',
-			array(
-				'read'                 => true,
-				'manage_jwpm_accounts' => true,
-				'manage_jwpm_reports'  => true,
-			)
-		);
+		if ( null === get_role( 'jwpm_accountant' ) ) {
+			add_role(
+				'jwpm_accountant',
+				'JWPM Accountant',
+				array(
+					'read'                 => true,
+					'manage_jwpm_accounts' => true,
+					'manage_jwpm_reports'  => true,
+				)
+			);
+		}
 
 		// 5. کاریگر / ورکشاپ (Karigar)
-		add_role(
-			'jwpm_karigar',
-			'JWPM Karigar',
-			array(
-				'read'                => true,
-				'manage_jwpm_repairs' => true,
-			)
-		);
+		if ( null === get_role( 'jwpm_karigar' ) ) {
+			add_role(
+				'jwpm_karigar',
+				'JWPM Karigar',
+				array(
+					'read'                => true,
+					'manage_jwpm_repairs' => true,
+				)
+			);
+		}
 
 		// 6. موجودہ ایڈمن (Administrator) کو بھی تمام JWPM صلاحیتیں دیں
 		$admin = get_role( 'administrator' );
@@ -171,6 +171,7 @@ class JWPM_Activator {
 			);
 
 			foreach ( $caps as $cap ) {
+				// صرف وہی cap شامل کریں جو پہلے سے موجود نہیں
 				if ( ! $admin->has_cap( $cap ) ) {
 					$admin->add_cap( $cap );
 				}
