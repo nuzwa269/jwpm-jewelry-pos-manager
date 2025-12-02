@@ -116,17 +116,17 @@ class JWPM_Ajax {
 		// Sales Reports
 		add_action( 'wp_ajax_jwpm_sales_report_daily',   array( __CLASS__, 'reports_sales_daily' ) );
 		add_action( 'wp_ajax_jwpm_sales_report_monthly', array( __CLASS__, 'reports_sales_monthly' ) );
-		add_action( 'wp_ajax_jwpm_sales_report_custom',  array( __CLASS__, 'reports_sales_custom' ) );
+		add_action( 'wp_ajax_jwpm_sales_report_custom',  array( __CLASS__, 'reports_sales_custom' ) );
 
 		// Inventory Reports
 		add_action( 'wp_ajax_jwpm_inventory_report_stock_levels', array( __CLASS__, 'reports_inventory_stock_levels' ) );
-		add_action( 'wp_ajax_jwpm_inventory_report_low_stock',    array( __CLASS__, 'reports_inventory_low_stock' ) );
-		add_action( 'wp_ajax_jwpm_inventory_report_movement',     array( __CLASS__, 'reports_inventory_movement' ) );
+		add_action( 'wp_ajax_jwpm_inventory_report_low_stock',    array( __CLASS__, 'reports_inventory_low_stock' ) );
+		add_action( 'wp_ajax_jwpm_inventory_report_movement',     array( __CLASS__, 'reports_inventory_movement' ) );
 
 		// Financial Reports
 		add_action( 'wp_ajax_jwpm_profit_loss_report', array( __CLASS__, 'reports_profit_loss' ) );
-		add_action( 'wp_ajax_jwpm_expense_report',     array( __CLASS__, 'reports_expense' ) );
-		add_action( 'wp_ajax_jwpm_cashflow_report',    array( __CLASS__, 'reports_cashflow' ) );
+		add_action( 'wp_ajax_jwpm_expense_report',     array( __CLASS__, 'reports_expense' ) );
+		add_action( 'wp_ajax_jwpm_cashflow_report',    array( __CLASS__, 'reports_cashflow' ) );
 
 		// ---------------------------------------------------------------------
 		// 9. Custom Orders Module (Final Merge)
@@ -143,8 +143,8 @@ class JWPM_Ajax {
 	 * مشترکہ ہیلپر:
 	 * (nonce) + (capability) دونوں چیک کرے
 	 *
-	 * @param string       $nonce_action  (wp_nonce) ایکشن نام، جیسے 'jwpm_inventory_nonce'.
-	 * @param string|array $caps         ایک یا زیادہ (capability) جیسے 'manage_jwpm_inventory'.
+	 	 * @param string       $nonce_action  (wp_nonce) ایکشن نام، جیسے 'jwpm_inventory_nonce'.
+	 * @param string|array $caps         ایک یا زیادہ (capability) جیسے 'manage_jwpm_inventory'.
 	 */
 	protected static function verify_request( $nonce_action, $caps = 'manage_options' ) {
 		$field = null;
