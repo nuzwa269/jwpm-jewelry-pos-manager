@@ -6,7 +6,7 @@
  * ہر ماڈیول (Inventory, POS, Customers, Installments, Repairs, Accounts, Dashboard, Reports)
  * کے لیے الگ سیکشن، سکیورٹی (nonce + capability) اور صاف (JSON) رسپانس فراہم کرتی ہے۔
  *
- * @package    JWPM
+ * @package    JWPM
  * @subpackage JWPM/includes
  */
 
@@ -33,12 +33,13 @@ class JWPM_Ajax {
 		// ---------------------------------------------------------------------
 		// 1. Inventory Module
 		// ---------------------------------------------------------------------
-		add_action( 'wp_ajax_jwpm_inventory_list_items',   array( __CLASS__, 'inventory_list_items' ) );
-		add_action( 'wp_ajax_jwpm_inventory_save_item',    array( __CLASS__, 'inventory_save_item' ) );
-		add_action( 'wp_ajax_jwpm_inventory_delete_item',  array( __CLASS__, 'inventory_delete_item' ) );
+				add_action( 'wp_ajax_jwpm_inventory_list_items',   array( __CLASS__, 'inventory_list_items' ) );
+		add_action( 'wp_ajax_jwpm_inventory_save_item',    array( __CLASS__, 'inventory_save_item' ) );
+		add_action( 'wp_ajax_jwpm_inventory_delete_item',  array( __CLASS__, 'inventory_delete_item' ) );
 		add_action( 'wp_ajax_jwpm_inventory_import_items', array( __CLASS__, 'inventory_import_items' ) );
 		add_action( 'wp_ajax_jwpm_inventory_export_items', array( __CLASS__, 'inventory_export_items' ) );
-		add_action( 'wp_ajax_jwpm_inventory_demo_items',   array( __CLASS__, 'inventory_demo_items' ) );
+		add_action( 'wp_ajax_jwpm_inventory_demo_items',   array( __CLASS__, 'inventory_demo_items' ) );
+
 
 		// ---------------------------------------------------------------------
 		// 2. POS Module
