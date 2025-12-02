@@ -8,7 +8,7 @@
  * - Activity Log
  * - Reports / Dashboard / Analytics helper methods
  *
- * @package    JWPM
+ * @package    JWPM
  * @subpackage JWPM/includes
  */
 
@@ -25,35 +25,35 @@ class JWPM_DB {
 	 * @return array
 	 */
 	public static function get_table_names() {
-		global $wpdb;
+        global $wpdb;
 
 		// 🔑 ضروری تبدیلی: wp_jwpm_prefix کو یہاں سیٹ کیا گیا ہے تاکہ کوڈ کی مستقل مزاجی برقرار رہے
 		$prefix = $wpdb->prefix . 'jwpm_';
 
 		$tables = array(
 			// بنیادی ماڈیولز
-			'branches'              => $prefix . 'branches',
-			'items'                 => $prefix . 'items',
-			'stock_ledger'          => $prefix . 'stock_ledger',
-			'customers'             => $prefix . 'customers',
-			'sales'                 => $prefix . 'sales',
-			'sale_items'            => $prefix . 'sale_items',
-			'installments'          => $prefix . 'installments',
-			'installment_payments'  => $prefix . 'installment_payments',
+			'branches'              => $prefix . 'branches',
+			'items'                 => $prefix . 'items',
+			'stock_ledger'          => $prefix . 'stock_ledger',
+			'customers'             => $prefix . 'customers',
+			'sales'                 => $prefix . 'sales',
+			'sale_items'            => $prefix . 'sale_items',
+			'installments'          => $prefix . 'installments',
+			'installment_payments'  => $prefix . 'installment_payments',
 			// نئی schedule ٹیبل (AJAX میں استعمال)
-			'installment_schedule'  => $prefix . 'installment_schedule',
-			'purchases'             => $prefix . 'purchases',
-			'purchase_items'        => $prefix . 'purchase_items',
-			'repair_jobs'           => $prefix . 'repair_jobs',
-			'repair_logs'           => $prefix . 'repair_logs',
-			'custom_orders'         => $prefix . 'custom_orders',
-			'activity_log'          => $prefix . 'activity_log',
-			'settings'              => $prefix . 'settings',
+			'installment_schedule'  => $prefix . 'installment_schedule',
+			'purchases'             => $prefix . 'purchases',
+			'purchase_items'        => $prefix . 'purchase_items',
+			'repair_jobs'           => $prefix . 'repair_jobs',
+			'repair_logs'           => $prefix . 'repair_logs',
+			'custom_orders'         => $prefix . 'custom_orders',
+			'activity_log'          => $prefix . 'activity_log',
+			'settings'              => $prefix . 'settings',
 
 			// اکاؤنٹس ماڈیول
-			'cashbook'              => $prefix . 'cashbook',
-			'expenses'              => $prefix . 'expenses',
-			'ledger'                => $prefix . 'ledger',
+			'cashbook'              => $prefix . 'cashbook',
+			'expenses'              => $prefix . 'expenses',
+			'ledger'                => $prefix . 'ledger',
 		);
 
 		// AJAX کو 'repairs' key بھی چاہیے، اس لیے alias:
@@ -74,7 +74,7 @@ class JWPM_DB {
 		}
 
 		$charset_collate = $wpdb->get_charset_collate();
-		$tables          = self::get_table_names();
+		$tables          = self::get_table_names();
 
 		$sql = array();
 
@@ -88,7 +88,7 @@ class JWPM_DB {
 			is_default TINYINT(1) NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY code (code)
 		) $charset_collate;";
 
@@ -105,7 +105,7 @@ class JWPM_DB {
 			is_demo TINYINT(1) NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			UNIQUE KEY phone (phone),
 			KEY branch_id (branch_id)
 		) $charset_collate;";
@@ -131,7 +131,7 @@ class JWPM_DB {
 			is_demo TINYINT(1) NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY sku (sku),
 			KEY tag_serial (tag_serial),
 			KEY branch_id (branch_id),
@@ -151,7 +151,7 @@ class JWPM_DB {
 			ref_id BIGINT(20) UNSIGNED NULL,
 			created_by BIGINT(20) UNSIGNED NULL,
 			created_at DATETIME NOT NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY item_id (item_id),
 			KEY branch_id (branch_id),
 			KEY action_type (action_type),
@@ -172,7 +172,7 @@ class JWPM_DB {
 			payment_meta LONGTEXT NULL,
 			created_by BIGINT(20) UNSIGNED NULL,
 			created_at DATETIME NOT NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			UNIQUE KEY invoice_no (invoice_no),
 			KEY branch_id (branch_id),
 			KEY customer_id (customer_id),
@@ -189,7 +189,7 @@ class JWPM_DB {
 			making_amount DECIMAL(18,2) NOT NULL DEFAULT 0,
 			discount_amount DECIMAL(18,2) NOT NULL DEFAULT 0,
 			line_total DECIMAL(18,2) NOT NULL DEFAULT 0,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY sale_id (sale_id),
 			KEY item_id (item_id)
 		) $charset_collate;";
@@ -213,7 +213,7 @@ class JWPM_DB {
 			created_by BIGINT(20) UNSIGNED NULL,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			UNIQUE KEY contract_code (contract_code),
 			KEY customer_id (customer_id)
 		) $charset_collate;";
@@ -229,7 +229,7 @@ class JWPM_DB {
 			status VARCHAR(30) NOT NULL DEFAULT 'pending',
 			paid_date DATE NULL,
 			is_demo TINYINT(1) NOT NULL DEFAULT 0,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY contract_id (contract_id),
 			KEY due_date (due_date),
 			KEY status (status)
@@ -246,7 +246,7 @@ class JWPM_DB {
 			received_by BIGINT(20) UNSIGNED NULL,
 			note TEXT NULL,
 			created_at DATETIME NOT NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY installment_id (installment_id),
 			KEY payment_date (payment_date)
 		) $charset_collate;";
@@ -260,7 +260,7 @@ class JWPM_DB {
 			total_amount DECIMAL(18,2) NOT NULL DEFAULT 0,
 			created_by BIGINT(20) UNSIGNED NULL,
 			created_at DATETIME NOT NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY branch_id (branch_id),
 			KEY supplier_id (supplier_id)
 		) $charset_collate;";
@@ -274,7 +274,7 @@ class JWPM_DB {
 			weight DECIMAL(18,6) NULL,
 			rate DECIMAL(18,6) NULL,
 			amount DECIMAL(18,2) NOT NULL DEFAULT 0,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY purchase_id (purchase_id)
 		) $charset_collate;";
 
@@ -298,7 +298,7 @@ class JWPM_DB {
 			tag_no VARCHAR(100) NULL,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			UNIQUE KEY job_code (job_code),
 			KEY branch_id (branch_id),
 			KEY customer_phone (customer_phone)
@@ -312,7 +312,7 @@ class JWPM_DB {
 			note TEXT NULL,
 			updated_by BIGINT(20) UNSIGNED NULL,
 			updated_at DATETIME NOT NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY repair_id (repair_id)
 		) $charset_collate;";
 
@@ -329,7 +329,7 @@ class JWPM_DB {
 			due_date DATE NULL,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY customer_id (customer_id),
 			KEY branch_id (branch_id),
 			KEY status (status)
@@ -344,7 +344,7 @@ class JWPM_DB {
 			entity_id BIGINT(20) UNSIGNED NULL,
 			meta LONGTEXT NULL,
 			created_at DATETIME NOT NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY user_id (user_id),
 			KEY entity_type (entity_type),
 			KEY entity_id (entity_id),
@@ -357,7 +357,7 @@ class JWPM_DB {
 			option_name VARCHAR(191) NOT NULL,
 			option_value LONGTEXT NULL,
 			autoload VARCHAR(20) NOT NULL DEFAULT 'yes',
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			UNIQUE KEY option_name (option_name)
 		) $charset_collate;";
 
@@ -373,7 +373,7 @@ class JWPM_DB {
 			created_by BIGINT(20) UNSIGNED NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY entry_date (entry_date),
 			KEY type (type),
 			KEY category (category)
@@ -391,7 +391,7 @@ class JWPM_DB {
 			created_by BIGINT(20) UNSIGNED NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY expense_date (expense_date),
 			KEY category (category)
 		) $charset_collate;";
@@ -408,7 +408,7 @@ class JWPM_DB {
 			description TEXT NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NULL,
-			PRIMARY KEY  (id),
+			PRIMARY KEY  (id),
 			KEY entry_type (entry_type),
 			KEY customer_id (customer_id),
 			KEY supplier_id (supplier_id)
@@ -456,11 +456,11 @@ class JWPM_DB {
 	/**
 	 * ایکٹیویٹی لاگ ریکارڈ کریں
 	 *
-	 * @param int    $user_id
+	 * @param int    $user_id
 	 * @param string $action
 	 * @param string $entity_type
-	 * @param int    $entity_id
-	 * @param array  $meta
+	 * @param int    $entity_id
+	 * @param array  $meta
 	 */
 	public static function log_activity( $user_id, $action, $entity_type = '', $entity_id = 0, $meta = array() ) {
 		global $wpdb;
@@ -470,12 +470,12 @@ class JWPM_DB {
 		$wpdb->insert(
 			$tables['activity_log'],
 			array(
-				'user_id'     => (int) $user_id,
-				'action'      => $action,
+				'user_id'     => (int) $user_id,
+				'action'      => $action,
 				'entity_type' => $entity_type,
-				'entity_id'   => (int) $entity_id,
-				'meta'        => ! empty( $meta ) ? wp_json_encode( $meta ) : null,
-				'created_at'  => current_time( 'mysql' ),
+				'entity_id'   => (int) $entity_id,
+				'meta'        => ! empty( $meta ) ? wp_json_encode( $meta ) : null,
+				'created_at'  => current_time( 'mysql' ),
 			),
 			array(
 				'%d',
@@ -497,32 +497,32 @@ class JWPM_DB {
 	public static function get_items_list( $filters = array() ) {
 		global $wpdb;
 		$tables = self::get_table_names();
-		$table  = $tables['items'];
+		$table  = $tables['items'];
 
 		$defaults = array(
-			'page'      => 1,
-			'per_page'  => 50,
-			'search'    => '',
-			'category'  => '',
-			'metal'     => '',
-			'karat'     => '',
-			'status'    => '',
+			'page'      => 1,
+			'per_page'  => 50,
+			'search'    => '',
+			'category'  => '',
+			'metal'     => '',
+			'karat'     => '',
+			'status'    => '',
 			'branch_id' => 0,
 		);
 
 		$filters = wp_parse_args( $filters, $defaults );
 
-		$where  = 'WHERE 1=1';
+		$where  = 'WHERE 1=1';
 		$params = array();
 
 		if ( (int) $filters['branch_id'] > 0 ) {
-			$where     .= ' AND branch_id = %d';
-			$params[]   = (int) $filters['branch_id'];
+			$where    .= ' AND branch_id = %d';
+			$params[]  = (int) $filters['branch_id'];
 		}
 
 		if ( '' !== $filters['search'] ) {
-			$like     = '%' . $wpdb->esc_like( $filters['search'] ) . '%';
-			$where   .= ' AND (sku LIKE %s OR tag_serial LIKE %s OR category LIKE %s OR design_no LIKE %s)';
+			$like     = '%' . $wpdb->esc_like( $filters['search'] ) . '%';
+			$where   .= ' AND (sku LIKE %s OR tag_serial LIKE %s OR category LIKE %s OR design_no LIKE %s)';
 			$params[] = $like;
 			$params[] = $like;
 			$params[] = $like;
@@ -530,33 +530,33 @@ class JWPM_DB {
 		}
 
 		if ( '' !== $filters['category'] ) {
-			$where   .= ' AND category = %s';
+			$where   .= ' AND category = %s';
 			$params[] = $filters['category'];
 		}
 		if ( '' !== $filters['metal'] ) {
-			$where   .= ' AND metal_type = %s';
+			$where   .= ' AND metal_type = %s';
 			$params[] = $filters['metal'];
 		}
 		if ( '' !== $filters['karat'] ) {
-			$where   .= ' AND karat = %s';
+			$where   .= ' AND karat = %s';
 			$params[] = $filters['karat'];
 		}
 		if ( '' !== $filters['status'] ) {
-			$where   .= ' AND status = %s';
+			$where   .= ' AND status = %s';
 			$params[] = $filters['status'];
 		}
 
-		$sql_base  = "FROM {$table} {$where}";
+		$sql_base  = "FROM {$table} {$where}";
 		$count_sql = "SELECT COUNT(*) {$sql_base}";
-		$total     = (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) );
+		$total     = (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) );
 
-		$page     = max( 1, (int) $filters['page'] );
+		$page     = max( 1, (int) $filters['page'] );
 		$per_page = max( 1, (int) $filters['per_page'] );
-		$offset   = ( $page - 1 ) * $per_page;
+		$offset   = ( $page - 1 ) * $per_page;
 
 		$list_sql = "SELECT * {$sql_base} ORDER BY created_at DESC LIMIT %d OFFSET %d";
 		$params_l = array_merge( $params, array( $per_page, $offset ) );
-		$rows     = $wpdb->get_results( $wpdb->prepare( $list_sql, $params_l ), ARRAY_A );
+		$rows     = $wpdb->get_results( $wpdb->prepare( $list_sql, $params_l ), ARRAY_A );
 
 		return array(
 			'items' => $rows,
@@ -573,17 +573,17 @@ class JWPM_DB {
 	public static function get_sales_data( $range = array() ) {
 		global $wpdb;
 		$tables = self::get_table_names();
-		$sales  = $tables['sales'];
+		$sales  = $tables['sales'];
 
 		$from = ! empty( $range['from'] ) ? $range['from'] : date( 'Y-m-01' );
-		$to   = ! empty( $range['to'] ) ? $range['to'] : date( 'Y-m-t' );
+		$to   = ! empty( $range['to'] ) ? $range['to'] : date( 'Y-m-t' );
 
 		// روزانہ summary
 		$sql = "
 			SELECT DATE(created_at) AS sale_date,
-				   COUNT(*) as invoices,
-				   SUM(final_amount) as total_amount,
-				   SUM(discount_amount) as total_discount
+			       COUNT(*) as invoices,
+			       SUM(final_amount) as total_amount,
+			       SUM(discount_amount) as total_discount
 			FROM {$sales}
 			WHERE created_at BETWEEN %s AND %s
 			GROUP BY DATE(created_at)
@@ -594,18 +594,18 @@ class JWPM_DB {
 
 		$summary = array(
 			'total_invoices' => 0,
-			'total_sales'    => 0.0,
+			'total_sales'    => 0.0,
 			'total_discount' => 0.0,
 		);
 
 		foreach ( $rows as $r ) {
 			$summary['total_invoices'] += (int) $r['invoices'];
-			$summary['total_sales']    += (float) $r['total_amount'];
+			$summary['total_sales']    += (float) $r['total_amount'];
 			$summary['total_discount'] += (float) $r['total_discount'];
 		}
 
 		return array(
-			'rows'    => $rows,
+			'rows'    => $rows,
 			'summary' => $summary,
 		);
 	}
@@ -621,8 +621,8 @@ class JWPM_DB {
 		$tables = self::get_table_names();
 
 		$customers = $tables['customers'];
-		$sales     = $tables['sales'];
-		$install   = $tables['installments'];
+		$sales     = $tables['sales'];
+		$install   = $tables['installments'];
 
 		$customer = $wpdb->get_row(
 			$wpdb->prepare(
@@ -639,15 +639,15 @@ class JWPM_DB {
 		}
 
 		$stats = array(
-			'found'            => true,
-			'customer'         => $customer,
-			'total_invoices'   => 0,
-			'total_sales'      => 0.0,
-			'last_sale_date'   => null,
-			'installments'     => array(
-				'active'   => 0,
-				'overdue'  => 0,
-				'closed'   => 0,
+			'found'             => true,
+			'customer'          => $customer,
+			'total_invoices'    => 0,
+			'total_sales'       => 0.0,
+			'last_sale_date'    => null,
+			'installments'      => array(
+				'active'      => 0,
+				'overdue'     => 0,
+				'closed'      => 0,
 				'outstanding' => 0.0,
 			),
 		);
@@ -665,7 +665,7 @@ class JWPM_DB {
 
 		if ( $sales_row ) {
 			$stats['total_invoices'] = (int) $sales_row['invoices'];
-			$stats['total_sales']    = (float) $sales_row['total_amount'];
+			$stats['total_sales']    = (float) $sales_row['total_amount'];
 			$stats['last_sale_date'] = $sales_row['last_date'];
 		}
 
@@ -703,15 +703,15 @@ class JWPM_DB {
 	public static function calculate_profit( $filters = array() ) {
 		global $wpdb;
 		$tables = self::get_table_names();
-		$sales  = $tables['sales'];
+		$sales  = $tables['sales'];
 
 		$from = ! empty( $filters['from'] ) ? $filters['from'] : date( 'Y-m-01' );
-		$to   = ! empty( $filters['to'] ) ? $filters['to'] : date( 'Y-m-t' );
+		$to   = ! empty( $filters['to'] ) ? $filters['to'] : date( 'Y-m-t' );
 
 		$sql = "
 			SELECT SUM(final_amount) as total_sales,
-				   SUM(discount_amount) as total_discount,
-				   COUNT(*) as invoices
+			       SUM(discount_amount) as total_discount,
+			       COUNT(*) as invoices
 			FROM {$sales}
 			WHERE created_at BETWEEN %s AND %s
 		";
@@ -725,21 +725,21 @@ class JWPM_DB {
 			ARRAY_A
 		);
 
-		$total_sales    = (float) ( $row['total_sales'] ?? 0 );
+		$total_sales    = (float) ( $row['total_sales'] ?? 0 );
 		$total_discount = (float) ( $row['total_discount'] ?? 0 );
-		$invoices       = (int) ( $row['invoices'] ?? 0 );
+		$invoices       = (int) ( $row['invoices'] ?? 0 );
 
 		// فی الحال profit = total_sales (placeholder)
 		$profit = $total_sales;
 
 		return array(
-			'from'           => $from,
-			'to'             => $to,
-			'total_sales'    => $total_sales,
+			'from'           => $from,
+			'to'             => $to,
+			'total_sales'    => $total_sales,
 			'total_discount' => $total_discount,
-			'invoices'       => $invoices,
-			'profit'         => $profit,
-			'note'           => 'Cost structure نہ ہونے کی وجہ سے profit = total_sales لیا جا رہا ہے۔',
+			'invoices'       => $invoices,
+			'profit'         => $profit,
+			'note'           => 'Cost structure نہ ہونے کی وجہ سے profit = total_sales لیا جا رہا ہے۔',
 		);
 	}
 
@@ -751,13 +751,13 @@ class JWPM_DB {
 	public static function get_stock_alerts() {
 		global $wpdb;
 		$tables = self::get_table_names();
-		$items  = $tables['items'];
+		$items  = $tables['items'];
 
 		// فی الحال logic: ہر category/metal/karat کی in_stock count
 		// اگر count <= 3 ہو تو low stock سمجھیں۔
 		$sql = "
 			SELECT category, metal_type, karat,
-				   COUNT(*) as qty
+			       COUNT(*) as qty
 			FROM {$items}
 			WHERE status = 'in_stock'
 			GROUP BY category, metal_type, karat
@@ -781,9 +781,9 @@ class JWPM_DB {
 		global $wpdb;
 		$tables = self::get_table_names();
 
-		$sales       = $tables['sales'];
-		$customers   = $tables['customers'];
-		$items       = $tables['items'];
+		$sales       = $tables['sales'];
+		$customers   = $tables['customers'];
+		$items       = $tables['items'];
 		$installment = $tables['installments'];
 
 		$today = current_time( 'Y-m-d' );
@@ -830,15 +830,15 @@ class JWPM_DB {
 		$alerts = self::get_stock_alerts();
 
 		return array(
-			'sales_today'     => (float) ( $row_today['total'] ?? 0 ),
-			'sales_today_cnt' => (int) ( $row_today['invoices'] ?? 0 ),
-			'sales_month'     => (float) ( $row_month['total'] ?? 0 ),
-			'sales_month_cnt' => (int) ( $row_month['invoices'] ?? 0 ),
-			'customers_count' => $total_customers,
-			'inventory_items' => (int) ( $row_inv['in_stock_items'] ?? 0 ),
-			'inventory_weight'=> (float) ( $row_inv['total_weight'] ?? 0 ),
-			'installments_active' => $active_installments,
-			'low_stock_count' => isset( $alerts['alerts'] ) ? count( $alerts['alerts'] ) : 0,
+			'sales_today'        => (float) ( $row_today['total'] ?? 0 ),
+			'sales_today_cnt'    => (int) ( $row_today['invoices'] ?? 0 ),
+			'sales_month'        => (float) ( $row_month['total'] ?? 0 ),
+			'sales_month_cnt'    => (int) ( $row_month['invoices'] ?? 0 ),
+			'customers_count'    => $total_customers,
+			'inventory_items'    => (int) ( $row_inv['in_stock_items'] ?? 0 ),
+			'inventory_weight'   => (float) ( $row_inv['total_weight'] ?? 0 ),
+			'installments_active'=> $active_installments,
+			'low_stock_count'    => isset( $alerts['alerts'] ) ? count( $alerts['alerts'] ) : 0,
 		);
 	}
 
@@ -850,15 +850,15 @@ class JWPM_DB {
 	public static function get_today_pos_stats() {
 		global $wpdb;
 		$tables = self::get_table_names();
-		$sales  = $tables['sales'];
+		$sales  = $tables['sales'];
 
 		$today = current_time( 'Y-m-d' );
 
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT COUNT(*) as invoices,
-				        SUM(final_amount) as amount,
-				        SUM(is_installment) as installment_sales
+				        SUM(final_amount) as amount,
+				        SUM(is_installment) as installment_sales
 				 FROM {$sales}
 				 WHERE DATE(created_at) = %s",
 				$today
@@ -867,9 +867,9 @@ class JWPM_DB {
 		);
 
 		return array(
-			'sales_count'      => (int) ( $row['invoices'] ?? 0 ),
-			'sales_amount'     => (float) ( $row['amount'] ?? 0 ),
-			'installment_sales'=> (int) ( $row['installment_sales'] ?? 0 ),
+			'sales_count'       => (int) ( $row['invoices'] ?? 0 ),
+			'sales_amount'      => (float) ( $row['amount'] ?? 0 ),
+			'installment_sales' => (int) ( $row['installment_sales'] ?? 0 ),
 		);
 	}
 
@@ -882,7 +882,7 @@ class JWPM_DB {
 	public static function get_recent_activity( $limit = 20 ) {
 		global $wpdb;
 		$tables = self::get_table_names();
-		$log    = $tables['activity_log'];
+		$log    = $tables['activity_log'];
 
 		$limit = max( 1, (int) $limit );
 
@@ -906,14 +906,14 @@ class JWPM_DB {
 		$ledger = $tables['stock_ledger'];
 
 		$from = ! empty( $range['from'] ) ? $range['from'] : date( 'Y-m-01' );
-		$to   = ! empty( $range['to'] ) ? $range['to'] : date( 'Y-m-t' );
+		$to   = ! empty( $range['to'] ) ? $range['to'] : date( 'Y-m-t' );
 
 		$sql = "
 			SELECT DATE(created_at) as movement_date,
-			       action_type,
-			       COUNT(*) as entries,
-			       SUM(quantity) as total_qty,
-			       SUM(weight) as total_weight
+			       action_type,
+			       COUNT(*) as entries,
+			       SUM(quantity) as total_qty,
+			       SUM(weight) as total_weight
 			FROM {$ledger}
 			WHERE created_at BETWEEN %s AND %s
 			GROUP BY DATE(created_at), action_type
@@ -938,16 +938,16 @@ class JWPM_DB {
 	 */
 	public static function get_expense_report( $filters = array() ) {
 		global $wpdb;
-		$tables  = self::get_table_names();
+		$tables  = self::get_table_names();
 		$expense = $tables['expenses'];
 
 		$from = ! empty( $filters['from'] ) ? $filters['from'] : date( 'Y-m-01' );
-		$to   = ! empty( $filters['to'] ) ? $filters['to'] : date( 'Y-m-t' );
+		$to   = ! empty( $filters['to'] ) ? $filters['to'] : date( 'Y-m-t' );
 
 		$sql = "
 			SELECT category,
-				   SUM(amount) as total_amount,
-				   COUNT(*) as entries
+			       SUM(amount) as total_amount,
+			       COUNT(*) as entries
 			FROM {$expense}
 			WHERE expense_date BETWEEN %s AND %s
 			GROUP BY category
@@ -965,10 +965,10 @@ class JWPM_DB {
 		}
 
 		return array(
-			'rows'   => $rows,
-			'total'  => $total,
-			'from'   => $from,
-			'to'     => $to,
+			'rows'  => $rows,
+			'total' => $total,
+			'from'  => $from,
+			'to'    => $to,
 		);
 	}
 
@@ -980,17 +980,17 @@ class JWPM_DB {
 	 */
 	public static function get_cashflow_report( $filters = array() ) {
 		global $wpdb;
-		$tables   = self::get_table_names();
+		$tables  = self::get_table_names();
 		$cashbook = $tables['cashbook'];
 
 		$from = ! empty( $filters['from'] ) ? $filters['from'] : date( 'Y-m-01' );
-		$to   = ! empty( $filters['to'] ) ? $filters['to'] : date( 'Y-m-t' );
+		$to   = ! empty( $filters['to'] ) ? $filters['to'] : date( 'Y-m-t' );
 
 		// روزانہ کی سطح پر in/out
 		$sql = "
 			SELECT entry_date,
-			       SUM( CASE WHEN type = 'in'  THEN amount ELSE 0 END ) as total_in,
-			       SUM( CASE WHEN type = 'out' THEN amount ELSE 0 END ) as total_out
+			       SUM( CASE WHEN type = 'in'  THEN amount ELSE 0 END ) as total_in,
+			       SUM( CASE WHEN type = 'out' THEN amount ELSE 0 END ) as total_out
 			FROM {$cashbook}
 			WHERE entry_date BETWEEN %s AND %s
 			GROUP BY entry_date
@@ -1003,22 +1003,22 @@ class JWPM_DB {
 		);
 
 		$summary = array(
-			'total_in'  => 0.0,
+			'total_in'  => 0.0,
 			'total_out' => 0.0,
-			'net'       => 0.0,
+			'net'       => 0.0,
 		);
 
 		foreach ( $rows as $r ) {
-			$summary['total_in']  += (float) $r['total_in'];
+			$summary['total_in']  += (float) $r['total_in'];
 			$summary['total_out'] += (float) $r['total_out'];
 		}
 		$summary['net'] = $summary['total_in'] - $summary['total_out'];
 
 		return array(
-			'rows'    => $rows,
+			'rows'    => $rows,
 			'summary' => $summary,
-			'from'    => $from,
-			'to'      => $to,
+			'from'    => $from,
+			'to'      => $to,
 		);
 	}
 
