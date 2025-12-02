@@ -1066,7 +1066,7 @@ class JWPM_Ajax {
 		}
 
 		$inserted = 0;
-		$updated  = 0;
+		$updated  = 0;
 
 		foreach ( $items as $row ) {
 			$phone = isset( $row['phone'] ) ? sanitize_text_field( $row['phone'] ) : '';
@@ -1080,11 +1080,11 @@ class JWPM_Ajax {
 			}
 
 			$data = array(
-				'name'          => $name,
-				'phone'         => $phone,
-				'city'          => isset( $row['city'] ) ? sanitize_text_field( $row['city'] ) : '',
-				'status'        => isset( $row['status'] ) ? sanitize_text_field( wp_unslash( $row['status'] ) ) : 'active',
-				'is_demo'       => isset( $row['is_demo'] ) ? (int) $row['is_demo'] : 0,
+				'name'          => $name,
+				'phone'         => $phone,
+				'city'          => isset( $row['city'] ) ? sanitize_text_field( $row['city'] ) : '',
+				'status'        => isset( $row['status'] ) ? sanitize_text_field( wp_unslash( $row['status'] ) ) : 'active',
+				'is_demo'       => isset( $row['is_demo'] ) ? (int) $row['is_demo'] : 0,
 			);
 
 			$existing_id = (int) $wpdb->get_var(
@@ -1099,10 +1099,10 @@ class JWPM_Ajax {
 				$wpdb->update( $table, $data, array( 'id' => $existing_id ), null, array( '%d' ) );
 				$updated++;
 			} else {
-				$max_id                = (int) $wpdb->get_var( "SELECT MAX(id) FROM {$table}" );
+				$max_id                = (int) $wpdb->get_var( "SELECT MAX(id) FROM {$table}" );
 				$data['customer_code'] = sprintf( 'CUST-%04d', $max_id + 1 );
-				$data['created_by']    = get_current_user_id();
-				$data['created_at']    = current_time( 'mysql' );
+				$data['created_by']    = get_current_user_id();
+				$data['created_at']    = current_time( 'mysql' );
 				$data['opening_balance'] = '0.000';
 				$data['current_balance'] = '0.000';
 				$wpdb->insert( $table, $data );
@@ -1113,8 +1113,8 @@ class JWPM_Ajax {
 		wp_send_json_success(
 			array(
 				'inserted' => $inserted,
-				'updated'  => $updated,
-				'message'  => __( 'Customers import completed.', 'jwpm-jewelry-pos-manager' ),
+					'updated'  => $updated,
+				'message'  => __( 'Customers import completed.', 'jwpm-jewelry-pos-manager' ),
 			)
 		);
 	}
@@ -1126,20 +1126,20 @@ class JWPM_Ajax {
 		$table = self::get_table( 'customers', 'jwpm_customers' );
 		$status = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
 
-		$where  = 'WHERE 1=1';
+		$where  = 'WHERE 1=1';
 		$params = array();
 
 		if ( '' !== $status ) {
-			$where   .= ' AND status = %s';
+			$where   .= ' AND status = %s';
 			$params[] = $status;
 		}
 
-		$sql  = "SELECT * FROM {$table} {$where} ORDER BY created_at DESC LIMIT 5000";
+		$sql  = "SELECT * FROM {$table} {$where} ORDER BY created_at DESC LIMIT 5000";
 		$rows = empty( $params ) ? $wpdb->get_results( $sql, ARRAY_A ) : $wpdb->get_results( $wpdb->prepare( $sql, $params ), ARRAY_A );
 
 		wp_send_json_success(
 			array(
-				'rows'    => $rows,
+				'rows'    => $rows,
 				'message' => __( 'Customers export data ready.', 'jwpm-jewelry-pos-manager' ),
 			)
 		);
@@ -1150,7 +1150,7 @@ class JWPM_Ajax {
 		global $wpdb;
 
 		$table = self::get_table( 'customers', 'jwpm_customers' );
-		$mode  = isset( $_POST['mode'] ) ? sanitize_text_field( wp_unslash( $_POST['mode'] ) ) : 'create';
+		$mode  = isset( $_POST['mode'] ) ? sanitize_text_field( wp_unslash( $_POST['mode'] ) ) : 'create';
 
 		if ( 'delete' === $mode ) {
 			$wpdb->delete( $table, array( 'is_demo' => 1 ), array( '%d' ) );
@@ -1172,26 +1172,26 @@ class JWPM_Ajax {
 
 		$demo_rows = array(
 			array(
-				'name'  => 'Demo Customer 1',
+				'name'  => 'Demo Customer 1',
 				'phone' => '03001234567',
-				'city'  => 'Karachi',
+			'city'  => 'Karachi',
 			),
 			array(
-				'name'  => 'Demo Customer 2',
+				'name'  => 'Demo Customer 2',
 				'phone' => '03007654321',
-				'city'  => 'Lahore',
+				'city'  => 'Lahore',
 			),
 		);
 
 		foreach ( $demo_rows as $row ) {
-			$row['status']         = 'active';
-			$row['is_demo']        = 1;
-			$row['created_by']     = get_current_user_id();
-			$row['created_at']     = current_time( 'mysql' );
+				$row['status']         = 'active';
+			$row['is_demo']        = 1;
+			$row['created_by']     = get_current_user_id();
+			$row['created_at']     = current_time( 'mysql' 
 			$row['opening_balance'] = '0.000';
 			$row['current_balance'] = '0.000';
-			$max_id                 = (int) $wpdb->get_var( "SELECT MAX(id) FROM {$table}" );
-			$row['customer_code']   = sprintf( 'CUST-%04d', $max_id + 1 );
+				$max_id                 = (int) $wpdb->get_var( "SELECT MAX(id) FROM {$table}" );
+			$row['customer_code']   = sprintf( 'CUST-%04d', $max_id + 1 );
 			$wpdb->insert( $table, $row );
 		}
 
@@ -1219,25 +1219,25 @@ class JWPM_Ajax {
 		$contracts_table = self::get_table( 'installments', 'jwpm_installments' );
 		$customers_table = self::get_table( 'customers', 'jwpm_customers' );
 
-		$search    = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '';
-		$status    = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
+		$search    = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '';
+		$status    = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '';
 		$date_from = isset( $_POST['date_from'] ) ? sanitize_text_field( wp_unslash( $_POST['date_from'] ) ) : '';
-		$date_to   = isset( $_POST['date_to'] ) ? sanitize_text_field( wp_unslash( $_POST['date_to'] ) ) : '';
-		$page      = isset( $_POST['page'] ) ? max( 1, (int) $_POST['page'] ) : 1;
-		$per       = isset( $_POST['per_page'] ) ? max( 1, (int) $_POST['per_page'] ) : 20;
+			$date_to   = isset( $_POST['date_to'] ) ? sanitize_text_field( wp_unslash( $_POST['date_to'] ) ) : '';
+		$page      = isset( $_POST['page'] ) ? max( 1, (int) $_POST['page'] ) : 1;
+		$per       = isset( $_POST['per_page'] ) ? max( 1, (int) $_POST['per_page'] ) : 20;
 
-		$where  = 'WHERE 1=1';
+			$where  = 'WHERE 1=1';
 		$params = array();
 
 		if ( $search ) {
-			$like     = '%' . $wpdb->esc_like( $search ) . '%';
-			$where   .= ' AND (c.name LIKE %s OR c.phone LIKE %s OR i.contract_code LIKE %s)';
+					$like     = '%' . $wpdb->esc_like( $search ) . '%';
+			$where   .= ' AND (c.name LIKE %s OR c.phone LIKE %s OR i.contract_code LIKE %s)';
 			$params[] = $like;
 			$params[] = $like;
 			$params[] = $like;
 		}
 		if ( $status ) {
-			$where   .= ' AND i.status = %s';
+			$where   .= ' AND i.status = %s';
 			$params[] = $status;
 		}
 		if ( $date_from ) {
