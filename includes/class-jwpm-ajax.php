@@ -40,42 +40,41 @@ class JWPM_Ajax {
 		add_action( 'wp_ajax_jwpm_inventory_export_items', array( __CLASS__, 'inventory_export_items' ) );
 		add_action( 'wp_ajax_jwpm_inventory_demo_items',   array( __CLASS__, 'inventory_demo_items' ) );
 
-
 		// ---------------------------------------------------------------------
 		// 2. POS Module
 		// ---------------------------------------------------------------------
-		add_action( 'wp_ajax_jwpm_pos_search_items',   array( __CLASS__, 'pos_search_items' ) );
-		add_action( 'wp_ajax_jwpm_pos_get_gold_rate',  array( __CLASS__, 'pos_get_gold_rate' ) );
+		add_action( 'wp_ajax_jwpm_pos_search_items',   array( __CLASS__, 'pos_search_items' ) );
+		add_action( 'wp_ajax_jwpm_pos_get_gold_rate',  array( __CLASS__, 'pos_get_gold_rate' ) );
 		add_action( 'wp_ajax_jwpm_pos_search_customer', array( __CLASS__, 'pos_search_customer' ) );
-		add_action( 'wp_ajax_jwpm_pos_complete_sale',  array( __CLASS__, 'pos_complete_sale' ) );
+		add_action( 'wp_ajax_jwpm_pos_complete_sale',  array( __CLASS__, 'pos_complete_sale' ) );
 		add_action( 'wp_ajax_jwpm_pos_get_today_stats', array( __CLASS__, 'pos_get_today_stats' ) );
 
 		// ---------------------------------------------------------------------
 		// 3. Customers Module
 		// ---------------------------------------------------------------------
 		add_action( 'wp_ajax_jwpm_customers_fetch', array( __CLASS__, 'customers_fetch' ) );
-		add_action( 'wp_ajax_jwpm_customers_save',  array( __CLASS__, 'customers_save' ) );
+		add_action( 'wp_ajax_jwpm_customers_save',  array( __CLASS__, 'customers_save' ) );
 		add_action( 'wp_ajax_jwpm_customers_delete', array( __CLASS__, 'customers_delete' ) );
 		add_action( 'wp_ajax_jwpm_customers_import', array( __CLASS__, 'customers_import' ) );
 		add_action( 'wp_ajax_jwpm_customers_export', array( __CLASS__, 'customers_export' ) );
-		add_action( 'wp_ajax_jwpm_customers_demo',   array( __CLASS__, 'customers_demo' ) );
+		add_action( 'wp_ajax_jwpm_customers_demo',   array( __CLASS__, 'customers_demo' ) );
 		add_action( 'wp_ajax_jwpm_customers_get_single', array( __CLASS__, 'customers_get_single' ) );
 
 		// ✅ Backward compatibility (پرانے اکشن نام)
-		add_action( 'wp_ajax_jwpm_get_customers',   array( __CLASS__, 'customers_fetch' ) );
-		add_action( 'wp_ajax_jwpm_save_customer',   array( __CLASS__, 'customers_save' ) );
+		add_action( 'wp_ajax_jwpm_get_customers',   array( __CLASS__, 'customers_fetch' ) );
+		add_action( 'wp_ajax_jwpm_save_customer',   array( __CLASS__, 'customers_save' ) );
 		add_action( 'wp_ajax_jwpm_delete_customer', array( __CLASS__, 'customers_delete' ) );
-		add_action( 'wp_ajax_jwpm_get_customer',    array( __CLASS__, 'customers_get_single' ) );
+		add_action( 'wp_ajax_jwpm_get_customer',    array( __CLASS__, 'customers_get_single' ) );
 
 		// ---------------------------------------------------------------------
 		// 4. Installments Module
 		// ---------------------------------------------------------------------
-		add_action( 'wp_ajax_jwpm_installments_fetch',          array( __CLASS__, 'installments_fetch' ) );
-		add_action( 'wp_ajax_jwpm_installments_save',           array( __CLASS__, 'installments_save' ) );
-		add_action( 'wp_ajax_jwpm_installments_delete',         array( __CLASS__, 'installments_delete' ) );
+		add_action( 'wp_ajax_jwpm_installments_fetch',          array( __CLASS__, 'installments_fetch' ) );
+		add_action( 'wp_ajax_jwpm_installments_save',           array( __CLASS__, 'installments_save' ) );
+		add_action( 'wp_ajax_jwpm_installments_delete',         array( __CLASS__, 'installments_delete' ) );
 		add_action( 'wp_ajax_jwpm_installments_record_payment', array( __CLASS__, 'installments_record_payment' ) );
-		add_action( 'wp_ajax_jwpm_installments_import',         array( __CLASS__, 'installments_import' ) );
-		add_action( 'wp_ajax_jwpm_installments_export',         array( __CLASS__, 'installments_export' ) );
+		add_action( 'wp_ajax_jwpm_installments_import',         array( __CLASS__, 'installments_import' ) );
+		add_action( 'wp_ajax_jwpm_installments_export',         array( __CLASS__, 'installments_export' ) );
 
 		// ✅ Backward compatibility
 		add_action( 'wp_ajax_jwpm_get_installments', array( __CLASS__, 'installments_fetch' ) );
