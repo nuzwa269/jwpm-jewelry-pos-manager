@@ -5,7 +5,7 @@
  * یہ کلاس پلگ ان کی ایکٹیویشن لاجک کو ہینڈل کرتی ہے۔
  * اس میں رولز، صلاحیتیں (Capabilities) اور ڈیٹا بیس ٹیبلز بنانے کا عمل شامل ہے۔
  *
- * @package    JWPM
+ * @package    JWPM
  * @subpackage JWPM/includes
  */
 
@@ -26,7 +26,7 @@ class JWPM_Activator {
 		// 2. ڈیٹا بیس ٹیبلز بنائیں
 		if ( class_exists( 'JWPM_DB' ) && method_exists( 'JWPM_DB', 'create_tables' ) ) {
 			JWPM_DB::create_tables();
-		} 
+			}  
 
 		// 3. ورژن محفوظ کریں
 		if ( defined( 'JWPM_VERSION' ) ) {
@@ -90,8 +90,8 @@ class JWPM_Activator {
 				'jwpm_owner',
 				'JWPM Owner',
 				array(
-					'read'            => true,
-					'manage_options'  => true, // WordPress Core Capability
+					'read'            => true,
+					'manage_options'  => true, // WordPress Core Capability
 					'manage_jwpm_all' => true, // Full JWPM Access
 				)
 			);
@@ -103,14 +103,14 @@ class JWPM_Activator {
 				'jwpm_manager',
 				'JWPM Manager',
 				array(
-					'read'                  => true,
-					'manage_jwpm_sales'     => true,
+					'read'                  => true,
+					'manage_jwpm_sales'     => true,
 					'manage_jwpm_inventory' => true,
-					'manage_jwpm_accounts'  => true,
-					'manage_jwpm_reports'   => true,
+					'manage_jwpm_accounts'  => true,
+					'manage_jwpm_reports'   => true,
 					'manage_jwpm_customers' => true,
-					'manage_jwpm_orders'    => true,
-					'manage_jwpm_repairs'   => true,
+					'manage_jwpm_orders'    => true,
+					'manage_jwpm_repairs'   => true,
 				)
 			);
 		}
@@ -121,10 +121,10 @@ class JWPM_Activator {
 				'jwpm_salesperson',
 				'JWPM Salesperson',
 				array(
-					'read'                  => true,
-					'manage_jwpm_sales'     => true,
+					'read'                  => true,
+					'manage_jwpm_sales'     => true,
 					'manage_jwpm_customers' => true,
-					'manage_jwpm_orders'    => true,
+					'manage_jwpm_orders'    => true,
 				)
 			);
 		}
@@ -135,9 +135,9 @@ class JWPM_Activator {
 				'jwpm_accountant',
 				'JWPM Accountant',
 				array(
-					'read'                 => true,
+					'read'                 => true,
 					'manage_jwpm_accounts' => true,
-					'manage_jwpm_reports'  => true,
+					'manage_jwpm_reports'  => true,
 				)
 			);
 		}
@@ -148,7 +148,7 @@ class JWPM_Activator {
 				'jwpm_karigar',
 				'JWPM Karigar',
 				array(
-					'read'                => true,
+					'read'                => true,
 					'manage_jwpm_repairs' => true,
 				)
 			);
