@@ -168,7 +168,7 @@ class JWPM_Ajax {
 		}
 
 		$caps = (array) $caps;
-		$ok   = false;
+		$ok   = false;
 
 		foreach ( $caps as $cap ) {
 			if ( current_user_can( $cap ) ) {
@@ -240,13 +240,13 @@ class JWPM_Ajax {
 		self::verify_request( 'jwpm_inventory_nonce', array( 'manage_jwpm_inventory', 'manage_options' ) );
 
 		$filters = array(
-			'page'      => isset( $_POST['page'] ) ? max( 1, (int) $_POST['page'] ) : 1,
-			'per_page'  => isset( $_POST['per_page'] ) ? max( 1, (int) $_POST['per_page'] ) : 50,
-			'search'    => isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '',
-			'category'  => isset( $_POST['category'] ) ? sanitize_text_field( wp_unslash( $_POST['category'] ) ) : '',
-			'metal'     => isset( $_POST['metal'] ) ? sanitize_text_field( wp_unslash( $_POST['metal'] ) ) : '',
-			'karat'     => isset( $_POST['karat'] ) ? sanitize_text_field( wp_unslash( $_POST['karat'] ) ) : '',
-			'status'    => isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '',
+			'page'      => isset( $_POST['page'] ) ? max( 1, (int) $_POST['page'] ) : 1,
+			'per_page'  => isset( $_POST['per_page'] ) ? max( 1, (int) $_POST['per_page'] ) : 50,
+			'search'    => isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '',
+			'category'  => isset( $_POST['category'] ) ? sanitize_text_field( wp_unslash( $_POST['category'] ) ) : '',
+			'metal'     => isset( $_POST['metal'] ) ? sanitize_text_field( wp_unslash( $_POST['metal'] ) ) : '',
+			'karat'     => isset( $_POST['karat'] ) ? sanitize_text_field( wp_unslash( $_POST['karat'] ) ) : '',
+			'status'    => isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '',
 			'branch_id' => isset( $_POST['branch_id'] ) ? (int) $_POST['branch_id'] : 0,
 		);
 
@@ -255,9 +255,9 @@ class JWPM_Ajax {
 			$result = JWPM_DB::get_items_list( $filters );
 			wp_send_json_success(
 				array(
-					'items'    => isset( $result['items'] ) ? $result['items'] : array(),
-					'total'    => isset( $result['total'] ) ? (int) $result['total'] : 0,
-					'page'     => $filters['page'],
+						'items'    => isset( $result['items'] ) ? $result['items'] : array(),
+					'total'    => isset( $result['total'] ) ? (int) $result['total'] : 0,
+					'page'     => $filters['page'],
 					'per_page' => $filters['per_page'],
 				)
 			);
