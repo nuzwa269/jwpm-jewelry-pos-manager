@@ -103,7 +103,7 @@ class JWPM {
 		// 2. AJAX Hooks Registration
 		if ( class_exists( 'JWPM_Ajax' ) ) {
     $ajax_instance = new JWPM_Ajax();
-    $this->loader->add_action( 'init', $ajax_instance, 'register_ajax_hooks' );
+    $this->loader->add_action( 'init', array( 'JWPM_Ajax', 'register_ajax_hooks' ) );
 }
 	}
 
