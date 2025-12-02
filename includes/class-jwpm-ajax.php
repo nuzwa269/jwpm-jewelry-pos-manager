@@ -315,34 +315,33 @@ class JWPM_Ajax {
 		if ( ! empty( $rows ) ) {
 			foreach ( $rows as $row ) {
 				$items[] = array(
-					'id'            => (int) $row['id'],
-					'branch_id'     => (int) $row['branch_id'],
-					'sku'           => $row['sku'],
-					'tag_serial'    => $row['tag_serial'],
-					'category'      => $row['category'],
-					'metal_type'    => $row['metal_type'],
-					'karat'         => $row['karat'],
-					'gross_weight'  => (float) $row['gross_weight'],
-					'net_weight'    => (float) $row['net_weight'],
-					'stone_type'    => $row['stone_type'],
-					'stone_carat'   => isset( $row['stone_carat'] ) ? (float) $row['stone_carat'] : 0,
-					'stone_qty'     => isset( $row['stone_qty'] ) ? (int) $row['stone_qty'] : 0,
+					'id'            => (int) $row['id'],
+					'branch_id'     => (int) $row['branch_id'],
+					'sku'           => $row['sku'],
+					'tag_serial'    => $row['tag_serial'],
+					'category'      => $row['category'],
+					'metal_type'    => $row['metal_type'],
+					'karat'         => $row['karat'],
+					'gross_weight'  => (float) $row['gross_weight'],
+					'net_weight'    => (float) $row['net_weight'],
+					'stone_type'    => $row['stone_type'],
+					'stone_carat'   => isset( $row['stone_carat'] ) ? (float) $row['stone_carat'] : 0,
+					'stone_qty'     => isset( $row['stone_qty'] ) ? (int) $row['stone_qty'] : 0,
 					'labour_amount' => (float) $row['labour_amount'],
-					'design_no'     => $row['design_no'],
-					'image_id'      => isset( $row['image_id'] ) ? (int) $row['image_id'] : 0,
-					'status'        => $row['status'],
-					'is_demo'       => isset( $row['is_demo'] ) ? (int) $row['is_demo'] : 0,
-					'created_at'    => $row['created_at'],
+					'design_no'     => $row['design_no'],
+					'image_id'      => isset( $row['image_id'] ) ? (int) $row['image_id'] : 0,
+					'status'        => $row['status'],
+					'is_demo'       => isset( $row['is_demo'] ) ? (int) $row['is_demo'] : 0,
+					'created_at'    => $row['created_at'],
 				);
 			}
 		}
 
 		wp_send_json_success(
 			array(
-				'items'    => $items,
-				'total'    => $total,
-				'page'     => $filters['page'],
-				'per_page' => $filters['per_page'],
+				'items'    => $items,
+				'total'    => $total,
+				'page'     => $filters['page'],
 			)
 		);
 	}
@@ -351,21 +350,22 @@ class JWPM_Ajax {
 		self::verify_request( 'jwpm_inventory_nonce', array( 'manage_jwpm_inventory', 'manage_options' ) );
 		global $wpdb;
 
+		
 		$table = self::get_table( 'items', 'jwpm_items' );
 
-		$id   = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
+    	$id   = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
 		$data = array(
-			'branch_id'     => isset( $_POST['branch_id'] ) ? (int) $_POST['branch_id'] : 0,
-			'sku'           => isset( $_POST['sku'] ) ? sanitize_text_field( wp_unslash( $_POST['sku'] ) ) : '',
-			'tag_serial'    => isset( $_POST['tag_serial'] ) ? sanitize_text_field( wp_unslash( $_POST['tag_serial'] ) ) : '',
-			'category'      => isset( $_POST['category'] ) ? sanitize_text_field( wp_unslash( $_POST['category'] ) ) : '',
-			'metal_type'    => isset( $_POST['metal_type'] ) ? sanitize_text_field( wp_unslash( $_POST['metal_type'] ) ) : '',
-			'karat'         => isset( $_POST['karat'] ) ? sanitize_text_field( wp_unslash( $_POST['karat'] ) ) : '',
-			'gross_weight'  => isset( $_POST['gross_weight'] ) ? (float) $_POST['gross_weight'] : 0,
-			'net_weight'    => isset( $_POST['net_weight'] ) ? (float) $_POST['net_weight'] : 0,
-			'stone_type'    => isset( $_POST['stone_type'] ) ? sanitize_text_field( wp_unslash( $_POST['stone_type'] ) ) : '',
-			'stone_carat'   => isset( $_POST['stone_carat'] ) ? (float) $_POST['stone_carat'] : 0,
-			'stone_qty'     => isset( $_POST['stone_qty'] ) ? (int) $_POST['stone_qty'] : 0,
+				'branch_id'     => isset( $_POST['branch_id'] ) ? (int) $_POST['branch_id'] : 0,
+			'sku'           => isset( $_POST['sku'] ) ? sanitize_text_field( wp_unslash( $_POST['sku'] ) ) : '',
+			'tag_serial'    => isset( $_POST['tag_serial'] ) ? sanitize_text_field( wp_unslash( $_POST['tag_serial'] ) ) : '',
+			'category'      => isset( $_POST['category'] ) ? sanitize_text_field( wp_unslash( $_POST['category'] ) ) : '',
+			'metal_type'    => isset( $_POST['metal_type'] ) ? sanitize_text_field( wp_unslash( $_POST['metal_type'] ) ) : '',
+			'karat'         => isset( $_POST['karat'] ) ? sanitize_text_field( wp_unslash( $_POST['karat'] ) ) : '',
+			'gross_weight'  => isset( $_POST['gross_weight'] ) ? (float) $_POST['gross_weight'] : 0,
+			'net_weight'    => isset( $_POST['net_weight'] ) ? (float) $_POST['net_weight'] : 0,
+			'stone_type'    => isset( $_POST['stone_type'] ) ? sanitize_text_field( wp_unslash( $_POST['stone_type'] ) ) : '',
+			'stone_carat'   => isset( $_POST['stone_carat'] ) ? (float) $_POST['stone_carat'] : 0,
+			'stone_qty'     => isset( $_POST['stone_qty'] ) ? (int) $_POST['stone_qty'] : 0,
 			'labour_amount' => isset( $_POST['labour_amount'] ) ? (float) $_POST['labour_amount'] : 0,
 			'design_no'     => isset( $_POST['design_no'] ) ? sanitize_text_field( wp_unslash( $_POST['design_no'] ) ) : '',
 			'status'        => isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : 'in_stock',
