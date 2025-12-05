@@ -357,3 +357,417 @@
 
     // 🔴 یہاں پر [Settings Page JS] ختم ہو رہا ہے
 })(jQuery);
+/**
+ * JWPM — Settings Page JS (Master Control Panel — Final Logic)
+ * یہ (JavaScript) Settings Page کیلئے وہی actions استعمال کرتا ہے
+ * جو (PHP) فائل میں define ہیں:
+ * jwpm_get_settings, jwpm_save_settings, jwpm_load_demo_settings,
+ * jwpm_reset_settings, jwpm_export_settings_backup,
+ * jwpm_upload_logo, jwpm_remove_logo
+ */
+
+/** Part 2 — Settings Page JS (Final Logic, Synced with PHP) */
+
+(function ($) {
+    "use strict";
+
+    // 🟢 یہاں سے [Settings Page JS — Final Logic] شروع ہو رہا ہے
+
+    // Root ID وہی جو PHP میں ہے: #jwpm-settings-root
+    var rootId = (window.jwpmSettings && window.jwpmSettings.rootId) || "jwpm-settings-root";
+    var $root  = $("#" + rootId);
+
+    if ($root.length === 0) {
+        console.warn("JWPM Warning (Settings): Root element not found:", rootId);
+        return; // Soft exit
+    }
+
+    // DOM سے nonce لینے کی کوشش (PHP نے data-jwpm-nonce میں دیا ہے)
+    var domNonce = $root.data("jwpm-nonce") || "";
+
+    // Localized config (اگر موجود ہو) ورنہ defaults
+    var config = window.jwpmSettings || {};
+
+    var ajaxUrl = config.ajaxUrl || window.ajaxurl || "/wp-admin/admin-ajax.php";
+    var nonce   = config.nonce || domNonce || "";
+
+    // Actions — defaults PHP کے مطابق، اگر window.jwpmSettings.actions ہو تو اسے override کرنے دیں
+    var defaultActions = {
+        fetch:          "jwpm_get_settings",
+        save:           "jwpm_save_settings",
+        demo_load:      "jwpm_load_demo_settings",
+        reset_settings: "jwpm_reset_settings",
+        backup_export:  "jwpm_export_settings_backup",
+        logo_upload:    "jwpm_upload_logo",
+        logo_remove:    "jwpm_remove_logo"
+    };
+
+    var actions = $.extend({}, defaultActions, config.actions || {});
+
+    // Text / Messages (i18n)
+    var i18n = $.extend(
+        {
+            noLogo: "کوئی لوگو منتخب نہیں ہوا۔",
+            logoSaved: "لوگو کامیابی سے محفوظ ہو گیا۔",
+            logoRemoved: "لوگو ہٹا دیا گیا ہے۔",
+            saved: "سیٹنگز محفوظ ہو گئیں۔",
+            languageSaved: "زبان کی سیٹنگ محفوظ ہو گئی، براہ کرم صفحہ ری فریش کریں۔",
+            error: "کچھ خرابی ہوئی، براہ کرم دوبارہ کوشش کریں۔",
+            demoConfirm: "WARNING: Demo Settings لوڈ ہونے سے موجودہ Settings اوور رائٹ ہو جائیں گی، کیا آپ پُر عزم ہیں؟",
+            resetConfirm: "DANGER: یہ عمل Settings کو default حالت میں لے آئے گا، کیا آپ واقعی ری سیٹ کرنا چاہتے ہیں؟",
+            backupReady: "Backup تیار ہے، فائل ڈاؤن لوڈ ہو رہی ہے۔",
+            loading: "لوڈ ہو رہا ہے، براہ کرم انتظار کریں…"
+        },
+        config.i18n || {}
+    );
+
+    // ---------------------------------------------------------
+    // Template Mounting — PHP کے <template id="jwpm-settings-layout"> کو use کریں
+    // ---------------------------------------------------------
+    function mountTemplate() {
+        var tpl = document.getElementById("jwpm-settings-layout");
+
+        if (!tpl) {
+            console.warn("JWPM Warning (Settings): Template #jwpm-settings-layout نہیں ملا۔");
+            return;
+        }
+
+        // Modern browsers کیلئے:
+        if (tpl.content) {
+            var clone = tpl.content.cloneNode(true);
+            $root.empty().append(clone);
+        } else {
+            // Fallback: innerHTML
+            var wrapper = document.createElement("div");
+            wrapper.innerHTML = tpl.innerHTML;
+            $root.empty().append(wrapper);
+        }
+    }
+
+    // Layout render
+    mountTemplate();
+
+    // ---------------------------------------------------------
+    // Element Cache (template mount ہونے کے بعد)
+    // ---------------------------------------------------------
+
+    // Logo
+    var $logoFile    = $root.find('[data-role="logo-file"]');
+    var $logoPreview = $root.find('[data-role="logo-preview"]');
+    var $logoUpload  = $root.find('[data-role="logo-upload"]');
+    var $logoRemove  = $root.find('[data-role="logo-remove"]');
+
+    // Theme
+    var $themeSelect = $root.find('[data-role="theme-mode"]');
+    var $themeSave   = $root.find('[data-role="theme-save"]');
+
+    // Language
+    var $langSelect  = $root.find('[data-role="language-select"]');
+    var $langSave    = $root.find('[data-role="language-save"]');
+
+    // Gold API
+    var $goldKey     = $root.find('[data-role="gold-api-key"]');
+    var $goldSave    = $root.find('[data-role="gold-api-save"]');
+
+    // Backup
+    var $backupBtn   = $root.find('[data-role="backup-export"]');
+
+    // Demo + Reset
+    var $demoBtn     = $root.find('[data-role="demo-load"]');
+    var $resetBtn    = $root.find('[data-role="reset-system"]');
+
+    // اگر nonce نہ ہو تو soft warning (AJAX پھر بھی کوشش کرے گا)
+    if (!nonce) {
+        console.warn("JWPM Warning (Settings): nonce خالی ہے، AJAX requests fail ہو سکتی ہیں۔");
+    }
+
+    // ---------------------------------------------------------
+    // Utility: wpAjax wrapper
+    // ---------------------------------------------------------
+    function wpAjax(action, dataObj, extraOptions) {
+        var payload = $.extend({}, dataObj || {}, {
+            action: action,
+            nonce: nonce
+        });
+
+        var options = $.extend(
+            {
+                url: ajaxUrl,
+                method: "POST",
+                data: payload,
+                dataType: "json"
+            },
+            extraOptions || {}
+        );
+
+        return $.ajax(options);
+    }
+
+    // ---------------------------------------------------------
+    // Utility: Settings جمع کریں (Theme + Language + Gold API)
+    // ---------------------------------------------------------
+    function collectSettingsFromUI() {
+        return {
+            theme_mode: $themeSelect.val() || "light",
+            language: $langSelect.val() || "ur",
+            gold_api_key: $goldKey.val() || ""
+            // logo_id logo upload والے AJAX سے update ہوتا ہے
+        };
+    }
+
+    // ---------------------------------------------------------
+    // Utility: Settings UI پر apply کریں
+    // ---------------------------------------------------------
+    function applySettingsToUI(settings, logoUrl) {
+        settings = settings || {};
+
+        // Theme
+        if (settings.theme_mode) {
+            $themeSelect.val(settings.theme_mode);
+        }
+
+        // Language
+        if (settings.language) {
+            $langSelect.val(settings.language);
+        }
+
+        // Gold API Key
+        if (typeof settings.gold_api_key !== "undefined") {
+            $goldKey.val(settings.gold_api_key);
+        }
+
+        // Logo
+        if (logoUrl) {
+            $logoPreview.html('<img src="' + logoUrl + '" style="max-height:80px; max-width:180px;" />');
+        } else if (!settings.logo_id) {
+            $logoPreview.html("<span>" + i18n.noLogo + "</span>");
+        }
+    }
+
+    // ---------------------------------------------------------
+    // Initial Load — jwpm_get_settings
+    // ---------------------------------------------------------
+    function loadSettings() {
+        // Optional: loading state
+        $root.addClass("jwpm-is-loading");
+
+        wpAjax(actions.fetch, {})
+            .done(function (res) {
+                if (!res || !res.success) {
+                    console.warn("JWPM Settings: loadSettings failed:", res);
+                    return;
+                }
+
+                var data = res.data || {};
+                applySettingsToUI(data.settings || {}, data.logo_url || "");
+            })
+            .fail(function (xhr) {
+                console.warn("JWPM Settings: loadSettings AJAX error:", xhr);
+            })
+            .always(function () {
+                $root.removeClass("jwpm-is-loading");
+            });
+    }
+
+    loadSettings();
+
+    // ---------------------------------------------------------
+    // Logo Upload — jwpm_upload_logo
+    // ---------------------------------------------------------
+    $logoUpload.on("click", function () {
+        var file = $logoFile[0] && $logoFile[0].files && $logoFile[0].files[0];
+
+        if (!file) {
+            alert(i18n.noLogo);
+            return;
+        }
+
+        var form = new FormData();
+        form.append("action", actions.logo_upload);
+        form.append("nonce", nonce);
+        // PHP میں ہم نے 'logo_file' نام سے handle کیا ہے
+        form.append("logo_file", file);
+
+        $.ajax({
+            url: ajaxUrl,
+            method: "POST",
+            data: form,
+            processData: false,
+            contentType: false,
+            dataType: "json"
+        })
+            .done(function (res) {
+                if (!res || !res.success) {
+                    alert(i18n.error);
+                    console.warn("JWPM Settings: logo upload failed:", res);
+                    return;
+                }
+
+                var data = res.data || {};
+                applySettingsToUI(data.settings || {}, data.logo_url || "");
+                alert(i18n.logoSaved);
+            })
+            .fail(function (xhr) {
+                console.warn("JWPM Settings: logo upload AJAX error:", xhr);
+                alert(i18n.error);
+            });
+    });
+
+    // ---------------------------------------------------------
+    // Logo Remove — jwpm_remove_logo
+    // ---------------------------------------------------------
+    $logoRemove.on("click", function () {
+        if (!confirm(i18n.confirmRemove || "کیا آپ واقعی لوگو ہٹانا چاہتے ہیں؟")) {
+            return;
+        }
+
+        wpAjax(actions.logo_remove, {})
+            .done(function (res) {
+                if (!res || !res.success) {
+                    alert(i18n.error);
+                    console.warn("JWPM Settings: logo remove failed:", res);
+                    return;
+                }
+
+                var data = res.data || {};
+                applySettingsToUI(data.settings || {}, data.logo_url || "");
+                alert(i18n.logoRemoved);
+            })
+            .fail(function (xhr) {
+                console.warn("JWPM Settings: logo remove AJAX error:", xhr);
+                alert(i18n.error);
+            });
+    });
+
+    // ---------------------------------------------------------
+    // Save Theme / Language / Gold API — سب jwpm_save_settings سے
+    // ---------------------------------------------------------
+    function saveSettings(showLanguageMessage) {
+        var settings = collectSettingsFromUI();
+
+        // Settings کو JSON میں encode کر کے بھیجیں
+        wpAjax(actions.save, {
+            settings: JSON.stringify(settings)
+        })
+            .done(function (res) {
+                if (!res || !res.success) {
+                    alert(i18n.error);
+                    console.warn("JWPM Settings: saveSettings failed:", res);
+                    return;
+                }
+
+                var data = res.data || {};
+                applySettingsToUI(data.settings || {}, data.logo_url || "");
+
+                if (showLanguageMessage) {
+                    alert(i18n.languageSaved);
+                } else {
+                    alert(i18n.saved);
+                }
+            })
+            .fail(function (xhr) {
+                console.warn("JWPM Settings: saveSettings AJAX error:", xhr);
+                alert(i18n.error);
+            });
+    }
+
+    // Theme Save Button
+    $themeSave.on("click", function () {
+        saveSettings(false);
+    });
+
+    // Language Save Button
+    $langSave.on("click", function () {
+        saveSettings(true);
+    });
+
+    // Gold API Save Button
+    $goldSave.on("click", function () {
+        saveSettings(false);
+    });
+
+    // ---------------------------------------------------------
+    // Backup Export — jwpm_export_settings_backup
+    // PHP JSON فائل بناتا ہے اور URL دیتا ہے، ہم نئی ونڈو میں کھول دیں گے
+    // ---------------------------------------------------------
+    $backupBtn.on("click", function () {
+        $backupBtn.prop("disabled", true);
+
+        wpAjax(actions.backup_export, {})
+            .done(function (res) {
+                if (!res || !res.success || !res.data || !res.data.url) {
+                    alert(i18n.error);
+                    console.warn("JWPM Settings: backup_export failed:", res);
+                    return;
+                }
+
+                alert(i18n.backupReady);
+                window.open(res.data.url, "_blank");
+            })
+            .fail(function (xhr) {
+                console.warn("JWPM Settings: backup_export AJAX error:", xhr);
+                alert(i18n.error);
+            })
+            .always(function () {
+                $backupBtn.prop("disabled", false);
+            });
+    });
+
+    // ---------------------------------------------------------
+    // Demo Settings Load — jwpm_load_demo_settings
+    // ---------------------------------------------------------
+    $demoBtn.on("click", function () {
+        if (!confirm(i18n.demoConfirm)) {
+            return;
+        }
+
+        wpAjax(actions.demo_load, {})
+            .done(function (res) {
+                if (!res || !res.success) {
+                    alert(i18n.error);
+                    console.warn("JWPM Settings: demo_load failed:", res);
+                    return;
+                }
+
+                var data = res.data || {};
+                applySettingsToUI(data.settings || {}, "");
+                alert(data.message || "Demo Settings لوڈ ہو گئیں۔");
+            })
+            .fail(function (xhr) {
+                console.warn("JWPM Settings: demo_load AJAX error:", xhr);
+                alert(i18n.error);
+            });
+    });
+
+    // ---------------------------------------------------------
+    // Reset Settings (to defaults) — jwpm_reset_settings
+    // ⚠️ یہ ابھی صرف Settings reset کر رہا ہے، پورا POS ڈیٹا نہیں
+    // ---------------------------------------------------------
+    $resetBtn.on("click", function () {
+        if (!confirm(i18n.resetConfirm)) {
+            return;
+        }
+
+        wpAjax(actions.reset_settings, {})
+            .done(function (res) {
+                if (!res || !res.success) {
+                    alert(i18n.error);
+                    console.warn("JWPM Settings: reset_settings failed:", res);
+                    return;
+                }
+
+                var data = res.data || {};
+                applySettingsToUI(data.settings || {}, "");
+                alert(data.message || "Settings reset ہو گئیں۔");
+            })
+            .fail(function (xhr) {
+                console.warn("JWPM Settings: reset_settings AJAX error:", xhr);
+                alert(i18n.error);
+            });
+    });
+
+    // 🔴 یہاں پر [Settings Page JS — Final Logic] ختم ہو رہا ہے
+
+    // ✅ Syntax verified block end
+
+})(jQuery);
