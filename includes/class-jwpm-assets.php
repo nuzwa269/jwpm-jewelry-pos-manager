@@ -89,6 +89,12 @@ class JWPM_Assets {
 		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
 
 		switch ( $page ) {
+
+			// ⭐ Dashboard Page
+			case 'jwpm-dashboard':
+				$this->enqueue_dashboard_assets( $version, $page );
+				break;
+
 			case 'jwpm-inventory':
 				$this->enqueue_inventory_assets( $version, $page );
 				break;
@@ -163,6 +169,81 @@ class JWPM_Assets {
 		);
 
 		return $branch_id > 0 ? $branch_id : 0;
+	}
+
+	/**
+	 * --------------------------------------------------------------------------
+	 * ⭐ Dashboard Assets (New)
+	 * --------------------------------------------------------------------------
+	 */
+	protected function enqueue_dashboard_assets( $version, $page ) {
+
+		// Chart.js Vendor (اگر پہلے کہیں اور رجسٹر نہ ہو)
+		if ( ! wp_script_is( 'jwpm-chart-js', 'registered' ) ) {
+			wp_register_script(
+				'jwpm-chart-js',
+				JWPM_PLUGIN_URL . 'vendor/chart.js/chart.umd.js',
+				array(),
+				'4.4.0',
+				true
+			);
+		}
+
+		// Dashboard JS
+		wp_enqueue_script(
+			'jwpm-dashboard-js',
+			JWPM_PLUGIN_URL . 'assets/js/jwpm-dashboard.js',
+			array( 'jquery', 'jwpm-common-js', 'jwpm-chart-js' ),
+			$version,
+			true
+		);
+
+		// Dashboard CSS
+		wp_enqueue_style(
+			'jwpm-dashboard-css',
+			JWPM_PLUGIN_URL . 'assets/css/jwpm-dashboard.css',
+			array( 'jwpm-common-css' ),
+			$version
+		);
+
+		// Nonce
+		$nonce = wp_create_nonce( 'jwpm_dashboard_nonce' );
+
+		// Settings (Dashboard کو Settings کے مطابق چلانے کے لیے)
+		$settings_general   = get_option( 'jwpm_settings_general', array() );
+		$settings_inventory = get_option( 'jwpm_settings_inventory', array() );
+		$settings_gold      = get_option( 'jwpm_settings_gold_rate', array() );
+
+		$localized = array(
+			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+			'nonce'   => $nonce,
+			'rootId'  => 'jwpm-dashboard-root',
+
+			'actions' => array(
+				'today_stats' => 'jwpm_dashboard_today_stats',
+				'charts'      => 'jwpm_dashboard_charts',
+				'low_stock'   => 'jwpm_dashboard_low_stock',
+				'gold_rate'   => 'jwpm_dashboard_gold_rate',
+			),
+
+			'i18n' => array(
+				'loadingGold' => __( 'گولڈ ریٹ لوڈ ہو رہا ہے…', 'jwpm-jewelry-pos-manager' ),
+				'goldError'   => __( 'گولڈ ریٹ لوڈ کرتے ہوئے مسئلہ آیا۔', 'jwpm-jewelry-pos-manager' ),
+				'noLowStock'  => __( 'تمام آئٹمز محفوظ مقدار میں موجود ہیں۔', 'jwpm-jewelry-pos-manager' ),
+			),
+
+			'settings' => array(
+				'general'   => $settings_general,
+				'inventory' => $settings_inventory,
+				'gold_rate' => $settings_gold,
+			),
+		);
+
+		wp_localize_script(
+			'jwpm-dashboard-js',
+			'jwpmDashboard',
+			$localized
+		);
 	}
 
 	/**
