@@ -226,4 +226,127 @@ body.jwpm-dark-mode .jwpm-settings-page {
 
 /* 🔴 یہاں پر [Settings Page CSS] ختم ہو رہا ہے */
 /* ✅ Syntax verified block end */
+/** Part 2 — Settings Page Multicolor Enhancements */
+
+/* 🟢 یہاں سے [Settings Page CSS Multicolor] شروع ہو رہا ہے */
+
+/* پیچھے ہلکا gradient background + تھوڑا modern feel */
+.jwpm-settings-page {
+    background:
+        radial-gradient(circle at top left, rgba(79, 70, 229, 0.18), transparent 55%),
+        radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.18), transparent 55%),
+        var(--set-bg);
+    padding: 24px 16px 40px;
+    border-radius: 18px;
+}
+
+/* Settings wrapper کو تھوڑا grid بنا دیں (اگر پہلے سے ہو تو یہ upgrade ہوگا) */
+.jwpm-settings-page .jwpm-settings-wrapper {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    gap: 20px;
+}
+
+/* ہر card کو تھوڑا زیادہ premium feel */
+.jwpm-settings-page .jwpm-settings-section {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.98),
+        rgba(240, 249, 255, 0.96)
+    );
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+}
+
+/* اوپر ایک رنگین بار (multicolor accent bar) */
+.jwpm-settings-page .jwpm-settings-section::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 5px;
+    width: 100%;
+    background: linear-gradient(90deg, #4f46e5, #06b6d4);
+}
+
+/* ہر section کیلئے الگ رنگ کا gradient (order کے حساب سے) */
+.jwpm-settings-page .jwpm-settings-section:nth-of-type(1)::before {
+    /* Logo Manager */
+    background: linear-gradient(90deg, #0ea5e9, #22c55e);
+}
+
+.jwpm-settings-page .jwpm-settings-section:nth-of-type(2)::before {
+    /* Theme Mode */
+    background: linear-gradient(90deg, #4f46e5, #a855f7);
+}
+
+.jwpm-settings-page .jwpm-settings-section:nth-of-type(3)::before {
+    /* Language */
+    background: linear-gradient(90deg, #22c55e, #0f766e);
+}
+
+.jwpm-settings-page .jwpm-settings-section:nth-of-type(4)::before {
+    /* Gold API */
+    background: linear-gradient(90deg, #f97316, #facc15);
+}
+
+.jwpm-settings-page .jwpm-settings-section:nth-of-type(5)::before {
+    /* Backup / Export */
+    background: linear-gradient(90deg, #2563eb, #0ea5e9);
+}
+
+/* Reset / Danger zone کیلئے الگ strong style (پہلے والے rule پر override) */
+.jwpm-settings-page .jwpm-danger-zone {
+    background: radial-gradient(circle at top left, rgba(248, 113, 113, 0.16), #fee2e2);
+    border-color: var(--set-danger);
+}
+
+.jwpm-settings-page .jwpm-danger-zone::before {
+    background: linear-gradient(90deg, #ef4444, #f97316);
+}
+
+/* Buttons پر تھوڑا سا hover effect اور soft shadow */
+.jwpm-settings-page .button {
+    border-radius: 999px;
+    padding: 7px 16px;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+
+.jwpm-settings-page .button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 7px 14px rgba(15, 23, 42, 0.18);
+    filter: brightness(1.03);
+}
+
+/* Logo preview تھوڑا زیادہ صاف لگے */
+.jwpm-settings-page .jwpm-logo-preview {
+    background: linear-gradient(135deg, var(--set-surface-alt), #f9fafb);
+}
+
+/* Mobile tweak — چھوٹی screen پر single column */
+@media (max-width: 960px) {
+    .jwpm-settings-page .jwpm-settings-wrapper {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .jwpm-settings-page {
+        padding: 16px 8px 32px;
+        border-radius: 0;
+    }
+}
+
+/* RTL میں actions کو right side سے align کریں اگر body.rtl یا dir="rtl" ہو */
+body.rtl .jwpm-settings-page .jwpm-settings-wrapper {
+    direction: rtl;
+    text-align: right;
+}
+
+body.rtl .jwpm-settings-page .jwpm-settings-section p {
+    text-align: right;
+}
+
+/* 🔴 یہاں پر [Settings Page CSS Multicolor] ختم ہو رہا ہے */
+/* ✅ Syntax verified block end */
 
