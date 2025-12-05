@@ -1032,6 +1032,265 @@ class JWPM_DB {
 			'to'      => $to,
 		);
 	}
+	// 🟢 یہاں سے [Dashboard DB Helpers] شروع ہو رہا ہے
+
+	/**
+	 * آج کا Summary — Dashboard Today Stats
+	 *
+	 * Return format:
+	 * [
+	 *   'today_sale'    => '0.00',
+	 *   'new_customers' => 0,
+	 *   'items_sold'    => 0,
+	 *   'today_profit'  => '0.00',
+	 * ]
+	 *
+	 * یہ ڈیٹا سیدھا حقیقی (SQL) queries سے آ رہا ہے:
+	 * - سیلز ٹیبل: jwpm_sales
+	 * - کسٹمر ٹیبل: jwpm_customers
+	 * - سیل آئٹمز ٹیبل: jwpm_sale_items
+	 */
+	public static function get_dashboard_today_stats() {
+		global $wpdb;
+
+		$tables     = self::get_table_names();
+		$sales      = $tables['sales'];
+		$customers  = $tables['customers'];
+		$sale_items = $tables['sale_items'];
+
+		$today = current_time( 'Y-m-d' );
+
+		// اوپر والا high-level summary reuse کریں (get_dashboard_stats)
+		$high        = self::get_dashboard_stats();
+		$today_sale  = isset( $high['sales_today'] ) ? (float) $high['sales_today'] : 0.0;
+
+		// آج نئے کسٹمرز
+		$new_customers = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$customers} WHERE DATE(created_at) = %s",
+				$today
+			)
+		);
+
+		// آج بیچے گئے آئٹمز (quantity کا مجموعہ)
+		$items_sold = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COALESCE(SUM(si.quantity),0)
+				 FROM {$sale_items} si
+				 INNER JOIN {$sales} s ON si.sale_id = s.id
+				 WHERE DATE(s.created_at) = %s",
+				$today
+			)
+		);
+
+		// فی الحال profit = total_sale (جب تک cost structure الگ نہ بنے)
+		$today_profit = $today_sale;
+
+		return array(
+			'today_sale'    => number_format( $today_sale, 2, '.', '' ),
+			'new_customers' => $new_customers,
+			'items_sold'    => $items_sold,
+			'today_profit'  => number_format( $today_profit, 2, '.', '' ),
+		);
+	}
+
+	/**
+	 * Charts Data — Weekly Sales + Top Categories
+	 *
+	 * Return format:
+	 * [
+	 *   'weekly' => [
+	 *     'labels' => [...],
+	 *     'values' => [...],
+	 *   ],
+	 *   'categories' => [
+	 *     'labels' => [...],
+	 *     'values' => [...],
+	 *   ],
+	 * ]
+	 *
+	 * Weekly: پچھلے 7 دن کی سیل
+	 * Categories: پچھلے 30 دن میں سب سے زیادہ بیچنے والی categories
+	 */
+	public static function get_dashboard_charts() {
+		global $wpdb;
+
+		$tables     = self::get_table_names();
+		$sales      = $tables['sales'];
+		$sale_items = $tables['sale_items'];
+		$items      = $tables['items'];
+
+		$now_ts = current_time( 'timestamp' );
+		$start  = date( 'Y-m-d', strtotime( '-6 days', $now_ts ) );
+		$end    = date( 'Y-m-d', $now_ts );
+
+		// -----------------------------
+		// Weekly Sales (Line Chart)
+		// -----------------------------
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT DATE(created_at) AS sale_date,
+				        SUM(final_amount) AS total
+				 FROM {$sales}
+				 WHERE created_at BETWEEN %s AND %s
+				 GROUP BY DATE(created_at)
+				 ORDER BY sale_date ASC",
+				$start . ' 00:00:00',
+				$end . ' 23:59:59'
+			),
+			ARRAY_A
+		);
+
+		// تاریخ => total map
+		$map = array();
+		foreach ( $rows as $r ) {
+			$map[ $r['sale_date'] ] = (float) $r['total'];
+		}
+
+		$weekly_labels = array();
+		$weekly_values = array();
+
+		for ( $i = 0; $i < 7; $i++ ) {
+			$day_date = date( 'Y-m-d', strtotime( "+{$i} day", strtotime( $start ) ) );
+			$weekly_labels[] = date_i18n( 'D', strtotime( $day_date ) ); // Mon, Tue وغیرہ
+			$weekly_values[] = isset( $map[ $day_date ] ) ? (float) $map[ $day_date ] : 0.0;
+		}
+
+		// -----------------------------
+		// Top Categories (Bar Chart)
+		// -----------------------------
+		$cat_start = date( 'Y-m-d', strtotime( '-30 days', $now_ts ) );
+
+		$cat_rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT COALESCE(i.category, '') AS category,
+				        SUM(si.quantity) AS qty
+				 FROM {$sale_items} si
+				 INNER JOIN {$sales} s ON si.sale_id = s.id
+				 LEFT JOIN {$items} i ON si.item_id = i.id
+				 WHERE s.created_at >= %s
+				 GROUP BY COALESCE(i.category, '')
+				 ORDER BY qty DESC
+				 LIMIT 5",
+				$cat_start . ' 00:00:00'
+			),
+			ARRAY_A
+		);
+
+		$cat_labels = array();
+		$cat_values = array();
+
+		foreach ( $cat_rows as $row ) {
+			$label = '' !== $row['category']
+				? $row['category']
+				: __( 'Uncategorized', 'jwpm-jewelry-pos-manager' );
+
+			$cat_labels[] = $label;
+			$cat_values[] = (int) $row['qty'];
+		}
+
+		return array(
+			'weekly'     => array(
+				'labels' => $weekly_labels,
+				'values' => $weekly_values,
+			),
+			'categories' => array(
+				'labels' => $cat_labels,
+				'values' => $cat_values,
+			),
+		);
+	}
+
+	/**
+	 * Low Stock Items — Dashboard کی low stock table کے لیے
+	 *
+	 * ہمارا موجودہ schema quantity per row نہیں رکھتا (items table میں qty field نہیں)،
+	 * اس لیے ہم get_stock_alerts() کی category-wise aggregation کو map کر رہے ہیں۔
+	 *
+	 * Return format (JS کے مطابق):
+	 * [
+	 *   [ 'item' => 'Ring / Gold / 22K', 'category' => 'Ring', 'qty' => 2, 'weight' => '' ],
+	 *   ...
+	 * ]
+	 */
+	public static function get_dashboard_low_stock() {
+
+		$alerts = self::get_stock_alerts();
+
+		if ( empty( $alerts['alerts'] ) || ! is_array( $alerts['alerts'] ) ) {
+			return array();
+		}
+
+		$rows = array();
+
+		foreach ( $alerts['alerts'] as $alert ) {
+
+			$category = isset( $alert['category'] ) ? $alert['category'] : '';
+			$metal    = isset( $alert['metal_type'] ) ? $alert['metal_type'] : '';
+			$karat    = isset( $alert['karat'] ) ? $alert['karat'] : '';
+			$qty      = isset( $alert['qty'] ) ? (int) $alert['qty'] : 0;
+
+			$parts = array();
+			if ( '' !== $category ) {
+				$parts[] = $category;
+			}
+			if ( '' !== $metal ) {
+				$parts[] = $metal;
+			}
+			if ( '' !== $karat ) {
+				$parts[] = $karat;
+			}
+
+			$item_label = implode( ' / ', $parts );
+
+			$rows[] = array(
+				'item'     => $item_label,
+				'category' => $category,
+				'qty'      => $qty,
+				'weight'   => '', // فی الحال category-wise وزن موجود نہیں، چاہیں تو بعد میں stock_ledger سے add کر سکتے ہیں
+			);
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * Gold Rate Summary — Dashboard widget کے لیے
+	 *
+	 * یہ سیدھا (WordPress options) سے manual گولڈ ریٹ پڑھتا ہے:
+	 * option: jwpm_settings_gold_rate
+	 *
+	 * Return format:
+	 * [
+	 *   '24k' => '240000',
+	 *   '22k' => '220000',
+	 *   '21k' => '210000',
+	 * ]
+	 */
+	public static function get_dashboard_gold_rate() {
+
+		$settings_gold = get_option( 'jwpm_settings_gold_rate', array() );
+
+		$rate_24 = isset( $settings_gold['manual_24k'] ) ? sanitize_text_field( $settings_gold['manual_24k'] ) : '';
+		$rate_22 = isset( $settings_gold['manual_22k'] ) ? sanitize_text_field( $settings_gold['manual_22k'] ) : '';
+		$rate_21 = isset( $settings_gold['manual_21k'] ) ? sanitize_text_field( $settings_gold['manual_21k'] ) : '';
+
+		// اگر settings خالی ہوں تو 0 واپس کر دیں (Demo نہیں، بلکہ "data not configured" حالت)
+		if ( '' === $rate_24 && '' === $rate_22 && '' === $rate_21 ) {
+			$rate_24 = '0';
+			$rate_22 = '0';
+			$rate_21 = '0';
+		}
+
+		return array(
+			'24k' => $rate_24,
+			'22k' => $rate_22,
+			'21k' => $rate_21,
+		);
+	}
+
+	// 🔴 یہاں پر [Dashboard DB Helpers] ختم ہو رہا ہے
+	// ✅ Syntax verified block end
 
 	// 🔴 یہاں پر Analytics / Helper Methods ختم ہو رہے ہیں
 	// ✅ Syntax verified block end
