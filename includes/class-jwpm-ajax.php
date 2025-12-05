@@ -103,10 +103,14 @@ class JWPM_Ajax {
 		add_action( 'wp_ajax_jwpm_ledger_fetch',    array( __CLASS__, 'accounts_ledger_fetch' ) );
 
 		// ---------------------------------------------------------------------
-		// 7. Dashboard APIs
-		// ---------------------------------------------------------------------
-		add_action( 'wp_ajax_jwpm_dashboard_get_stats',           array( __CLASS__, 'dashboard_get_stats' ) );
-		add_action( 'wp_ajax_jwpm_dashboard_get_recent_activity', array( __CLASS__, 'dashboard_get_recent_activity' ) );
+        // 7. Dashboard APIs
+        // ---------------------------------------------------------------------
+        add_action( 'wp_ajax_jwpm_dashboard_get_stats',           array( __CLASS__, 'dashboard_get_stats' ) );
+        add_action( 'wp_ajax_jwpm_dashboard_get_recent_activity', array( __CLASS__, 'dashboard_get_recent_activity' ) );
+        add_action( 'wp_ajax_jwpm_dashboard_today_stats', array( __CLASS__, 'dashboard_today_stats' ) );
+        add_action( 'wp_ajax_jwpm_dashboard_charts',      array( __CLASS__, 'dashboard_charts' ) );
+        add_action( 'wp_ajax_jwpm_dashboard_low_stock',   array( __CLASS__, 'dashboard_low_stock' ) );
+        add_action( 'wp_ajax_jwpm_dashboard_gold_rate',   array( __CLASS__, 'dashboard_gold_rate' ) );
 
 		// ---------------------------------------------------------------------
 		// 8. Reports APIs
@@ -1798,15 +1802,22 @@ class JWPM_Ajax {
 	// 🔴 یہاں پر Accounts Module ختم ہو رہا ہے
 	// ✅ Syntax verified block end
 
-	/**
+		/**
 	 * ==========================================================================
 	 * 7. DASHBOARD APIs
 	 * ==========================================================================
 	 */
-	// 🟢 یہاں سے Dashboard APIs شروع ہو رہا ہے
+	// 🟢 یہاں سے [Dashboard APIs] شروع ہو رہا ہے
 
+	/**
+	 * پرانا high-level Dashboard Summary (اب بھی موجود رہے گا)
+	 * یہ اب بھی وہاں کام آئے گا جہاں aggregated summary چاہیے ہو۔
+	 */
 	public static function dashboard_get_stats() {
-		self::verify_request( 'jwpm_dashboard_nonce', array( 'jwpm_view_reports', 'jwpm_manager', 'jwpm_admin', 'manage_options' ) );
+		self::verify_request(
+			'jwpm_dashboard_nonce',
+			array( 'jwpm_view_reports', 'jwpm_manager', 'jwpm_admin', 'manage_options' )
+		);
 
 		if ( class_exists( 'JWPM_DB' ) && method_exists( 'JWPM_DB', 'get_dashboard_stats' ) ) {
 			$stats = JWPM_DB::get_dashboard_stats();
@@ -1826,8 +1837,14 @@ class JWPM_Ajax {
 		);
 	}
 
+	/**
+	 * پرانا Activity Log API (اب بھی محفوظ رہے گا)
+	 */
 	public static function dashboard_get_recent_activity() {
-		self::verify_request( 'jwpm_dashboard_nonce', array( 'jwpm_view_reports', 'jwpm_manager', 'jwpm_admin', 'manage_options' ) );
+		self::verify_request(
+			'jwpm_dashboard_nonce',
+			array( 'jwpm_view_reports', 'jwpm_manager', 'jwpm_admin', 'manage_options' )
+		);
 
 		if ( class_exists( 'JWPM_DB' ) && method_exists( 'JWPM_DB', 'get_recent_activity' ) ) {
 			$rows = JWPM_DB::get_recent_activity();
@@ -1846,8 +1863,178 @@ class JWPM_Ajax {
 		);
 	}
 
-	// 🔴 یہاں پر Dashboard APIs ختم ہو رہا ہے
+	/**
+	 * ==========================================================================
+	 * 7-b. NEW DASHBOARD JS-MAPPED APIs
+	 * ==========================================================================
+	 *
+	 * یہ چار فنکشن نئے Dashboard JS (`jwpm-dashboard.js`) کے لیے ہیں:
+	 * - Today Stats
+	 * - Weekly + Category Charts
+	 * - Low Stock Items
+	 * - Gold Rate Summary
+	 *
+	 * یہاں ہم سیدھا JWPM_DB کی نئے methods کو call کر رہے ہیں:
+	 * - JWPM_DB::get_dashboard_today_stats()
+	 * - JWPM_DB::get_dashboard_charts()
+	 * - JWPM_DB::get_dashboard_low_stock()
+	 * - JWPM_DB::get_dashboard_gold_rate()
+	 */
+
+	/**
+	 * آج کا Summary — Today Stats
+	 *
+	 * JS: actions.today_stats = 'jwpm_dashboard_today_stats'
+	 * Response: {
+	 *   success: true,
+	 *   data: {
+	 *     today_sale: "0.00",
+	 *     new_customers: 0,
+	 *     items_sold: 0,
+	 *     today_profit: "0.00"
+	 *   }
+	 * }
+	 */
+	public static function dashboard_today_stats() {
+
+		self::verify_request(
+			'jwpm_dashboard_nonce',
+			array( 'jwpm_view_reports', 'jwpm_manager', 'jwpm_admin', 'manage_options' )
+		);
+
+		$data = array(
+			'today_sale'    => '0.00',
+			'new_customers' => 0,
+			'items_sold'    => 0,
+			'today_profit'  => '0.00',
+		);
+
+		if ( class_exists( 'JWPM_DB' ) && method_exists( 'JWPM_DB', 'get_dashboard_today_stats' ) ) {
+			$db_data = JWPM_DB::get_dashboard_today_stats();
+			if ( is_array( $db_data ) ) {
+				$data = wp_parse_args( $db_data, $data );
+			}
+		}
+
+		wp_send_json_success( $data );
+	}
+
+	/**
+	 * Charts Data — Weekly Sales + Top Categories
+	 *
+	 * JS: actions.charts = 'jwpm_dashboard_charts'
+	 *
+	 * Response: {
+	 *   success: true,
+	 *   data: {
+	 *     weekly: { labels: [...], values: [...] },
+	 *     categories: { labels: [...], values: [...] }
+	 *   }
+	 * }
+	 */
+	public static function dashboard_charts() {
+
+		self::verify_request(
+			'jwpm_dashboard_nonce',
+			array( 'jwpm_view_reports', 'jwpm_manager', 'jwpm_admin', 'manage_options' )
+		);
+
+		$data = array(
+			'weekly'     => array(
+				'labels' => array(),
+				'values' => array(),
+			),
+			'categories' => array(
+				'labels' => array(),
+				'values' => array(),
+			),
+		);
+
+		if ( class_exists( 'JWPM_DB' ) && method_exists( 'JWPM_DB', 'get_dashboard_charts' ) ) {
+			$db_data = JWPM_DB::get_dashboard_charts();
+			if ( is_array( $db_data ) ) {
+				$data = wp_parse_args( $db_data, $data );
+			}
+		}
+
+		wp_send_json_success( $data );
+	}
+
+	/**
+	 * Low Stock Items — Dashboard table کے لیے
+	 *
+	 * JS: actions.low_stock = 'jwpm_dashboard_low_stock'
+	 *
+	 * Response:
+	 * {
+	 *   success: true,
+	 *   data: [
+	 *     { item: "...", category: "...", qty: 0, weight: "" },
+	 *     ...
+	 *   ]
+	 * }
+	 */
+	public static function dashboard_low_stock() {
+
+		self::verify_request(
+			'jwpm_dashboard_nonce',
+			array( 'jwpm_view_reports', 'jwpm_manager', 'jwpm_admin', 'manage_options' )
+		);
+
+		$rows = array();
+
+		if ( class_exists( 'JWPM_DB' ) && method_exists( 'JWPM_DB', 'get_dashboard_low_stock' ) ) {
+			$db_rows = JWPM_DB::get_dashboard_low_stock();
+			if ( is_array( $db_rows ) ) {
+				$rows = $db_rows;
+			}
+		}
+
+		// JS سیدھا res.data کو array سمجھ رہا ہے
+		wp_send_json_success( $rows );
+	}
+
+	/**
+	 * Gold Rate Summary — Dashboard widget کے لیے
+	 *
+	 * JS: actions.gold_rate = 'jwpm_dashboard_gold_rate'
+	 *
+	 * Response:
+	 * {
+	 *   success: true,
+	 *   data: {
+	 *     "24k": "240000",
+	 *     "22k": "220000",
+	 *     "21k": "210000"
+	 *   }
+	 * }
+	 */
+	public static function dashboard_gold_rate() {
+
+		self::verify_request(
+			'jwpm_dashboard_nonce',
+			array( 'jwpm_view_reports', 'jwpm_manager', 'jwpm_admin', 'manage_options' )
+		);
+
+		$data = array(
+			'24k' => '0',
+			'22k' => '0',
+			'21k' => '0',
+		);
+
+		if ( class_exists( 'JWPM_DB' ) && method_exists( 'JWPM_DB', 'get_dashboard_gold_rate' ) ) {
+			$db_data = JWPM_DB::get_dashboard_gold_rate();
+			if ( is_array( $db_data ) ) {
+				$data = wp_parse_args( $db_data, $data );
+			}
+		}
+
+		wp_send_json_success( $data );
+	}
+
+	// 🔴 یہاں پر [Dashboard APIs] ختم ہو رہا ہے
 	// ✅ Syntax verified block end
+
 
 	/**
 	 * ==========================================================================
