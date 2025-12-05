@@ -63,3 +63,122 @@ function jwpm_run_plugin() {
 	$plugin->run();
 }
 add_action( 'plugins_loaded', 'jwpm_run_plugin' );
+
+
+
+/** Part 6 — Settings Page PHP Loader (AJAX Context Only)
+ * یہ بلاک صرف (admin-ajax.php) ریکویسٹ کے دوران
+ * Settings Page والی (PHP) فائل (admin/pages/jwpm-settings.php) کو include کرتا ہے،
+ * تاکہ اس کے اندر موجود (AJAX) فنکشنز دستیاب ہوں۔
+ *
+ * اہم بات:
+ * - ہم اسے صرف DOING_AJAX کے دوران include کر رہے ہیں
+ * - اس طرح jwpm_register_settings_page() والا پرانا menu hook
+ *   normal admin menu میں ڈسٹرب نہیں کرے گا۔
+ */
+
+// 🟢 یہاں سے [Settings Page PHP Loader] شروع ہو رہا ہے
+
+if ( is_admin() && defined( 'DOING_AJAX' ) && DOING_AJAX ) {
+	$jwpm_settings_path = trailingslashit( JWPM_PLUGIN_DIR ) . 'admin/pages/jwpm-settings.php';
+
+	if ( file_exists( $jwpm_settings_path ) ) {
+		require_once $jwpm_settings_path;
+	}
+}
+
+// 🔴 یہاں پر [Settings Page PHP Loader] ختم ہو رہا ہے
+
+// ✅ Syntax verified block end
+
+
+
+/** Part 7 — Settings Page Assets Loader (JS + CSS)
+ * یہ فنکشن صرف Settings Page (?page=jwpm-settings) پر
+ * مخصوص (JavaScript) اور (CSS) فائلز لوڈ کرتا ہے۔
+ *
+ * موجودہ کلاسز (JWPM_Admin وغیرہ) میں کوئی تبدیلی نہیں کی گئی،
+ * صرف نیا فنکشن اور نیا hook add کیا گیا ہے۔
+ */
+
+// 🟢 یہاں سے [Settings Page Assets Loader] شروع ہو رہا ہے
+
+function jwpm_enqueue_settings_assets( $hook_suffix ) {
+
+	// صرف ایڈمن ایریا کے لیے
+	if ( ! is_admin() ) {
+		return;
+	}
+
+	// موجودہ پیج کا slug نکالیں (?page= سے)
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+
+	// اگر یہ Settings Page نہیں ہے تو کچھ نہیں کریں
+	if ( 'jwpm-settings' !== $page ) {
+		return;
+	}
+
+	// (JavaScript) فائل
+	$js_handle = 'jwpm-settings-js';
+	$js_src    = trailingslashit( JWPM_PLUGIN_URL ) . 'assets/js/jwpm-settings.js';
+
+	// (CSS) فائل
+	$css_handle = 'jwpm-settings-css';
+	$css_src    = trailingslashit( JWPM_PLUGIN_URL ) . 'assets/css/jwpm-settings.css';
+
+	// (JavaScript) enqueue
+	wp_enqueue_script(
+		$js_handle,
+		$js_src,
+		array( 'jquery' ),
+		JWPM_VERSION,
+		true
+	);
+
+	// (CSS) enqueue
+	wp_enqueue_style(
+		$css_handle,
+		$css_src,
+		array(),
+		JWPM_VERSION
+	);
+
+	// Settings Page کے لیے nonce + actions JS تک بھیجیں
+	$nonce = wp_create_nonce( 'jwpm_settings_nonce' );
+
+	wp_localize_script(
+		$js_handle,
+		'jwpmSettings',
+		array(
+			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+			'nonce'   => $nonce,
+			'rootId'  => 'jwpm-settings-root',
+			'actions' => array(
+				'fetch'          => 'jwpm_get_settings',
+				'save'           => 'jwpm_save_settings',
+				'demo_load'      => 'jwpm_load_demo_settings',
+				'reset_settings' => 'jwpm_reset_settings',
+				'backup_export'  => 'jwpm_export_settings_backup',
+				'logo_upload'    => 'jwpm_upload_logo',
+				'logo_remove'    => 'jwpm_remove_logo',
+			),
+			'i18n' => array(
+				'noLogo'        => 'کوئی لوگو منتخب نہیں ہوا۔',
+				'logoSaved'     => 'لوگو کامیابی سے محفوظ ہو گیا۔',
+				'logoRemoved'   => 'لوگو ہٹا دیا گیا ہے۔',
+				'saved'         => 'سیٹنگز محفوظ ہو گئیں۔',
+				'languageSaved' => 'زبان محفوظ ہو گئی، براہ کرم صفحہ ری فریش کریں۔',
+				'error'         => 'کچھ خرابی ہوئی، براہ کرم دوبارہ کوشش کریں۔',
+				'demoConfirm'   => 'Demo Settings لوڈ ہونے سے موجودہ سیٹنگز اوور رائٹ ہوں گی، کیا آپ پُر عزم ہیں؟',
+				'resetConfirm'  => 'یہ عمل Settings کو default حالت میں لے آئے گا، کیا آپ واقعی ری سیٹ کرنا چاہتے ہیں؟',
+				'backupReady'   => 'Backup تیار ہے، فائل ڈاؤن لوڈ ہو رہی ہے۔',
+			),
+		)
+	);
+}
+add_action( 'admin_enqueue_scripts', 'jwpm_enqueue_settings_assets' );
+
+// 🔴 یہاں پر [Settings Page Assets Loader] ختم ہو رہا ہے
+
+// ✅ Syntax verified block end
