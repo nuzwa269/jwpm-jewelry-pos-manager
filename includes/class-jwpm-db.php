@@ -488,7 +488,7 @@ class JWPM_DB {
 		);
 	}
 
-	/**
+		/**
 	 * Inventory list کے لیے helper
 	 *
 	 * @param array $filters
@@ -548,7 +548,13 @@ class JWPM_DB {
 
 		$sql_base  = "FROM {$table} {$where}";
 		$count_sql = "SELECT COUNT(*) {$sql_base}";
-		$total     = (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) );
+
+		// 👉 یہاں fix ہے: اگر params موجود ہوں تو ہی prepare استعمال ہو گا
+		if ( ! empty( $params ) ) {
+			$total = (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) );
+		} else {
+			$total = (int) $wpdb->get_var( $count_sql );
+		}
 
 		$page     = max( 1, (int) $filters['page'] );
 		$per_page = max( 1, (int) $filters['per_page'] );
@@ -556,13 +562,18 @@ class JWPM_DB {
 
 		$list_sql = "SELECT * {$sql_base} ORDER BY created_at DESC LIMIT %d OFFSET %d";
 		$params_l = array_merge( $params, array( $per_page, $offset ) );
-		$rows     = $wpdb->get_results( $wpdb->prepare( $list_sql, $params_l ), ARRAY_A );
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare( $list_sql, $params_l ),
+			ARRAY_A
+		);
 
 		return array(
 			'items' => $rows,
 			'total' => $total,
 		);
 	}
+
 
 	/**
 	 * Sales report data (date range کے ساتھ)
