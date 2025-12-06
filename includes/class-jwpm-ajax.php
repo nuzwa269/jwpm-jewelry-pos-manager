@@ -1802,50 +1802,160 @@ class JWPM_Ajax {
 	// 🔴 یہاں پر Accounts Module ختم ہو رہا ہے
 	// ✅ Syntax verified block end
 
-		/**
- * ============================
- * 7. Dashboard APIs
- * ============================
- */
+	/**
+	 * ==========================================================================
+	 * 7. DASHBOARD APIs
+	 * ==========================================================================
+	 */
+	// 🟢 یہاں سے [Dashboard APIs] شروع ہو رہا ہے
 
-public static function dashboard_get_stats() {
-	self::verify_request(
-		'jwpm_dashboard_nonce',
-		array( 'jwpm_view_reports', 'jwpm_manager', 'jwpm_admin', 'manage_options' )
-	);
+	public static function dashboard_get_stats() {
+		self::verify_request(
+			'jwpm_dashboard_nonce',
+			array( 'jwpm_view_reports', 'jwpm_manager', 'jwpm_admin', 'manage_options' )
+		);
 
-	if ( class_exists( 'JWPM_DB' ) && method_exists( 'JWPM_DB', 'get_dashboard_stats' ) ) {
-		wp_send_json_success( JWPM_DB::get_dashboard_stats() );
-	}
+		if ( class_exists( 'JWPM_DB' ) && method_exists( 'JWPM_DB', 'get_dashboard_stats' ) ) {
+			$stats = JWPM_DB::get_dashboard_stats();
+			wp_send_json_success( $stats );
+		}
 
-	wp_send_json_success(
-		array(
-			'sales_today'      => 0,
-			'sales_month'      => 0,
-			'inventory_value'  => 0,
-			'customers_count'  => 0,
-			'installments_due' => 0,
-			'low_stock_count'  => 0,
-		)
-	);
-}
-
-public static function dashboard_get_recent_activity() {
-	self::verify_request(
-		'jwpm_dashboard_nonce',
-		array( 'jwpm_view_reports', 'jwpm_manager', 'jwpm_admin', 'manage_options' )
-	);
-
-	if ( class_exists( 'JWPM_DB' ) && method_exists( 'JWPM_DB', 'get_recent_activity' ) ) {
 		wp_send_json_success(
-			array( 'items' => JWPM_DB::get_recent_activity() )
+			array(
+				'sales_today'      => 0,
+				'sales_month'      => 0,
+				'inventory_value'  => 0,
+				'customers_count'  => 0,
+				'installments_due' => 0,
+				'low_stock_count'  => 0,
+			)
 		);
 	}
 
-	wp_send_json_success(
-		array( 'items' => array() )
-	);
-}
+	public static function dashboard_get_recent_activity() {
+		self::verify_request(
+			'jwpm_dashboard_nonce',
+			array( 'jwpm_view_reports', 'jwpm_manager', 'jwpm_admin', 'manage_options' )
+		);
+
+		if ( class_exists( 'JWPM_DB' ) && method_exists( 'JWPM_DB', 'get_recent_activity' ) ) {
+			$rows = JWPM_DB::get_recent_activity();
+			wp_send_json_success(
+				array(
+					'items' => $rows,
+				)
+			);
+		}
+
+		wp_send_json_success(
+			array(
+				'items' => array(),
+			)
+		);
+	}
+
+	/**
+	 * ==========================================================================
+	 * 7-b. NEW DASHBOARD JS-MAPPED APIs
+	 * ==========================================================================
+	 */
+	public static function dashboard_today_stats() {
+
+		self::verify_request(
+			'jwpm_dashboard_nonce',
+			array( 'jwpm_view_reports', 'jwpm_manager', 'jwpm_admin', 'manage_options' )
+		);
+
+		$data = array(
+			'today_sale'    => '0.00',
+			'new_customers' => 0,
+			'items_sold'    => 0,
+			'today_profit'  => '0.00',
+		);
+
+		if ( class_exists( 'JWPM_DB' ) && method_exists( 'JWPM_DB', 'get_dashboard_today_stats' ) ) {
+			$db_data = JWPM_DB::get_dashboard_today_stats();
+			if ( is_array( $db_data ) ) {
+				$data = wp_parse_args( $db_data, $data );
+			}
+		}
+
+		wp_send_json_success( $data );
+	}
+
+	public static function dashboard_charts() {
+
+		self::verify_request(
+			'jwpm_dashboard_nonce',
+			array( 'jwpm_view_reports', 'jwpm_manager', 'jwpm_admin', 'manage_options' )
+		);
+
+		$data = array(
+			'weekly'     => array(
+				'labels' => array(),
+				'values' => array(),
+			),
+			'categories' => array(
+				'labels' => array(),
+				'values' => array(),
+			),
+		);
+
+		if ( class_exists( 'JWPM_DB' ) && method_exists( 'JWPM_DB', 'get_dashboard_charts' ) ) {
+			$db_data = JWPM_DB::get_dashboard_charts();
+			if ( is_array( $db_data ) ) {
+				$data = wp_parse_args( $db_data, $data );
+			}
+		}
+
+		wp_send_json_success( $data );
+	}
+
+	public static function dashboard_low_stock() {
+
+		self::verify_request(
+			'jwpm_dashboard_nonce',
+			array( 'jwpm_view_reports', 'jwpm_manager', 'jwpm_admin', 'manage_options' )
+		);
+
+		$rows = array();
+
+		if ( class_exists( 'JWPM_DB' ) && method_exists( 'JWPM_DB', 'get_dashboard_low_stock' ) ) {
+			$db_rows = JWPM_DB::get_dashboard_low_stock();
+			if ( is_array( $db_rows ) ) {
+				$rows = $db_rows;
+			}
+		}
+
+		wp_send_json_success( $rows );
+	}
+
+	public static function dashboard_gold_rate() {
+
+		self::verify_request(
+			'jwpm_dashboard_nonce',
+			array( 'jwpm_view_reports', 'jwpm_manager', 'jwpm_admin', 'manage_options' )
+		);
+
+		$data = array(
+			'24k' => '0',
+			'22k' => '0',
+			'21k' => '0',
+		);
+
+		if ( class_exists( 'JWPM_DB' ) && method_exists( 'JWPM_DB', 'get_dashboard_gold_rate' ) ) {
+			$db_data = JWPM_DB::get_dashboard_gold_rate();
+			if ( is_array( $db_data ) ) {
+				$data = wp_parse_args( $db_data, $data );
+			}
+		}
+
+		wp_send_json_success( $data );
+	}
+
+	// 🔴 یہاں پر [Dashboard APIs] ختم ہو رہا ہے
+	// ✅ Syntax verified block end
+
 
 /**
  * ============================
